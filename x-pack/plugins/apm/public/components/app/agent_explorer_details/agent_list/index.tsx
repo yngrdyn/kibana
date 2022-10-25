@@ -5,14 +5,16 @@
  * 2.0.
  */
 
+import { EuiLink } from '@elastic/eui';
 import {
   EuiBasicTableColumn, EuiInMemoryTable
 } from '@elastic/eui';
 import { AgentExplorerFieldName } from '@kbn/apm-plugin/common/agent_explorer';
 import { AgentName } from '@kbn/apm-plugin/typings/es_schemas/ui/fields/agent';
 import { i18n } from '@kbn/i18n';
+import { euiStyled } from '@kbn/kibana-react-plugin/common';
 import { TypeOf } from '@kbn/typed-react-router-config';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ValuesType } from "utility-types";
 import { NOT_AVAILABLE_LABEL } from '../../../../../common/i18n';
 import { useApmParams } from '../../../../hooks/use_apm_params';
@@ -21,11 +23,17 @@ import { unit } from '../../../../utils/style';
 import { ApmRoutes } from '../../../routing/apm_route_config';
 import { EnvironmentBadge } from '../../../shared/environment_badge';
 import { ItemsBadge } from '../../../shared/item_badge';
-import { ServiceLink } from '../../../shared/service_link';
 import { TruncateWithTooltip } from '../../../shared/truncate_with_tooltip';
 import { AgentExplorerDocsLink } from '../../agent_explorer_docs_link';
+import { truncate } from '../../../../utils/style';
+import { EuiFlexGroup } from '@elastic/eui';
+import { EuiFlexItem } from '@elastic/eui';
+import { AgentInstances } from '../agent_instances';
+import { AgentIcon } from '../../../shared/agent_icon';
 
-type AgentExplorerItem = ValuesType<
+const StyledLink = euiStyled(EuiLink)`${truncate('100%')};`;
+
+export type AgentExplorerItem = ValuesType<
   APIReturnType<'GET /internal/apm/agent_explorer'>['items']
 >;
 
@@ -35,8 +43,10 @@ function formatString(value?: string | null) {
 
 export function getAgentsColumns({
   query,
+  onAgentSelected,
 }: {
   query: TypeOf<ApmRoutes, '/agent-explorer'>['query'];
+  onAgentSelected: (agent: AgentExplorerItem) => void;
 }): Array<EuiBasicTableColumn<AgentExplorerItem>> {
   return [
     {
@@ -45,16 +55,24 @@ export function getAgentsColumns({
         defaultMessage: 'Service Name',
       }),
       sortable: true,
-      render: (_, { serviceName, agentName }) => (
+      render: (_, agent) => (
         <TruncateWithTooltip
           data-test-subj="apmAgentExplorerListServiceLink"
-          text={formatString(serviceName)}
+          text={formatString(agent.serviceName)}
           content={
-            <ServiceLink
-              agentName={agentName}
-              query={{ ...query, serviceGroup: '' }}
-              serviceName={serviceName}
-            />
+            <StyledLink
+            data-test-subj={`serviceLink_${agent.serviceName}`}
+            onClick={() => onAgentSelected(agent)}
+          >
+            <EuiFlexGroup alignItems="center" gutterSize="s" responsive={false}>
+              <EuiFlexItem grow={false}>
+                <AgentIcon agentName={agent.agentName} />
+              </EuiFlexItem>
+              <EuiFlexItem className="eui-textTruncate">
+                <span className="eui-textTruncate">{agent.serviceName}</span>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+          </StyledLink>
           }
         />
       ),
@@ -81,6 +99,13 @@ export function getAgentsColumns({
         { defaultMessage: 'Agent Name' }
       ),
       sortable: true,
+      render: (_, agent) => (
+        <EuiFlexGroup alignItems="center" gutterSize="s" responsive={false}>
+          <EuiFlexItem className="eui-textTruncate">
+            <span className="eui-textTruncate">{agent.agentName}</span>
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      ),
     },
     {
       field: AgentExplorerFieldName.AgentVersion,
@@ -149,6 +174,22 @@ export function AgentList({
   isLoading,
   isFailure,
 }: Props) {
+  const [selectedAgent, setSelectedAgent] = useState<AgentExplorerItem>();
+  const [showFlyout, setShowFlyout] = useState(false);
+
+  useEffect(() => {
+    setShowFlyout(!!selectedAgent);
+  }, [selectedAgent]);
+
+  const onAgentSelected = (serviceName: string) => {
+    setSelectedAgent(serviceName);
+  }
+
+  const onCloseFlyout = () => {
+    setShowFlyout(false);
+    setSelectedAgent(undefined);
+  };
+
   const {
     // removes pagination and sort instructions from the query so it won't be passed down to next route
     query: {
@@ -162,34 +203,42 @@ export function AgentList({
 
   const agentColumns = useMemo(
     () =>
-      getAgentsColumns({ query }),
+      getAgentsColumns({ query, onAgentSelected }),
     [ query ]
   );
 
   return (
-    <EuiInMemoryTable
-      tableCaption={i18n.translate('xpack.apm.agentExplorer.table.caption', {
-        defaultMessage: 'Agent Explorer',
-      })}
-      items={items}
-      columns={agentColumns}
-      pagination={{
-        pageSizeOptions: [25, 50, 100],
-      }}
-      sorting={{ sort: {
-          field: AgentExplorerFieldName.Environments,
-          direction: 'desc'
+    <>
+      {showFlyout && (
+        <AgentInstances
+          agent={selectedAgent}
+          onClose={onCloseFlyout}
+        />
+      )}
+      <EuiInMemoryTable
+        tableCaption={i18n.translate('xpack.apm.agentExplorer.table.caption', {
+          defaultMessage: 'Agent Explorer',
+        })}
+        items={items}
+        columns={agentColumns}
+        pagination={{
+          pageSizeOptions: [25, 50, 100],
+        }}
+        sorting={{ sort: {
+            field: AgentExplorerFieldName.Environments,
+            direction: 'desc'
+          }
+        }}
+        loading={isLoading}
+        data-test-subj="agentExplorerTable"
+        message={
+          isLoading
+            ? i18n.translate('xpack.apm.agentExplorer.table.loading', {
+                defaultMessage: 'Loading...',
+              })
+            : noItemsMessage
         }
-      }}
-      loading={isLoading}
-      data-test-subj="agentExplorerTable"
-      message={
-        isLoading
-          ? i18n.translate('xpack.apm.agentExplorer.table.loading', {
-              defaultMessage: 'Loading...',
-            })
-          : noItemsMessage
-      }
-    />
+      />
+    </>
   );
 }
