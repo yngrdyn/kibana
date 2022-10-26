@@ -5,6 +5,7 @@
  * 2.0.
  */
 
+import { EuiCallOut } from '@elastic/eui';
 import { EuiEmptyPrompt, EuiFlexGroup, EuiFlexItem, EuiSpacer } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
 import React from 'react';
@@ -142,6 +143,15 @@ export function AgentExplorerDetails() {
 							/>
 					</EuiFlexItem>
 				</EuiFlexGroup>
+			</EuiFlexItem>
+			<EuiFlexItem>
+				<EuiCallOut
+					size="s"
+					title={i18n.translate('xpack.apm.agentExplorer.callout.24hoursData', {
+						defaultMessage: 'Information based on the lastest 24h',
+					})}
+					iconType="clock"
+				/>
 			</EuiFlexItem>
 			<EuiSpacer />
 			<EuiFlexItem>
