@@ -41,6 +41,7 @@ const agentExplorerRoute = createApmServerRoute({
       agentVersion: string[];
       agentDocsPageUrl?: string;
       instances: number;
+      latestVersion?: string;
     }>;
   }> {
     const {

@@ -5,9 +5,17 @@
  * 2.0.
  */
 
-import { AgentName } from '../../../typings/es_schemas/ui/fields/agent';
+import {
+  AgentName,
+  isElasticAgentName,
+} from '../../../typings/es_schemas/ui/fields/agent';
 import { APMEventClient } from '../../lib/helpers/create_es_client/create_apm_event_client';
 import { RandomSampler } from '../../lib/helpers/get_random_sampler';
+import {
+  ElasticAgentLatestVersion,
+  fetchAgentsLatestVersion,
+  OtelAgentLatestVersion,
+} from './fetch_agents_latest_version';
 import { getAgentsItems } from './get_agents_items';
 import { getAgentDocsPageUrl } from './get_agent_url_repository';
 
@@ -30,21 +38,39 @@ export async function getAgents({
   end: number;
   randomSampler: RandomSampler;
 }) {
-  const items = await getAgentsItems({
-    environment,
-    serviceName,
-    agentLanguage,
-    kuery,
-    apmEventClient,
-    start,
-    end,
-    randomSampler,
-  });
+  const [agents, latestVersions] = await Promise.all([
+    getAgentsItems({
+      environment,
+      serviceName,
+      agentLanguage,
+      kuery,
+      apmEventClient,
+      start,
+      end,
+      randomSampler,
+    }),
+    fetchAgentsLatestVersion(),
+  ]);
 
   return {
-    items: items.map((item) => ({
-      ...item,
-      agentDocsPageUrl: getAgentDocsPageUrl(item.agentName as AgentName),
-    })),
+    items: agents.map((agent) => {
+      const latestVersion = isElasticAgentName(agent.agentName)
+        ? (
+            latestVersions[
+              agent.agentName as AgentName
+            ] as ElasticAgentLatestVersion
+          )?.latest_version
+        : (
+            latestVersions[
+              agent.agentName as AgentName
+            ] as OtelAgentLatestVersion
+          )?.sdk_latest_version;
+
+      return {
+        ...agent,
+        agentDocsPageUrl: getAgentDocsPageUrl(agent.agentName as AgentName),
+        latestVersion,
+      };
+    }),
   };
 }
