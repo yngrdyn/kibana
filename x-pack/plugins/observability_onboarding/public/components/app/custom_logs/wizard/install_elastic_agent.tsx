@@ -20,13 +20,20 @@ import {
   EuiSteps,
   EuiStepsProps,
   EuiSwitch,
+  EuiSwitchEvent,
   EuiText,
 } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
 import { Buffer } from 'buffer';
 import { flatten, zip } from 'lodash';
-import { default as React, useCallback, useEffect, useState } from 'react';
+import {
+  default as React,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import { useWizard } from '.';
 import { FETCH_STATUS, useFetcher } from '../../../../hooks/use_fetcher';
 import { useKibanaNavigation } from '../../../../hooks/use_kibana_navigation';
@@ -46,6 +53,12 @@ export function InstallElasticAgent() {
   const wizardState = getState();
   const [elasticAgentPlatform, setElasticAgentPlatform] =
     useState<ElasticAgentPlatform>('linux-tar');
+  const [stepExpandableStatus, setStepExpandableStatus] = useState<
+    Record<'install' | 'configure', boolean>
+  >({
+    install: true,
+    configure: false,
+  });
 
   function onInspect() {
     goToStep('inspect');
@@ -54,7 +67,8 @@ export function InstallElasticAgent() {
     navigateToKibanaUrl('/app/logs/stream');
   }
 
-  function onAutoDownloadConfig() {
+  function onAutoDownloadConfig(e: EuiSwitchEvent) {
+    e.stopPropagation();
     setState((state) => ({
       ...state,
       autoDownloadConfig: !state.autoDownloadConfig,
@@ -247,6 +261,327 @@ export function InstallElasticAgent() {
     ),
   });
 
+  const updateStepExpandableStatus = (
+    step: 'install' | 'configure',
+    status?: boolean
+  ) => {
+    setStepExpandableStatus((prev) => ({
+      ...prev,
+      [step]: status ?? !prev[step],
+    }));
+  };
+
+  const installStepStatus =
+    installShipperSetupStatus === FETCH_STATUS.LOADING
+      ? 'loading'
+      : isInstallCompleted
+      ? 'complete'
+      : 'current';
+
+  const installStepContent = () => (
+    <>
+      <EuiText color="subdued">
+        <p>
+          <FormattedMessage
+            id="xpack.observability_onboarding.installElasticAgent.installStep.description"
+            defaultMessage="Select your platform, and run the install command in your terminal to enroll and start the Elastic Agent. Do this for each host. Review {hostRequirementsLink} before installing."
+            values={{
+              hostRequirementsLink: (
+                <EuiLink
+                  external
+                  href="https://www.elastic.co/guide/en/fleet/8.7/elastic-agent-installation.html"
+                >
+                  {i18n.translate(
+                    'xpack.observability_onboarding.installElasticAgent.installStep.hostRequirements',
+                    {
+                      defaultMessage:
+                        'host requirements and other installation options',
+                    }
+                  )}
+                </EuiLink>
+              ),
+            }}
+          />
+        </p>
+      </EuiText>
+      <EuiSpacer size="l" />
+      <EuiSwitch
+        label={
+          <EuiFlexGroup alignItems="center" gutterSize="xs" responsive={false}>
+            <EuiFlexItem grow={false}>
+              {i18n.translate(
+                'xpack.observability_onboarding.installElasticAgent.installStep.autoDownloadConfig',
+                {
+                  defaultMessage: "Automatically download the agent's config",
+                }
+              )}
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiIconTip
+                content={i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.installStep.autoDownloadConfig.tooltip',
+                  {
+                    defaultMessage:
+                      "Turn on to add a string to the following code block that downloads the agent's standard configuration to your host during installation. Turn off to manually configure the agent in the next step.",
+                  }
+                )}
+                position="right"
+              />
+            </EuiFlexItem>
+          </EuiFlexGroup>
+        }
+        checked={wizardState.autoDownloadConfig}
+        onChange={onAutoDownloadConfig}
+        disabled={
+          isInstallStarted || (monitoringRole && !monitoringRole?.hasPrivileges)
+        }
+      />
+      <EuiSpacer size="l" />
+      {wizardState.autoDownloadConfig && (
+        <>
+          <EuiCallOut
+            title={i18n.translate(
+              'xpack.observability_onboarding.installElasticAgent.installStep.autoDownloadConfig.overwriteWarning',
+              {
+                defaultMessage:
+                  'Automatically downloading the agent config will overwrite any existing agent config on your host.',
+              }
+            )}
+            color="warning"
+            iconType="warning"
+          />
+          <EuiSpacer size="l" />
+        </>
+      )}
+      <EuiButtonGroup
+        isFullWidth
+        legend={i18n.translate(
+          'xpack.observability_onboarding.installElasticAgent.installStep.choosePlatform',
+          { defaultMessage: 'Choose platform' }
+        )}
+        options={[
+          {
+            id: 'linux-tar',
+            label: i18n.translate(
+              'xpack.observability_onboarding.installElasticAgent.installStep.choosePlatform.linux',
+              { defaultMessage: 'Linux' }
+            ),
+          },
+          {
+            id: 'macos',
+            label: i18n.translate(
+              'xpack.observability_onboarding.installElasticAgent.installStep.choosePlatform.macOS',
+              { defaultMessage: 'MacOS' }
+            ),
+            isDisabled: true,
+          },
+          {
+            id: 'windows',
+            label: i18n.translate(
+              'xpack.observability_onboarding.installElasticAgent.installStep.choosePlatform.windows',
+              { defaultMessage: 'Windows' }
+            ),
+            isDisabled: true,
+          },
+        ]}
+        type="single"
+        idSelected={elasticAgentPlatform}
+        onChange={(id: string) =>
+          setElasticAgentPlatform(id as typeof elasticAgentPlatform)
+        }
+      />
+      <EuiSpacer size="m" />
+      <EuiCodeBlock
+        language="bash"
+        isCopyable
+        onClick={(e) => e.stopPropagation()}
+      >
+        {getInstallShipperCommand({
+          elasticAgentPlatform,
+          apiKeyEncoded,
+          apiEndpoint: setup?.apiEndpoint,
+          scriptDownloadUrl: setup?.scriptDownloadUrl,
+          elasticAgentVersion: setup?.elasticAgentVersion,
+          autoDownloadConfig: wizardState.autoDownloadConfig,
+          onboardingId,
+        })}
+      </EuiCodeBlock>
+      <EuiSpacer size="m" />
+      {isInstallStarted && (
+        <>
+          <EuiSpacer size="m" />
+          <EuiFlexGroup direction="column" gutterSize="m">
+            {[
+              {
+                id: 'ea-download',
+                incompleteTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaDownload.incompleteTitle',
+                  { defaultMessage: 'Download Elastic Agent' }
+                ),
+                loadingTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaDownload.loadingTitle',
+                  { defaultMessage: 'Downloading Elastic Agent' }
+                ),
+                completedTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaDownload.completedTitle',
+                  { defaultMessage: 'Elastic Agent downloaded' }
+                ),
+              },
+              {
+                id: 'ea-extract',
+                incompleteTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaExtract.incompleteTitle',
+                  { defaultMessage: 'Extract Elastic Agent' }
+                ),
+                loadingTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaExtract.loadingTitle',
+                  { defaultMessage: 'Extracting Elastic Agent' }
+                ),
+                completedTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaExtract.completedTitle',
+                  { defaultMessage: 'Elastic Agent extracted' }
+                ),
+              },
+              {
+                id: 'ea-install',
+                incompleteTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaInstall.incompleteTitle',
+                  { defaultMessage: 'Install Elastic Agent' }
+                ),
+                loadingTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaInstall.loadingTitle',
+                  { defaultMessage: 'Installing Elastic Agent' }
+                ),
+                completedTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaInstall.completedTitle',
+                  { defaultMessage: 'Elastic Agent installed' }
+                ),
+              },
+              {
+                id: 'ea-status',
+                incompleteTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaStatus.incompleteTitle',
+                  { defaultMessage: 'Connect to the Elastic Agent' }
+                ),
+                loadingTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaStatus.loadingTitle',
+                  {
+                    defaultMessage: 'Connecting to the Elastic Agent',
+                  }
+                ),
+                completedTitle: i18n.translate(
+                  'xpack.observability_onboarding.installElasticAgent.progress.eaStatus.completedTitle',
+                  {
+                    defaultMessage: 'Connected to the Elastic Agent',
+                  }
+                ),
+              },
+            ].map((step, index) => {
+              const { title, status, message } = getStep(step);
+              return (
+                <StepStatus status={status} title={title} message={message} />
+              );
+            })}
+          </EuiFlexGroup>
+        </>
+      )}
+    </>
+  );
+
+  const configureStepContent = () => (
+    <>
+      <EuiText color="subdued">
+        <p>
+          {wizardState.autoDownloadConfig
+            ? i18n.translate(
+                'xpack.observability_onboarding.installElasticAgent.configStep.auto.description',
+                {
+                  defaultMessage:
+                    'The agent config below will be downloaded by the install script and written to ({configPath}). This will overwrite any existing agent configuration.',
+                  values: {
+                    configPath: '/opt/Elastic/Agent/elastic-agent.yml',
+                  },
+                }
+              )
+            : i18n.translate(
+                'xpack.observability_onboarding.installElasticAgent.configStep.manual.description',
+                {
+                  defaultMessage:
+                    'Add the following configuration to {configPath} on the host where you installed the Elastic agent.',
+                  values: {
+                    configPath: '/opt/Elastic/Agent/elastic-agent.yml',
+                  },
+                }
+              )}
+        </p>
+      </EuiText>
+      <EuiSpacer size="m" />
+      <EuiSkeletonRectangle
+        isLoading={yamlConfigStatus === FETCH_STATUS.NOT_INITIATED}
+        contentAriaLabel={i18n.translate(
+          'xpack.observability_onboarding.installElasticAgent.configStep.yamlCodeBlockdescription',
+          { defaultMessage: 'Elastic agent yaml configuration' }
+        )}
+        width="100%"
+        height={300}
+        borderRadius="s"
+      >
+        <EuiCodeBlock
+          language="yaml"
+          isCopyable
+          style={{
+            opacity: wizardState.autoDownloadConfig ? '.5' : '1',
+          }}
+        >
+          {yamlConfig}
+        </EuiCodeBlock>
+      </EuiSkeletonRectangle>
+      <EuiSpacer size="m" />
+      <EuiButton
+        iconType="download"
+        color="primary"
+        target="_blank"
+        onClick={(e) => {
+          e.stopPropagation();
+          const link = document.createElement('a');
+          link.href = `data:application/yaml;base64,${Buffer.from(
+            yamlConfig,
+            'utf8'
+          ).toString('base64')}`;
+          link.download = 'elastic-agent.yml';
+          link.click();
+        }}
+        isDisabled={wizardState.autoDownloadConfig}
+      >
+        {i18n.translate(
+          'xpack.observability_onboarding.installElasticAgent.configStep.downloadConfigButton',
+          { defaultMessage: 'Download config file' }
+        )}
+      </EuiButton>
+      <EuiSpacer size="m" />
+      <EuiFlexGroup direction="column">
+        <StepStatus
+          status={autoDownloadConfigStep.status}
+          title={autoDownloadConfigStep.title}
+          message={autoDownloadConfigStep.message}
+        />
+      </EuiFlexGroup>
+    </>
+  );
+
+  useEffect(() => {
+    if (installStepStatus === 'complete') {
+      updateStepExpandableStatus('install', false);
+    }
+  }, [installStepStatus]);
+
+  useEffect(() => {
+    console.log(autoDownloadConfigStep.status);
+    if (autoDownloadConfigStep.status === 'complete') {
+      updateStepExpandableStatus('install', false);
+    }
+  }, [autoDownloadConfigStep.status]);
+
   return (
     <StepPanel
       panelFooter={
@@ -318,316 +653,19 @@ export function InstallElasticAgent() {
                 'xpack.observability_onboarding.installElasticAgent.installStep.title',
                 { defaultMessage: 'Install the Elastic Agent' }
               ),
-              status:
-                installShipperSetupStatus === FETCH_STATUS.LOADING
-                  ? 'loading'
-                  : isInstallCompleted
-                  ? 'complete'
-                  : 'current',
-              children: (
-                <>
-                  <EuiText color="subdued">
-                    <p>
-                      <FormattedMessage
-                        id="xpack.observability_onboarding.installElasticAgent.installStep.description"
-                        defaultMessage="Select your platform, and run the install command in your terminal to enroll and start the Elastic Agent. Do this for each host. Review {hostRequirementsLink} before installing."
-                        values={{
-                          hostRequirementsLink: (
-                            <EuiLink
-                              external
-                              href="https://www.elastic.co/guide/en/fleet/8.7/elastic-agent-installation.html"
-                            >
-                              {i18n.translate(
-                                'xpack.observability_onboarding.installElasticAgent.installStep.hostRequirements',
-                                {
-                                  defaultMessage:
-                                    'host requirements and other installation options',
-                                }
-                              )}
-                            </EuiLink>
-                          ),
-                        }}
-                      />
-                    </p>
-                  </EuiText>
-                  <EuiSpacer size="l" />
-                  <EuiSwitch
-                    label={
-                      <EuiFlexGroup
-                        alignItems="center"
-                        gutterSize="xs"
-                        responsive={false}
-                      >
-                        <EuiFlexItem grow={false}>
-                          {i18n.translate(
-                            'xpack.observability_onboarding.installElasticAgent.installStep.autoDownloadConfig',
-                            {
-                              defaultMessage:
-                                "Automatically download the agent's config",
-                            }
-                          )}
-                        </EuiFlexItem>
-                        <EuiFlexItem grow={false}>
-                          <EuiIconTip
-                            content={i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.installStep.autoDownloadConfig.tooltip',
-                              {
-                                defaultMessage:
-                                  "Turn on to add a string to the following code block that downloads the agent's standard configuration to your host during installation. Turn off to manually configure the agent in the next step.",
-                              }
-                            )}
-                            position="right"
-                          />
-                        </EuiFlexItem>
-                      </EuiFlexGroup>
-                    }
-                    checked={wizardState.autoDownloadConfig}
-                    onChange={onAutoDownloadConfig}
-                    disabled={
-                      isInstallStarted ||
-                      (monitoringRole && !monitoringRole?.hasPrivileges)
-                    }
-                  />
-                  <EuiSpacer size="l" />
-                  {wizardState.autoDownloadConfig && (
-                    <>
-                      <EuiCallOut
-                        title={i18n.translate(
-                          'xpack.observability_onboarding.installElasticAgent.installStep.autoDownloadConfig.overwriteWarning',
-                          {
-                            defaultMessage:
-                              'Automatically downloading the agent config will overwrite any existing agent config on your host.',
-                          }
-                        )}
-                        color="warning"
-                        iconType="warning"
-                      />
-                      <EuiSpacer size="l" />
-                    </>
-                  )}
-                  <EuiButtonGroup
-                    isFullWidth
-                    legend={i18n.translate(
-                      'xpack.observability_onboarding.installElasticAgent.installStep.choosePlatform',
-                      { defaultMessage: 'Choose platform' }
-                    )}
-                    options={[
-                      {
-                        id: 'linux-tar',
-                        label: i18n.translate(
-                          'xpack.observability_onboarding.installElasticAgent.installStep.choosePlatform.linux',
-                          { defaultMessage: 'Linux' }
-                        ),
-                      },
-                      {
-                        id: 'macos',
-                        label: i18n.translate(
-                          'xpack.observability_onboarding.installElasticAgent.installStep.choosePlatform.macOS',
-                          { defaultMessage: 'MacOS' }
-                        ),
-                        isDisabled: true,
-                      },
-                      {
-                        id: 'windows',
-                        label: i18n.translate(
-                          'xpack.observability_onboarding.installElasticAgent.installStep.choosePlatform.windows',
-                          { defaultMessage: 'Windows' }
-                        ),
-                        isDisabled: true,
-                      },
-                    ]}
-                    type="single"
-                    idSelected={elasticAgentPlatform}
-                    onChange={(id: string) =>
-                      setElasticAgentPlatform(id as typeof elasticAgentPlatform)
-                    }
-                  />
-                  <EuiSpacer size="m" />
-                  <EuiCodeBlock language="bash" isCopyable>
-                    {getInstallShipperCommand({
-                      elasticAgentPlatform,
-                      apiKeyEncoded,
-                      apiEndpoint: setup?.apiEndpoint,
-                      scriptDownloadUrl: setup?.scriptDownloadUrl,
-                      elasticAgentVersion: setup?.elasticAgentVersion,
-                      autoDownloadConfig: wizardState.autoDownloadConfig,
-                      onboardingId,
-                    })}
-                  </EuiCodeBlock>
-                  <EuiSpacer size="m" />
-                  {isInstallStarted && (
-                    <>
-                      <EuiSpacer size="m" />
-                      <EuiFlexGroup direction="column" gutterSize="m">
-                        {[
-                          {
-                            id: 'ea-download',
-                            incompleteTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaDownload.incompleteTitle',
-                              { defaultMessage: 'Download Elastic Agent' }
-                            ),
-                            loadingTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaDownload.loadingTitle',
-                              { defaultMessage: 'Downloading Elastic Agent' }
-                            ),
-                            completedTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaDownload.completedTitle',
-                              { defaultMessage: 'Elastic Agent downloaded' }
-                            ),
-                          },
-                          {
-                            id: 'ea-extract',
-                            incompleteTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaExtract.incompleteTitle',
-                              { defaultMessage: 'Extract Elastic Agent' }
-                            ),
-                            loadingTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaExtract.loadingTitle',
-                              { defaultMessage: 'Extracting Elastic Agent' }
-                            ),
-                            completedTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaExtract.completedTitle',
-                              { defaultMessage: 'Elastic Agent extracted' }
-                            ),
-                          },
-                          {
-                            id: 'ea-install',
-                            incompleteTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaInstall.incompleteTitle',
-                              { defaultMessage: 'Install Elastic Agent' }
-                            ),
-                            loadingTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaInstall.loadingTitle',
-                              { defaultMessage: 'Installing Elastic Agent' }
-                            ),
-                            completedTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaInstall.completedTitle',
-                              { defaultMessage: 'Elastic Agent installed' }
-                            ),
-                          },
-                          {
-                            id: 'ea-status',
-                            incompleteTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaStatus.incompleteTitle',
-                              { defaultMessage: 'Connect to the Elastic Agent' }
-                            ),
-                            loadingTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaStatus.loadingTitle',
-                              {
-                                defaultMessage:
-                                  'Connecting to the Elastic Agent',
-                              }
-                            ),
-                            completedTitle: i18n.translate(
-                              'xpack.observability_onboarding.installElasticAgent.progress.eaStatus.completedTitle',
-                              {
-                                defaultMessage:
-                                  'Connected to the Elastic Agent',
-                              }
-                            ),
-                          },
-                        ].map((step, index) => {
-                          const { title, status, message } = getStep(step);
-                          return (
-                            <StepStatus
-                              status={status}
-                              title={title}
-                              message={message}
-                            />
-                          );
-                        })}
-                      </EuiFlexGroup>
-                    </>
-                  )}
-                </>
-              ),
+              status: installStepStatus,
+              children: stepExpandableStatus.install && installStepContent(),
+              onClick: () => updateStepExpandableStatus('install'),
             },
             {
               title: i18n.translate(
                 'xpack.observability_onboarding.installElasticAgent.configureStep.title',
                 { defaultMessage: 'Configure the Elastic agent' }
               ),
-              status:
-                yamlConfigStatus === FETCH_STATUS.LOADING
-                  ? 'loading'
-                  : autoDownloadConfigStep.status,
-              children: (
-                <>
-                  <EuiText color="subdued">
-                    <p>
-                      {wizardState.autoDownloadConfig
-                        ? i18n.translate(
-                            'xpack.observability_onboarding.installElasticAgent.configStep.auto.description',
-                            {
-                              defaultMessage:
-                                'The agent config below will be downloaded by the install script and written to ({configPath}). This will overwrite any existing agent configuration.',
-                              values: {
-                                configPath:
-                                  '/opt/Elastic/Agent/elastic-agent.yml',
-                              },
-                            }
-                          )
-                        : i18n.translate(
-                            'xpack.observability_onboarding.installElasticAgent.configStep.manual.description',
-                            {
-                              defaultMessage:
-                                'Add the following configuration to {configPath} on the host where you installed the Elastic agent.',
-                              values: {
-                                configPath:
-                                  '/opt/Elastic/Agent/elastic-agent.yml',
-                              },
-                            }
-                          )}
-                    </p>
-                  </EuiText>
-                  <EuiSpacer size="m" />
-                  <EuiSkeletonRectangle
-                    isLoading={yamlConfigStatus === FETCH_STATUS.NOT_INITIATED}
-                    contentAriaLabel={i18n.translate(
-                      'xpack.observability_onboarding.installElasticAgent.configStep.yamlCodeBlockdescription',
-                      { defaultMessage: 'Elastic agent yaml configuration' }
-                    )}
-                    width="100%"
-                    height={300}
-                    borderRadius="s"
-                  >
-                    <EuiCodeBlock
-                      language="yaml"
-                      isCopyable
-                      style={{
-                        opacity: wizardState.autoDownloadConfig ? '.5' : '1',
-                      }}
-                    >
-                      {yamlConfig}
-                    </EuiCodeBlock>
-                  </EuiSkeletonRectangle>
-                  <EuiSpacer size="m" />
-                  <EuiButton
-                    iconType="download"
-                    color="primary"
-                    href={`data:application/yaml;base64,${Buffer.from(
-                      yamlConfig,
-                      'utf8'
-                    ).toString('base64')}`}
-                    download="elastic-agent.yml"
-                    target="_blank"
-                    isDisabled={wizardState.autoDownloadConfig}
-                  >
-                    {i18n.translate(
-                      'xpack.observability_onboarding.installElasticAgent.configStep.downloadConfigButton',
-                      { defaultMessage: 'Download config file' }
-                    )}
-                  </EuiButton>
-                  <EuiSpacer size="m" />
-                  <EuiFlexGroup direction="column">
-                    <StepStatus
-                      status={autoDownloadConfigStep.status}
-                      title={autoDownloadConfigStep.title}
-                      message={autoDownloadConfigStep.message}
-                    />
-                  </EuiFlexGroup>
-                </>
-              ),
+              status: autoDownloadConfigStep.status,
+              children:
+                stepExpandableStatus.configure && configureStepContent(),
+              onClick: () => updateStepExpandableStatus('configure'),
             },
             getStep({
               id: 'logs-ingest',
