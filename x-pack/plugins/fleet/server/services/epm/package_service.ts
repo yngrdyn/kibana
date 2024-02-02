@@ -16,6 +16,8 @@ import type {
 
 import { DEFAULT_SPACE_ID } from '@kbn/spaces-plugin/common';
 
+import type { PackageDataStreamTypes } from '../../../common/types';
+
 import { HTTPAuthorizationHeader } from '../../../common/http_authorization_header';
 
 import type { PackageList } from '../../../common';
@@ -41,7 +43,13 @@ import * as Registry from './registry';
 import { fetchFindLatestPackageOrThrow, getPackage } from './registry';
 
 import { installTransforms, isTransform } from './elasticsearch/transform/install';
-import { ensureInstalledPackage, getInstallation, getPackages, installPackage } from './packages';
+import {
+  ensureInstalledPackage,
+  getInstallation,
+  getInstalledPackages,
+  getPackages,
+  installPackage,
+} from './packages';
 import { generatePackageInfoFromArchiveBuffer } from './archive';
 import { getEsPackage } from './archive/storage';
 
@@ -88,6 +96,10 @@ export interface PackageClient {
     category?: CategoryId;
     prerelease?: false;
   }): Promise<PackageList>;
+
+  getInstalledPackages(
+    dataStreamType?: PackageDataStreamTypes
+  ): Promise<ReturnType<typeof getInstalledPackages>>;
 
   reinstallEsAssets(
     packageInfo: InstallablePackage,
@@ -239,6 +251,14 @@ class PackageClientImpl implements PackageClient {
       excludeInstallStatus,
       category,
       prerelease,
+    });
+  }
+
+  public async getInstalledPackages(dataStreamType?: PackageDataStreamTypes) {
+    return getInstalledPackages({
+      savedObjectsClient: this.internalSoClient,
+      dataStreamType,
+      sortOrder: 'asc',
     });
   }
 

@@ -23,10 +23,10 @@ export type DataStreamStat = rt.TypeOf<typeof dataStreamStatRt>;
 
 export const integrationIconRt = rt.intersection([
   rt.type({
-    path: rt.string,
     src: rt.string,
   }),
   rt.partial({
+    path: rt.string,
     title: rt.string,
     size: rt.string,
     type: rt.string,
@@ -36,12 +36,12 @@ export const integrationIconRt = rt.intersection([
 export const integrationRt = rt.intersection([
   rt.type({
     name: rt.string,
+    datasets: rt.record(rt.string, rt.string),
   }),
   rt.partial({
     title: rt.string,
     version: rt.string,
     icons: rt.array(integrationIconRt),
-    datasets: rt.record(rt.string, rt.string),
   }),
 ]);
 

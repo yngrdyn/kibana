@@ -28,12 +28,11 @@ export async function getDataStreams(options: {
       })
     : allDataStreams;
 
-  const mappedDataStreams = filteredDataStreams.map((dataStream) => ({
-    name: dataStream.name,
-    integration: dataStream._meta?.package?.name,
-  }));
-
-  return {
-    items: mappedDataStreams,
-  };
+  return filteredDataStreams.reduce(
+    (acc, dataStream) => ({
+      ...acc,
+      [dataStream.name]: dataStream._meta?.package?.name,
+    }),
+    {}
+  );
 }

@@ -178,7 +178,7 @@ interface GetInstalledPackagesOptions {
   dataStreamType?: PackageDataStreamTypes;
   nameQuery?: string;
   searchAfter?: SortResults;
-  perPage: number;
+  perPage?: number;
   sortOrder: 'asc' | 'desc';
 }
 export async function getInstalledPackages(options: GetInstalledPackagesOptions) {

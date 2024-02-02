@@ -6,7 +6,6 @@
  */
 
 import * as t from 'io-ts';
-import { keyBy, merge, values } from 'lodash';
 import { DataStreamType } from '../../../common/types';
 import {
   DataStreamDetails,
@@ -48,20 +47,75 @@ const statsRoute = createDatasetQualityServerRoute({
     const fleetPluginStart = await plugins.fleet.start();
     const packageClient = fleetPluginStart.packageService.asInternalUser;
 
-    const [dataStreams, dataStreamsStats] = await Promise.all([
+    const [dataStreams, stats, integrations] = await Promise.all([
       getDataStreams({
         esClient,
         ...params.query,
         uncategorisedOnly: false,
       }),
       getDataStreamsStats({ esClient, ...params.query }),
+      getIntegrations({
+        packageClient,
+        type: params.query.type,
+      }),
     ]);
 
+    const dataStreamsStats = stats.items.map((stat) => ({
+      ...stat,
+      integration: dataStreams[stat.name as keyof typeof dataStreams],
+    }));
+
+    const addedDataStreams = dataStreamsStats.reduce((acc, curr) => {
+      const dataStreamParts = curr.name.split('-');
+      dataStreamParts.pop();
+      const genericDataset = `${dataStreamParts.join('-')}-*`;
+
+      return {
+        ...acc,
+        [genericDataset]: curr.name,
+      };
+    }, {});
+
+    const datasetsIntegrations: Record<string, string> = integrations
+      .map((integration) => {
+        const datasetIntegrationPairs = Object.keys(integration.datasets).reduce((acc, curr) => {
+          if (addedDataStreams[curr as keyof typeof addedDataStreams]) {
+            return acc;
+          }
+
+          return {
+            ...acc,
+            [curr]: integration.name,
+          };
+        }, {});
+
+        return {
+          ...integration,
+          datasets: datasetIntegrationPairs,
+        };
+      })
+      .reduce((acc, curr) => {
+        return {
+          ...acc,
+          ...curr.datasets,
+        };
+      }, {});
+
     return {
-      dataStreamsStats: values(
-        merge(keyBy(dataStreams.items, 'name'), keyBy(dataStreamsStats.items, 'name'))
-      ),
-      integrations: await getIntegrations({ packageClient, dataStreams: dataStreams.items }),
+      dataStreamsStats: [
+        ...dataStreamsStats,
+        ...Object.entries(datasetsIntegrations).map(([key, value]) => {
+          const dataStreamParts = key.split('-');
+          dataStreamParts.pop();
+          const genericDataset = `${dataStreamParts.join('-')}-default`;
+
+          return {
+            name: genericDataset,
+            integration: value,
+          };
+        }),
+      ],
+      integrations,
     };
   },
 });
