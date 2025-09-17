@@ -15,19 +15,20 @@ import {
   EuiSpacer,
 } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
+import { isCondition } from '@kbn/streamlang';
 import { isEmpty } from 'lodash';
 import React from 'react';
-import { isCondition } from '@kbn/streamlang';
 import { AssetImage } from '../../asset_image';
 import { StreamsAppSearchBar } from '../../streams_app_search_bar';
 import { PreviewTable } from '../preview_table';
+import { buildCellActions } from './cell_actions';
+import { DocumentMatchFilterControls } from './document_match_filter_controls';
 import {
   selectPreviewDocuments,
   useStreamRoutingEvents,
   useStreamSamplesSelector,
   useStreamsRoutingSelector,
 } from './state_management/stream_routing_state_machine';
-import { DocumentMatchFilterControls } from './document_match_filter_controls';
 import { processCondition } from './utils';
 
 export function PreviewPanel() {
@@ -43,7 +44,7 @@ export function PreviewPanel() {
   ) {
     content = <EditingPanel />;
   } else if (routingSnapshot.matches({ ready: 'creatingNewRule' })) {
-    content = <SamplePreviewPanel />;
+    content = <SamplePreviewPanel enableActions />;
   }
 
   return (
@@ -97,9 +98,9 @@ const EditingPanel = () => (
   />
 );
 
-const SamplePreviewPanel = () => {
+const SamplePreviewPanel = ({ enableActions }: { enableActions?: boolean }) => {
   const samplesSnapshot = useStreamSamplesSelector((snapshot) => snapshot);
-  const { setDocumentMatchFilter } = useStreamRoutingEvents();
+  const { setDocumentMatchFilter, changeRule } = useStreamRoutingEvents();
   const isLoadingDocuments = samplesSnapshot.matches({ fetching: { documents: 'loading' } });
   const isUpdating =
     samplesSnapshot.matches('debouncingCondition') ||
@@ -113,6 +114,8 @@ const SamplePreviewPanel = () => {
   const condition = processCondition(samplesSnapshot.context.condition);
   const isProcessedCondition = condition ? isCondition(condition) : true;
   const hasDocuments = !isEmpty(documents);
+
+  const cellActions = enableActions ? buildCellActions(documents, changeRule) : undefined;
 
   const matchedDocumentPercentage = isNaN(parseFloat(approximateMatchingPercentage ?? ''))
     ? Number.NaN
@@ -171,7 +174,7 @@ const SamplePreviewPanel = () => {
   } else if (hasDocuments) {
     content = (
       <EuiFlexItem grow data-test-subj="routingPreviewPanelWithResults">
-        <PreviewTable documents={documents} />
+        <PreviewTable documents={documents} cellActions={cellActions} />
       </EuiFlexItem>
     );
   }

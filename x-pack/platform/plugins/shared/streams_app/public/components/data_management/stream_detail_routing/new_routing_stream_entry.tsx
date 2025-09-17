@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { EuiPanel, EuiFlexGroup, EuiFormRow, EuiFieldText } from '@elastic/eui';
+import { EuiPanel, EuiFlexGroup, EuiFormRow, EuiFieldText, EuiText } from '@elastic/eui';
 import { i18n } from '@kbn/i18n';
 import { RoutingConditionEditor } from '../condition_editor';
 import { AddRoutingRuleControls } from './control_bars';
@@ -47,12 +47,19 @@ export function NewRoutingStreamEntry() {
               onChange={(e) => changeRule({ destination: e.target.value })}
             />
           </EuiFormRow>
-          <RoutingConditionEditor
-            condition={currentRule.where}
-            status={currentRule.status}
-            onConditionChange={(cond) => changeRule({ where: cond })}
-            onStatusChange={(status) => changeRule({ status })}
-          />
+          <EuiFlexGroup gutterSize="s" direction="column">
+            <RoutingConditionEditor
+              condition={currentRule.where}
+              status={currentRule.status}
+              onConditionChange={(cond) => changeRule({ where: cond })}
+              onStatusChange={(status) => changeRule({ status })}
+            />
+            <EuiText size="xs" color="GrayText">
+              {i18n.translate('xpack.streams.conditionEditor.filterTip', {
+                defaultMessage: 'Tip: You can add a condition directly from a table cell.',
+              })}
+            </EuiText>
+          </EuiFlexGroup>
           <AddRoutingRuleControls />
         </EuiFlexGroup>
       </EuiPanel>
