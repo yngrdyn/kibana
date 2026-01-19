@@ -10,6 +10,8 @@
 import type { CoreSetup, CoreStart, Plugin, PluginInitializerContext } from '@kbn/core/public';
 import { PublicStepRegistry } from './step_registry';
 import type { PublicStepDefinition } from './step_registry/types';
+import { PublicTriggerRegistry } from './trigger_registry';
+import type { TriggerDefinition } from './trigger_registry/types';
 import { registerInternalStepDefinitions } from './steps';
 import type {
   WorkflowsExtensionsPublicPluginSetup,
@@ -28,9 +30,11 @@ export class WorkflowsExtensionsPublicPlugin
     >
 {
   private readonly stepRegistry: PublicStepRegistry;
+  private readonly triggerRegistry: PublicTriggerRegistry;
 
   constructor(_initializerContext: PluginInitializerContext) {
     this.stepRegistry = new PublicStepRegistry();
+    this.triggerRegistry = new PublicTriggerRegistry();
   }
 
   public setup(
@@ -43,6 +47,9 @@ export class WorkflowsExtensionsPublicPlugin
       registerStepDefinition: (metadata) => {
         // Casting here to prevent type errors with a narrow type definition and to avoid forcing consumers to cast manually
         this.stepRegistry.register(metadata as PublicStepDefinition);
+      },
+      registerTrigger: (definition) => {
+        this.triggerRegistry.register(definition);
       },
     };
   }
@@ -60,6 +67,15 @@ export class WorkflowsExtensionsPublicPlugin
       },
       hasStepDefinition: (stepTypeId: string) => {
         return this.stepRegistry.has(stepTypeId);
+      },
+      getAllTriggers: () => {
+        return this.triggerRegistry.getAll();
+      },
+      getTrigger: (triggerId: string) => {
+        return this.triggerRegistry.get(triggerId);
+      },
+      hasTrigger: (triggerId: string) => {
+        return this.triggerRegistry.has(triggerId);
       },
     };
   }

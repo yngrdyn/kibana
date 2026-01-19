@@ -33,3 +33,5 @@ export type {
 } from './step_registry/types';
 
 export { createServerStepDefinition } from './step_registry/types';
+
+export type { TriggerDefinition } from './trigger_registry/types';

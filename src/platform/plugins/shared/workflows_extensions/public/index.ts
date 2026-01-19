@@ -23,3 +23,6 @@ export type { PublicStepDefinition, StepDocumentation } from './step_registry/ty
 export { ActionsMenuGroup } from './step_registry/types';
 
 export { createPublicStepDefinition } from './step_registry/types';
+
+export type { TriggerDefinition } from './trigger_registry/types';
+export { PublicTriggerRegistry } from './trigger_registry';

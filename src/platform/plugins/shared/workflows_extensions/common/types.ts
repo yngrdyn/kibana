@@ -11,9 +11,12 @@ import type { CommonStepDefinition } from './step_registry/types';
 
 /**
  * Common contract for workflows extensions start.
- * Exposes methods for retrieving registered step definitions.
+ * Exposes methods for retrieving registered step definitions and triggers.
  */
-export interface WorkflowsExtensionsStartContract<TStepDefinition extends CommonStepDefinition> {
+export interface WorkflowsExtensionsStartContract<
+  TStepDefinition extends CommonStepDefinition,
+  TTriggerDefinition = { id: string; description: string }
+> {
   /**
    * Get all registered step definition.
    * @returns Array of all registered step definition
@@ -33,4 +36,24 @@ export interface WorkflowsExtensionsStartContract<TStepDefinition extends Common
    * @returns True if definition for the step type is registered, false otherwise
    */
   hasStepDefinition(stepTypeId: string): boolean;
+
+  /**
+   * Get all registered trigger definitions.
+   * @returns Array of all registered trigger definitions
+   */
+  getAllTriggers(): TTriggerDefinition[];
+
+  /**
+   * Get a specific trigger by ID.
+   * @param triggerId - The trigger identifier
+   * @returns The trigger definition, or undefined if not found
+   */
+  getTrigger(triggerId: string): TTriggerDefinition | undefined;
+
+  /**
+   * Check if a trigger is registered.
+   * @param triggerId - The trigger identifier
+   * @returns True if the trigger is registered, false otherwise
+   */
+  hasTrigger(triggerId: string): boolean;
 }

@@ -24,6 +24,9 @@ const createStartMock: () => jest.Mocked<
     getStepDefinition: jest.fn(),
     hasStepDefinition: jest.fn(),
     getAllStepDefinitions: jest.fn(() => []),
+    getAllTriggers: jest.fn(() => []),
+    getTrigger: jest.fn(),
+    hasTrigger: jest.fn(),
   };
 };
 

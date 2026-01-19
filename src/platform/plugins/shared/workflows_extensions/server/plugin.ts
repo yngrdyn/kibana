@@ -9,7 +9,9 @@
 
 import type { CoreSetup, CoreStart, Plugin, PluginInitializerContext } from '@kbn/core/server';
 import { registerGetStepDefinitionsRoute } from './routes/get_step_definitions';
+import { registerGetTriggersRoute } from './routes/get_triggers';
 import { ServerStepRegistry } from './step_registry';
+import { TriggerRegistry } from './trigger_registry';
 import { registerInternalStepDefinitions } from './steps';
 import type {
   WorkflowsExtensionsServerPluginSetup,
@@ -28,9 +30,11 @@ export class WorkflowsExtensionsServerPlugin
     >
 {
   private readonly stepRegistry: ServerStepRegistry;
+  private readonly triggerRegistry: TriggerRegistry;
 
   constructor(_initializerContext: PluginInitializerContext) {
     this.stepRegistry = new ServerStepRegistry();
+    this.triggerRegistry = new TriggerRegistry();
   }
 
   public setup(
@@ -39,13 +43,17 @@ export class WorkflowsExtensionsServerPlugin
   ): WorkflowsExtensionsServerPluginSetup {
     const router = core.http.createRouter();
 
-    // Register HTTP route to expose step definitions for testing
+    // Register HTTP routes to expose step definitions and triggers for testing
     registerGetStepDefinitionsRoute(router, this.stepRegistry);
+    registerGetTriggersRoute(router, this.triggerRegistry);
     registerInternalStepDefinitions(core, this.stepRegistry);
 
     return {
       registerStepDefinition: (definition) => {
         this.stepRegistry.register(definition);
+      },
+      registerTrigger: (definition) => {
+        this.triggerRegistry.registerTrigger(definition);
       },
     };
   }
@@ -63,6 +71,15 @@ export class WorkflowsExtensionsServerPlugin
       },
       getAllStepDefinitions: () => {
         return this.stepRegistry.getAll();
+      },
+      getTrigger: (triggerId: string) => {
+        return this.triggerRegistry.getTrigger(triggerId);
+      },
+      hasTrigger: (triggerId: string) => {
+        return this.triggerRegistry.hasTrigger(triggerId);
+      },
+      getAllTriggers: () => {
+        return this.triggerRegistry.getAllTriggers();
       },
     };
   }
