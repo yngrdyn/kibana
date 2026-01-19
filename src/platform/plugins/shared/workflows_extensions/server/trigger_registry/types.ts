@@ -7,11 +7,11 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { z } from '@kbn/zod/v4';
+import type { CommonTriggerDefinition } from '../../common/trigger_registry/types';
 
 /**
- * Definition of a workflow trigger.
- * Contains the trigger identifier, description, and event schema.
+ * Server-side trigger definition.
+ * Extends CommonTriggerDefinition (same as steps extend CommonStepDefinition).
  *
  * @example
  * ```typescript
@@ -25,19 +25,4 @@ import type { z } from '@kbn/zod/v4';
  * };
  * ```
  */
-export interface TriggerDefinition {
-  /**
-   * Unique identifier for the trigger (e.g., 'workflow.error', 'alert.fired')
-   */
-  id: string;
-
-  /**
-   * Human-readable description of when this trigger is emitted
-   */
-  description: string;
-
-  /**
-   * Zod schema defining the structure of the event payload
-   */
-  eventSchema: z.ZodType;
-}
+export type TriggerDefinition = CommonTriggerDefinition;

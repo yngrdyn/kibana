@@ -19,6 +19,7 @@
 import type { Plugin, CoreSetup, CoreStart } from '@kbn/core/public';
 import type { WorkflowsExtensionsPublicPluginSetup } from '@kbn/workflows-extensions/public';
 import { registerStepDefinitions } from './step_types';
+import { registerTriggers } from './triggers';
 import { ExampleExternalService } from '../common/external_service/external_service';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -63,6 +64,8 @@ export class WorkflowsExtensionsExamplePlugin
         'my-fifth-proxy': 'https://example.com/fifth',
       }),
     });
+    // Register triggers on setup phase
+    registerTriggers(plugins.workflowsExtensions);
 
     return {};
   }

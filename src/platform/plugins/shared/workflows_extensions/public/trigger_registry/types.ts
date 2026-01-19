@@ -7,28 +7,10 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { z } from '@kbn/zod/v4';
+import type { CommonTriggerDefinition } from '../../common/trigger_registry/types';
 
 /**
- * Client-side representation of a trigger definition.
- * Note: eventSchema is optional because Zod schemas cannot be serialized over HTTP.
- * The client creates a placeholder schema for schema generation purposes.
+ * Public-side trigger definition.
+ * Extends CommonTriggerDefinition (same as steps extend CommonStepDefinition).
  */
-export interface TriggerDefinition {
-  /**
-   * Unique identifier for this trigger type.
-   */
-  id: string;
-
-  /**
-   * Human-readable description of when this trigger is emitted.
-   */
-  description: string;
-
-  /**
-   * Zod schema defining the structure of the event payload.
-   * Optional because it cannot be serialized over HTTP.
-   * The client will create a placeholder schema for schema generation.
-   */
-  eventSchema?: z.ZodType;
-}
+export type TriggerDefinition = CommonTriggerDefinition;
