@@ -116,6 +116,17 @@ function getRegisteredStepDefinitions(): BaseConnectorContract[] {
 }
 
 /**
+ * Get registered trigger definitions from workflowExtensions, converted to EventDrivenTrigger format
+ */
+function getRegisteredTriggers(): Array<{ id: string; description: string; eventSchema: z.ZodType<any> }> {
+  return stepSchemas.getAllRegisteredTriggers().map((trigger) => ({
+    id: trigger.id,
+    description: trigger.description,
+    eventSchema: trigger.eventSchema,
+  }));
+}
+
+/**
  * Convert dynamic connector data from actions client to ConnectorContract format
  * Internal implementation - use exported convertDynamicConnectorsToContracts() instead
  */
@@ -356,17 +367,21 @@ export function getAllConnectorsWithDynamic(
 }
 
 export const getWorkflowZodSchema = (
-  dynamicConnectorTypes: Record<string, ConnectorTypeInfo>
+  dynamicConnectorTypes: Record<string, ConnectorTypeInfo>,
+  eventDrivenTriggers?: Array<{ id: string; description: string; eventSchema: z.ZodType<any> }>
 ): z.ZodTypeAny => {
   const allConnectors = getAllConnectorsWithDynamicInternal(dynamicConnectorTypes);
-  return generateYamlSchemaFromConnectors(allConnectors);
+  const triggers = eventDrivenTriggers ?? getRegisteredTriggers();
+  return generateYamlSchemaFromConnectors(allConnectors, false, triggers);
 };
 
 export const getWorkflowZodSchemaLoose = (
-  dynamicConnectorTypes: Record<string, ConnectorTypeInfo>
+  dynamicConnectorTypes: Record<string, ConnectorTypeInfo>,
+  eventDrivenTriggers?: Array<{ id: string; description: string; eventSchema: z.ZodType<any> }>
 ): z.ZodTypeAny => {
   const allConnectors = getAllConnectorsWithDynamicInternal(dynamicConnectorTypes);
-  return generateYamlSchemaFromConnectors(allConnectors, true);
+  const triggers = eventDrivenTriggers ?? getRegisteredTriggers();
+  return generateYamlSchemaFromConnectors(allConnectors, true, triggers);
 };
 
 export const getPropertyHandler = (

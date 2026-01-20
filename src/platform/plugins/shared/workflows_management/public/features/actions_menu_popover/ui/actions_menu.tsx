@@ -21,7 +21,7 @@ import {
   useEuiTheme,
 } from '@elastic/eui';
 import { css } from '@emotion/react';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
@@ -45,15 +45,27 @@ export function ActionsMenu({ onActionSelected }: ActionsMenuProps) {
   const styles = useMemoCss(componentStyles);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const { euiTheme } = useEuiTheme();
-  const { workflowsExtensions } = useKibana().services;
-  const defaultOptions = useMemo(
-    () => getActionOptions(euiTheme, workflowsExtensions),
-    [euiTheme, workflowsExtensions]
-  );
+  const services = useKibana().services;
+  const workflowsExtensions = services.workflowsExtensions;
+  
+  // Get event-driven triggers synchronously from registry (same pattern as steps)
+  const eventDrivenTriggers = useMemo(() => {
+    return workflowsExtensions?.getAllTriggers() ?? [];
+  }, [workflowsExtensions]);
+
+  const defaultOptions = useMemo(() => {
+    const options = getActionOptions(euiTheme, workflowsExtensions, eventDrivenTriggers);
+    return options;
+  }, [euiTheme, workflowsExtensions, eventDrivenTriggers]);
   const flatOptions = useMemo(() => flattenOptions(defaultOptions), [defaultOptions]);
 
   const [options, setOptions] = useState<ActionOptionData[]>(defaultOptions);
   const [currentPath, setCurrentPath] = useState<Array<string>>([]);
+
+  // Update options when defaultOptions changes (e.g., when triggers are fetched)
+  useEffect(() => {
+    setOptions(defaultOptions);
+  }, [defaultOptions]);
   const renderActionOption = (option: ActionOptionData, searchValue: string) => {
     const shouldUseGroupStyle = isActionGroup(option);
     return (

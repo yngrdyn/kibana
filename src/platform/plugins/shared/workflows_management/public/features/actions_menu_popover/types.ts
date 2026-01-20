@@ -30,6 +30,7 @@ export interface ActionConnectorGroup extends ActionBase {
 export interface ActionOption extends ActionBase {
   id: string;
   iconType: IconType;
+  isTrigger?: boolean; // Flag to indicate if this is a trigger (for event-driven triggers)
 }
 
 export interface ActionConnectorOption extends ActionBase {

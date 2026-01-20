@@ -8,6 +8,7 @@
  */
 
 import type { monaco } from '@kbn/monaco';
+import type { TriggerDefinition, WorkflowsExtensionsPublicPluginStart } from '@kbn/workflows-extensions';
 import { getConnectorIdSuggestions } from './connector_id/get_connector_id_suggestions';
 import { getConnectorTypeSuggestions } from './connector_type/get_connector_type_suggestions';
 import { getCustomPropertySuggestions } from './custom_property/get_custom_property_suggestions';
@@ -21,10 +22,15 @@ import { getTimezoneSuggestions } from './timezone/get_timezone_suggestions';
 import { getTriggerTypeSuggestions } from './trigger_type/get_trigger_type_suggestions';
 import { getVariableSuggestions } from './variable/get_variable_suggestions';
 import { getPropertyHandler } from '../../../../../../common/schema';
+import { stepSchemas } from '../../../../../../common/step_schemas';
 import type { ExtendedAutocompleteContext } from '../context/autocomplete.types';
 
+interface GetSuggestionsContext extends ExtendedAutocompleteContext {
+  workflowsExtensions?: WorkflowsExtensionsPublicPluginStart;
+}
+
 export async function getSuggestions(
-  autocompleteContext: ExtendedAutocompleteContext
+  autocompleteContext: GetSuggestionsContext
 ): Promise<monaco.languages.CompletionItem[]> {
   // console.log('getSuggestions', autocompleteContext);
   const { lineParseResult } = autocompleteContext;
@@ -106,7 +112,10 @@ export async function getSuggestions(
       startColumn: lineParseResult.valueStartIndex + 1,
       endColumn: autocompleteContext.line.length + 1, // Go to end of line to allow multi-line insertion
     };
-    return getTriggerTypeSuggestions(lineParseResult.fullKey, adjustedRange);
+    
+    const eventDrivenTriggers = stepSchemas.getAllRegisteredTriggers();
+    
+    return getTriggerTypeSuggestions(lineParseResult.fullKey, adjustedRange, eventDrivenTriggers);
   }
 
   // Connector type completion

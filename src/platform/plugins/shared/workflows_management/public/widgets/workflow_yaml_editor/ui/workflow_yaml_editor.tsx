@@ -461,7 +461,12 @@ export const WorkflowYAMLEditor = ({
       if (!model || !editor) {
         return;
       }
-      if (isTriggerType(action.id)) {
+      // Check if it's a built-in trigger type or an event-driven trigger
+      const isTrigger = isTriggerType(action.id) || 
+        // Check if the action is marked as a trigger (for event-driven triggers)
+        ('isTrigger' in action && action.isTrigger === true);
+      
+      if (isTrigger) {
         insertTriggerSnippet(model, yamlDocumentCurrent, action.id, editor);
       } else {
         if (!yamlDocumentCurrent) {

@@ -10,9 +10,10 @@
 // TODO: Remove the eslint-disable comments to use the proper types.
 
 import { useMemo } from 'react';
-import { getWorkflowJsonSchema } from '@kbn/workflows';
-import type { z } from '@kbn/zod/v4';
+import { getWorkflowJsonSchema, type EventDrivenTrigger } from '@kbn/workflows';
+import { z } from '@kbn/zod/v4';
 import { getWorkflowZodSchema, getWorkflowZodSchemaLoose } from '../../../../common/schema';
+import { stepSchemas } from '../../../../common/step_schemas';
 import { useAvailableConnectors } from '../../../entities/connectors/model/use_available_connectors';
 
 const WorkflowSchemaUriStrict = 'file:///workflow-schema.json';
@@ -38,22 +39,31 @@ export const useWorkflowJsonSchema = ({
   loose = false,
 }: UseWorkflowJsonSchemaOptions = {}): UseWorkflowJsonSchemaResult => {
   const connectorsData = useAvailableConnectors();
+  
+  const eventDrivenTriggers = useMemo((): EventDrivenTrigger[] => {
+    const triggers = stepSchemas.getAllRegisteredTriggers();
+    return triggers.map((trigger) => ({
+      id: trigger.id,
+      description: trigger.description,
+      eventSchema: trigger.eventSchema,
+    }));
+  }, []);
 
   // TODO: download from server instead of generating on client
 
-  // Generate JSON schema dynamically to include all current connectors (static + dynamic)
+  // Generate JSON schema dynamically to include all current connectors (static + dynamic) and triggers
   // Now uses lazy loading to keep large generated files out of main bundle
   return useMemo(() => {
     try {
       let uri = loose ? WorkflowSchemaUriLoose : WorkflowSchemaUriStrict;
-      if (connectorsData?.connectorTypes) {
+      if (connectorsData?.connectorTypes || eventDrivenTriggers.length > 0) {
         uri = loose
           ? WorkflowSchemaUriLooseWithDynamicConnectors
           : WorkflowSchemaUriStrictWithDynamicConnectors;
       }
       const zodSchema = loose
-        ? getWorkflowZodSchemaLoose(connectorsData?.connectorTypes ?? {})
-        : getWorkflowZodSchema(connectorsData?.connectorTypes ?? {}); // TODO: remove this once we move the schema generation up to detail page or some wrapper component
+        ? getWorkflowZodSchemaLoose(connectorsData?.connectorTypes ?? {}, eventDrivenTriggers)
+        : getWorkflowZodSchema(connectorsData?.connectorTypes ?? {}, eventDrivenTriggers); // TODO: remove this once we move the schema generation up to detail page or some wrapper component
       const jsonSchema = getWorkflowJsonSchema(zodSchema);
 
       return {
@@ -67,5 +77,5 @@ export const useWorkflowJsonSchema = ({
         uri: null,
       };
     }
-  }, [connectorsData, loose]);
+  }, [connectorsData, eventDrivenTriggers, loose]);
 };

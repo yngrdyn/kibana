@@ -257,7 +257,7 @@ function findFirstEmptyItem(
 export function insertTriggerSnippet(
   model: monaco.editor.ITextModel,
   yamlDocument: Document | null,
-  triggerType: TriggerType,
+  triggerType: TriggerType | string,
   editor?: monaco.editor.IStandaloneCodeEditor
 ) {
   let document: Document;

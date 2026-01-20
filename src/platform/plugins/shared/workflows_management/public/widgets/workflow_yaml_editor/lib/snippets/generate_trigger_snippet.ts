@@ -19,7 +19,7 @@ interface GenerateTriggerSnippetOptions {
 
 /**
  * Generates a YAML snippet for a workflow trigger based on the specified type.
- * @param triggerType - The type of trigger ('alert', 'scheduled', 'manual', etc.)
+ * @param triggerType - The type of trigger ('alert', 'scheduled', 'manual', or event-driven trigger type)
  * @param options - Configuration options for snippet generation
  * @param options.full - Whether to include the full YAML structure with '- type: ' prefix
  * @param options.monacoSuggestionFormat - Whether to format the snippet for Monaco editor suggestions with placeholders
@@ -27,7 +27,7 @@ interface GenerateTriggerSnippetOptions {
  * @returns The formatted YAML trigger snippet as a string
  */
 export function generateTriggerSnippet(
-  triggerType: TriggerType,
+  triggerType: TriggerType | string,
   { full, monacoSuggestionFormat, withTriggersSection }: GenerateTriggerSnippetOptions = {}
 ): string {
   const stringifyOptions: ToStringOptions = { indent: 2 };
@@ -69,6 +69,7 @@ export function generateTriggerSnippet(
       break;
 
     default:
+      // TODO: For event-driven triggers, include the where clause
       parameters = {};
       break;
   }

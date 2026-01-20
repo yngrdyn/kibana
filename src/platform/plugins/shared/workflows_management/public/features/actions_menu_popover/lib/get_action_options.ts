@@ -13,6 +13,7 @@ import { i18n } from '@kbn/i18n';
 import { isDynamicConnector } from '@kbn/workflows';
 import type {
   ActionsMenuGroup,
+  TriggerDefinition,
   WorkflowsExtensionsPublicPluginStart,
 } from '@kbn/workflows-extensions/public';
 import { getAllConnectors } from '../../../../common/schema';
@@ -22,9 +23,58 @@ import { isActionGroup } from '../types';
 
 export function getActionOptions(
   euiTheme: UseEuiTheme['euiTheme'],
-  workflowsExtensions: WorkflowsExtensionsPublicPluginStart
+  workflowsExtensions: WorkflowsExtensionsPublicPluginStart,
+  eventDrivenTriggers?: TriggerDefinition[]
 ): ActionOptionData[] {
   const connectors = getAllConnectors();
+  
+  // Build built-in triggers
+  const builtInTriggers = [
+    {
+      id: 'manual',
+      label: i18n.translate('workflows.actionsMenu.manual', {
+        defaultMessage: 'Manual',
+      }),
+      description: i18n.translate('workflows.actionsMenu.manualDescription', {
+        defaultMessage: 'Manually start from the UI',
+      }),
+      iconType: 'play',
+      iconColor: 'success',
+    },
+    {
+      id: 'alert',
+      label: i18n.translate('workflows.actionsMenu.alert', {
+        defaultMessage: 'Alert',
+      }),
+      description: i18n.translate('workflows.actionsMenu.alertDescription', {
+        defaultMessage: 'When an alert from rule is created',
+      }),
+      iconType: 'bell',
+      iconColor: euiTheme.colors.vis.euiColorVis6,
+    },
+    {
+      id: 'scheduled',
+      label: i18n.translate('workflows.actionsMenu.schedule', {
+        defaultMessage: 'Schedule',
+      }),
+      description: i18n.translate('workflows.actionsMenu.scheduleDescription', {
+        defaultMessage: 'On a schedule (e.g. every 10 minutes)',
+      }),
+      iconType: 'clock',
+      iconColor: euiTheme.colors.textParagraph,
+    },
+  ];
+
+  // Add event-driven triggers
+  const eventDrivenTriggerOptions = (eventDrivenTriggers || []).map((trigger) => ({
+    id: trigger.id,
+    label: trigger.id,
+    description: trigger.description,
+    iconType: 'bolt' as const,
+    iconColor: euiTheme.colors.vis.euiColorVis9,
+    isTrigger: true, // Mark as trigger so it can be identified in onActionSelected
+  }));
+
   const triggersGroup: ActionOptionData = {
     iconType: 'bolt',
     iconColor: euiTheme.colors.vis.euiColorVis6,
@@ -35,42 +85,9 @@ export function getActionOptions(
     description: i18n.translate('workflows.actionsMenu.triggersDescription', {
       defaultMessage: 'Choose which event starts a workflow',
     }),
-    options: [
-      {
-        id: 'manual',
-        label: i18n.translate('workflows.actionsMenu.manual', {
-          defaultMessage: 'Manual',
-        }),
-        description: i18n.translate('workflows.actionsMenu.manualDescription', {
-          defaultMessage: 'Manually start from the UI',
-        }),
-        iconType: 'play',
-        iconColor: 'success',
-      },
-      {
-        id: 'alert',
-        label: i18n.translate('workflows.actionsMenu.alert', {
-          defaultMessage: 'Alert',
-        }),
-        description: i18n.translate('workflows.actionsMenu.alertDescription', {
-          defaultMessage: 'When an alert from rule is created',
-        }),
-        iconType: 'bell',
-        iconColor: euiTheme.colors.vis.euiColorVis6,
-      },
-      {
-        id: 'scheduled',
-        label: i18n.translate('workflows.actionsMenu.schedule', {
-          defaultMessage: 'Schedule',
-        }),
-        description: i18n.translate('workflows.actionsMenu.scheduleDescription', {
-          defaultMessage: 'On a schedule (e.g. every 10 minutes)',
-        }),
-        iconType: 'clock',
-        iconColor: euiTheme.colors.textParagraph,
-      },
-    ],
+    options: [...builtInTriggers, ...eventDrivenTriggerOptions],
   };
+  
 
   const kibanaGroup: ActionOptionData = {
     iconType: 'logoKibana',

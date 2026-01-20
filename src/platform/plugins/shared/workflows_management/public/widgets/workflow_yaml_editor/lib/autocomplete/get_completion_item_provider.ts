@@ -8,6 +8,7 @@
  */
 
 import { monaco } from '@kbn/monaco';
+import type { WorkflowsExtensionsPublicPluginStart } from '@kbn/workflows-extensions';
 import { buildAutocompleteContext } from './context/build_autocomplete_context';
 import { getAllYamlProviders } from './intercept_monaco_yaml_provider';
 import { getSuggestions } from './suggestions/get_suggestions';
@@ -75,7 +76,8 @@ function mapSuggestions(
 }
 
 export function getCompletionItemProvider(
-  getState: () => WorkflowDetailState
+  getState: () => WorkflowDetailState,
+  workflowsExtensions?: WorkflowsExtensionsPublicPluginStart
 ): monaco.languages.CompletionItemProvider {
   const provider: monaco.languages.CompletionItemProvider & { __providerId?: string } = {
     // Unique identifier to distinguish our provider from others
@@ -107,6 +109,7 @@ export function getCompletionItemProvider(
         ...autocompleteContext,
         model,
         position,
+        workflowsExtensions,
       });
 
       // Incremental deduplication accumulator

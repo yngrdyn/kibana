@@ -14,30 +14,48 @@ import {
   ManualTriggerSchema,
   ScheduledTriggerSchema,
 } from '@kbn/workflows';
+import type { TriggerDefinition } from '@kbn/workflows-extensions';
 import { generateTriggerSnippet } from '../../../snippets/generate_trigger_snippet';
 
 /**
  * Get trigger type suggestions with snippets
+ * @param typePrefix - The prefix to filter triggers by
+ * @param range - The range to replace in the editor
+ * @param eventDrivenTriggers - Optional array of event-driven triggers from workflows_extensions
  */
 export function getTriggerTypeSuggestions(
   typePrefix: string,
-  range: monaco.IRange
+  range: monaco.IRange,
+  eventDrivenTriggers?: TriggerDefinition[]
 ): monaco.languages.CompletionItem[] {
   const suggestions: monaco.languages.CompletionItem[] = [];
 
   // Get built-in trigger types from the schema (single source of truth)
   const builtInTriggerTypes = getBuiltInTriggerTypesFromSchema();
 
+  // Combine built-in triggers with event-driven triggers
+  const allTriggerTypes = [
+    ...builtInTriggerTypes,
+    ...(eventDrivenTriggers?.map((trigger) => ({
+      type: trigger.id,
+      description: trigger.description,
+      icon: monaco.languages.CompletionItemKind.Event,
+    })) || []),
+  ];
+
   // Filter trigger types that match the prefix
   const matchingTriggerTypes =
     typePrefix.length > 0
-      ? builtInTriggerTypes.filter((triggerType) =>
+      ? allTriggerTypes.filter((triggerType) =>
           triggerType.type.toLowerCase().includes(typePrefix.toLowerCase().trim())
         )
-      : builtInTriggerTypes;
+      : allTriggerTypes;
 
   matchingTriggerTypes.forEach((triggerType) => {
-    const snippetText = generateTriggerSnippet(triggerType.type as TriggerType);
+    const isEventDriven = eventDrivenTriggers?.some((t) => t.id === triggerType.type);
+    const snippetText = isEventDriven
+      ? triggerType.type
+      : generateTriggerSnippet(triggerType.type as TriggerType);
 
     // Extended range for multi-line insertion
     const extendedRange = {
@@ -56,7 +74,7 @@ export function getTriggerTypeSuggestions(
       documentation: triggerType.description,
       filterText: triggerType.type,
       sortText: `!${triggerType.type}`, // Priority prefix to sort before other suggestions
-      detail: 'Workflow trigger',
+      detail: isEventDriven ? 'Event-driven trigger' : 'Workflow trigger',
       preselect: false,
     });
   });

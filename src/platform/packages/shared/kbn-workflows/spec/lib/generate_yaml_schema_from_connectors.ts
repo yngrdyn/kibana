@@ -11,6 +11,7 @@ import { z } from '@kbn/zod/v4';
 import { type ConnectorContractUnion } from '../..';
 import { KIBANA_TYPE_ALIASES } from '../kibana/aliases';
 import {
+  AlertRuleTriggerSchema,
   BaseConnectorStepSchema,
   DataSetStepSchema,
   getForEachStepSchema,
@@ -20,10 +21,18 @@ import {
   getOnFailureStepSchema,
   getParallelStepSchema,
   getWorkflowSettingsSchema,
+  ManualTriggerSchema,
+  ScheduledTriggerSchema,
   WaitStepSchema,
   WorkflowSchema,
   WorkflowSettingsSchema,
 } from '../schema';
+
+export interface EventDrivenTrigger {
+  id: string;
+  description: string;
+  eventSchema: z.ZodType<any>;
+}
 
 export function getStepId(stepName: string): string {
   // Using step name as is, don't do any escaping to match the workflow engine behavior
@@ -36,19 +45,23 @@ export function generateYamlSchemaFromConnectors(
   /**
    * @deprecated use WorkflowSchemaForAutocomplete instead
    */
-  loose: boolean = false
+  loose: boolean = false,
+  eventDrivenTriggers?: EventDrivenTrigger[]
 ) {
   const recursiveStepSchema = createRecursiveStepSchema(connectors, loose);
+  const triggerSchema = getTriggerSchema(eventDrivenTriggers);
 
   if (loose) {
     return WorkflowSchema.partial().extend({
       settings: WorkflowSettingsSchema.optional(),
+      triggers: z.array(triggerSchema).optional(),
       steps: z.array(recursiveStepSchema).optional(),
     });
   }
 
   return WorkflowSchema.extend({
     settings: getWorkflowSettingsSchema(recursiveStepSchema, loose).optional(),
+    triggers: z.array(triggerSchema).min(1),
     steps: z.array(recursiveStepSchema),
   });
 }
@@ -140,4 +153,32 @@ function generateAliasSchemas(
   }
 
   return aliasSchemas;
+}
+
+/**
+ * Generate a dynamic trigger schema that includes built-in triggers and event-driven triggers.
+ * Follows the same pattern as createRecursiveStepSchema for steps.
+ */
+function getTriggerSchema(eventDrivenTriggers?: EventDrivenTrigger[]): z.ZodType {
+  const builtInTriggerSchemas = [
+    AlertRuleTriggerSchema,
+    ScheduledTriggerSchema,
+    ManualTriggerSchema,
+  ];
+
+  // Generate schemas for event-driven triggers
+  // We create a simple schema that just validates the trigger type exists
+  // TODO: use eventSchema to generate type safe where clause
+  const eventDrivenTriggerSchemas = (eventDrivenTriggers || []).map((trigger) =>
+    z.object({
+      type: z.literal(trigger.id).describe(trigger.description),
+    }).passthrough()
+  );
+
+  // Return discriminated union with all trigger types
+  // This creates proper JSON schema validation that Monaco YAML can handle
+  return z.discriminatedUnion('type', [
+    ...builtInTriggerSchemas,
+    ...eventDrivenTriggerSchemas,
+  ]);
 }

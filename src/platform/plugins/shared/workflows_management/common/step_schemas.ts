@@ -10,6 +10,7 @@
 import type { ConnectorContractUnion, ConnectorTypeInfo } from '@kbn/workflows';
 import type {
   PublicStepDefinition,
+  TriggerDefinition,
   WorkflowsExtensionsPublicPluginStart,
 } from '@kbn/workflows-extensions/public';
 import type {
@@ -96,6 +97,20 @@ class StepSchemas {
 
   public setLastProcessedConnectorTypesHash(hash: string | null): void {
     this.lastProcessedConnectorTypesHash = hash;
+  }
+
+  /**
+   * Get all registered trigger definitions from workflowExtensions.
+   * Works on both server and public side synchronously.
+   */
+  public getAllRegisteredTriggers(): TriggerDefinition[] {
+    if (!this.workflowsExtensions) {
+      return [];
+    }
+    if (typeof (this.workflowsExtensions as any).getAllTriggers === 'function') {
+      return (this.workflowsExtensions as any).getAllTriggers();
+    }
+    return [];
   }
 }
 
