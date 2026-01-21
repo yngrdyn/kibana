@@ -13,6 +13,8 @@ export const PLUGIN_NAME = 'Workflows Execution Engine';
 
 export const WORKFLOWS_EXECUTIONS_INDEX = '.workflows-executions';
 export const WORKFLOWS_STEP_EXECUTIONS_INDEX = '.workflows-step-executions';
+export const WORKFLOWS_EVENTS_INDEX = '.workflows-events-poc';
+export const WORKFLOWS_SUBSCRIPTIONS_INDEX = '.workflows-subscriptions';
 
 export const WORKFLOWS_EXECUTIONS_INDEX_MAPPINGS: MappingTypeMapping = {
   dynamic: false,
@@ -90,6 +92,75 @@ export const WORKFLOWS_STEP_EXECUTIONS_INDEX_MAPPINGS: MappingTypeMapping = {
     duration: {
       // milliseconds
       type: 'long',
+    },
+  },
+};
+
+export const WORKFLOWS_EVENTS_INDEX_MAPPINGS: MappingTypeMapping = {
+  dynamic: false,
+  properties: {
+    id: {
+      type: 'keyword',
+    },
+    triggerType: {
+      type: 'keyword',
+    },
+    payload: {
+      type: 'object',
+      enabled: false, // Store as JSON, don't index fields
+    },
+    spaceId: {
+      type: 'keyword',
+    },
+    timestamp: {
+      type: 'date',
+    },
+    credentialRef: {
+      type: 'object',
+      properties: {
+        type: {
+          type: 'keyword',
+        },
+        principalId: {
+          type: 'keyword',
+        },
+      },
+    },
+    status: {
+      type: 'keyword',
+    },
+    processingStartedAt: {
+      type: 'date',
+    },
+  },
+};
+
+export const WORKFLOWS_SUBSCRIPTIONS_INDEX_MAPPINGS: MappingTypeMapping = {
+  dynamic: false,
+  properties: {
+    id: {
+      type: 'keyword',
+    },
+    workflowId: {
+      type: 'keyword',
+    },
+    triggerType: {
+      type: 'keyword',
+    },
+    spaceId: {
+      type: 'keyword',
+    },
+    enabled: {
+      type: 'boolean',
+    },
+    createdAt: {
+      type: 'date',
+    },
+    updatedAt: {
+      type: 'date',
+    },
+    createdBy: {
+      type: 'keyword',
     },
   },
 };

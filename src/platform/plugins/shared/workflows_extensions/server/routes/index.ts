@@ -8,3 +8,5 @@
  */
 
 export { registerGetStepDefinitionsRoute } from './get_step_definitions';
+export { registerGetTriggersRoute } from './get_triggers';
+export { registerTestEmitEventRoute } from './test_emit_event';

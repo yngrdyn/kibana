@@ -23,6 +23,7 @@ import type {
   WorkflowsExtensionsServerPluginSetup,
   WorkflowsExtensionsServerPluginStart,
 } from '@kbn/workflows-extensions/server';
+import type { EncryptedSavedObjectsPluginStart } from '@kbn/encrypted-saved-objects-plugin/server/types';
 import type { IWorkflowEventLoggerService } from './workflow_event_logger';
 
 export interface ExecuteWorkflowResponse {
@@ -55,6 +56,7 @@ export interface WorkflowsExecutionEnginePluginStartDeps {
   cloud: CloudStart;
   workflowsExtensions: WorkflowsExtensionsServerPluginStart;
   licensing: LicensingPluginStart;
+  encryptedSavedObjects?: EncryptedSavedObjectsPluginStart;
 }
 
 export type ExecuteWorkflow = (

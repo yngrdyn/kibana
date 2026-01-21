@@ -78,6 +78,7 @@ import { createStorage } from '../storage/workflow_storage';
 import type { WorkflowProperties, WorkflowStorage } from '../storage/workflow_storage';
 import type { WorkflowTaskScheduler } from '../tasks/workflow_task_scheduler';
 import type { WorkflowsServerPluginStartDeps } from '../types';
+import { SubscriptionStore } from '@kbn/workflows-execution-engine/server/repositories/subscription_store';
 
 const DEFAULT_PAGE_SIZE = 100;
 export interface SearchWorkflowExecutionsParams {
@@ -88,11 +89,39 @@ export interface SearchWorkflowExecutionsParams {
   size?: number;
 }
 
+/**
+ * Built-in trigger types that are not event-driven.
+ * Event-driven triggers are any trigger type that is NOT in this list.
+ */
+const BUILT_IN_TRIGGER_TYPES = new Set(['alert', 'scheduled', 'manual']);
+
+/**
+ * Check if a trigger type is event-driven (not a built-in trigger).
+ */
+function isEventDrivenTrigger(triggerType: string): boolean {
+  return !BUILT_IN_TRIGGER_TYPES.has(triggerType);
+}
+
+/**
+ * Extract event-driven triggers from a workflow definition.
+ */
+function extractEventDrivenTriggers(
+  definition: EsWorkflow['definition']
+): Array<{ type: string }> {
+  if (!definition?.triggers) {
+    return [];
+  }
+  return definition.triggers.filter((trigger) =>
+    isEventDrivenTrigger(trigger.type)
+  );
+}
+
 export class WorkflowsService {
   private esClient!: ElasticsearchClient;
   private workflowStorage!: WorkflowStorage;
   private workflowEventLoggerService!: IWorkflowEventLoggerService;
   private taskScheduler: WorkflowTaskScheduler | null = null;
+  private subscriptionStore: SubscriptionStore | null = null;
   private readonly logger: Logger;
   private security?: SecurityServiceStart;
   private getActionsClient: () => Promise<IUnsecuredActionsClient>;
@@ -136,6 +165,8 @@ export class WorkflowsService {
       logger: this.logger,
       esClient: this.esClient,
     });
+
+    this.subscriptionStore = new SubscriptionStore(this.esClient);
 
     this.workflowEventLoggerService =
       pluginsStart.workflowsExecutionEngine.workflowEventLoggerService;
@@ -249,6 +280,35 @@ export class WorkflowsService {
         if (trigger.type === 'scheduled') {
           await this.taskScheduler.scheduleWorkflowTask(id, spaceId, trigger, request);
         }
+      }
+    }
+
+    // Create subscriptions for event-driven triggers
+    if (this.subscriptionStore && workflowToCreate.definition) {
+      try {
+        const eventDrivenTriggers = extractEventDrivenTriggers(workflowToCreate.definition);
+        for (const trigger of eventDrivenTriggers) {
+          const existing = await this.subscriptionStore.findExistingSubscription(
+            id,
+            trigger.type,
+            spaceId
+          );
+          if (!existing) {
+            await this.subscriptionStore.createSubscription({
+              workflowId: id,
+              triggerType: trigger.type,
+              spaceId,
+              createdBy: authenticatedUser,
+            });
+            this.logger.debug(
+              `Created subscription for workflow ${id}, trigger ${trigger.type} in space ${spaceId}`
+            );
+          }
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to create subscriptions for workflow ${id}: ${error}. Workflow was created successfully.`
+        );
       }
     }
 
@@ -453,6 +513,68 @@ export class WorkflowsService {
         }
       }
 
+      // Update subscriptions for event-driven triggers
+      if (shouldUpdateScheduler && this.subscriptionStore) {
+        try {
+          const existingSubscriptions = await this.subscriptionStore.getSubscriptionsByWorkflowId(
+            id,
+            spaceId
+          );
+
+          const eventDrivenTriggers = finalData.definition
+            ? extractEventDrivenTriggers(finalData.definition)
+            : [];
+
+          const existingSubscriptionsByTrigger = new Map(
+            existingSubscriptions.map((sub) => [sub.triggerType, sub])
+          );
+
+          const newTriggerTypes = new Set(eventDrivenTriggers.map((t) => t.type));
+
+          for (const existingSub of existingSubscriptions) {
+            if (!newTriggerTypes.has(existingSub.triggerType)) {
+              await this.subscriptionStore.deleteSubscription(existingSub.id);
+              this.logger.debug(
+                `Deleted subscription ${existingSub.id} for workflow ${id}, trigger ${existingSub.triggerType}`
+              );
+            }
+          }
+
+          if (finalData.definition && finalData.valid && finalData.enabled) {
+            for (const trigger of eventDrivenTriggers) {
+              const existing = existingSubscriptionsByTrigger.get(trigger.type);
+              if (!existing) {
+                await this.subscriptionStore.createSubscription({
+                  workflowId: id,
+                  triggerType: trigger.type,
+                  spaceId,
+                  createdBy: authenticatedUser,
+                });
+                this.logger.debug(
+                  `Created subscription for workflow ${id}, trigger ${trigger.type} in space ${spaceId}`
+                );
+              } else if (!existing.enabled) {
+                await this.subscriptionStore.updateSubscription(existing.id, { enabled: true });
+                this.logger.debug(
+                  `Re-enabled subscription ${existing.id} for workflow ${id}, trigger ${trigger.type}`
+                );
+              }
+            }
+          } else {
+            for (const existingSub of existingSubscriptions) {
+              if (existingSub.enabled) {
+                await this.subscriptionStore.updateSubscription(existingSub.id, { enabled: false });
+                this.logger.debug(
+                  `Disabled subscription ${existingSub.id} for workflow ${id} (workflow disabled or invalid)`
+                );
+              }
+            }
+          }
+        } catch (error) {
+          this.logger.error(`Failed to update subscriptions for workflow ${id}: ${error}`);
+        }
+      }
+
       return {
         id,
         lastUpdatedAt: finalData.updated_at,
@@ -521,6 +643,34 @@ export class WorkflowsService {
             });
           }
         });
+
+        // Delete subscriptions for successfully deleted workflows
+        if (this.subscriptionStore) {
+          try {
+            const successfulDeletions = searchResponse.hits.hits
+              .filter((hit) => {
+                const operation = bulkResponse.items.find(
+                  (item) => item.index?._id === hit._id
+                );
+                return operation?.index && !operation.index.error;
+              })
+              .map((hit) => hit._id);
+
+            for (const workflowId of successfulDeletions) {
+              if (!workflowId) continue;
+              try {
+                await this.subscriptionStore.deleteSubscriptionsByWorkflowId(workflowId, spaceId);
+                this.logger.debug(`Deleted subscriptions for workflow ${workflowId}`);
+              } catch (error) {
+                this.logger.error(
+                  `Failed to delete subscriptions for workflow ${workflowId}: ${error}`
+                );
+              }
+            }
+          } catch (error) {
+            this.logger.error(`Failed to delete subscriptions for workflows: ${error}`);
+          }
+        }
       } catch (error) {
         // If the entire bulk operation fails, mark all as failed
         bulkOperations.forEach((op) => {

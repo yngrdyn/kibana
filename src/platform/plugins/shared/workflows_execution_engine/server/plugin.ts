@@ -43,6 +43,7 @@ import type {
   WorkflowsExecutionEnginePluginStart,
   WorkflowsExecutionEnginePluginStartDeps,
 } from './types';
+import type { TaskManagerStartContract } from '@kbn/task-manager-plugin/server';
 import { generateExecutionTaskScope } from './utils';
 import { buildWorkflowContext } from './workflow_context_manager/build_workflow_context';
 import type { ContextDependencies } from './workflow_context_manager/types';
@@ -70,6 +71,7 @@ export class WorkflowsExecutionEnginePlugin
   private concurrencyManager!: ConcurrencyManager;
   private setupDependencies?: SetupDependencies;
   private initializePromise?: Promise<void>;
+  private executeWorkflowFn?: ExecuteWorkflow;
 
   constructor(initializerContext: PluginInitializerContext) {
     this.logger = initializerContext.logger.get();
@@ -179,6 +181,65 @@ export class WorkflowsExecutionEnginePlugin
             },
             cancel: async () => {
               taskAbortController.abort();
+            },
+          };
+        },
+      },
+    });
+    plugins.taskManager.registerTaskDefinitions({
+      'workflows:event_router_poc': {
+        title: 'Event Router (PoC)',
+        description: 'Routes events to subscribed workflows',
+        timeout: '1m',
+        maxAttempts: 3,
+        createTaskRunner: ({ taskInstance, fakeRequest }) => {
+          return {
+            run: async () => {
+              const [coreStart, pluginsStart] = await core.getStartServices();
+              await checkLicense(pluginsStart.licensing);
+
+              await this.initialize(coreStart);
+
+              const { createEventRouterTaskRunner } = await import('./tasks/event_router_task');
+              const { EventStore } = await import('./repositories/event_store');
+
+              const eventStore = new EventStore(coreStart.elasticsearch.client.asInternalUser);
+              
+              if (!this.executeWorkflowFn) {
+                throw new Error('executeWorkflow not yet initialized');
+              }
+              
+              const workflowsExecutionEngine: Pick<WorkflowsExecutionEnginePluginStart, 'executeWorkflow'> = {
+                executeWorkflow: this.executeWorkflowFn,
+              };
+              
+              let systemRequest = fakeRequest;
+              if (!systemRequest) {
+                const { kibanaRequestFactory } = await import('@kbn/core-http-server-utils');
+                const fakeRawRequest = {
+                  headers: {
+                    'kbn-system-request': 'true',
+                    'x-elastic-internal-origin': 'Kibana',
+                  },
+                  path: '/',
+                };
+                systemRequest = kibanaRequestFactory(fakeRawRequest);
+              }
+              
+              if (!systemRequest) {
+                throw new Error('Failed to create system request for event router task');
+              }
+              
+              const taskRunner = createEventRouterTaskRunner({
+                core: coreStart,
+                logger,
+                workflowsExecutionEngine,
+                eventStore,
+                systemRequest,
+                encryptedSavedObjects: pluginsStart.encryptedSavedObjects,
+              });
+
+              await taskRunner.run();
             },
           };
         },
@@ -345,6 +406,10 @@ export class WorkflowsExecutionEnginePlugin
       workflowTaskManager,
       workflowExecutionRepository
     );
+
+    this.scheduleEventRouterTask(plugins.taskManager, coreStart).catch((error: Error) => {
+      this.logger.error(`Failed to schedule event router task: ${error.message}`);
+    });
 
     const dependencies: ContextDependencies = {
       ...this.setupDependencies,
@@ -617,6 +682,9 @@ export class WorkflowsExecutionEnginePlugin
       this.config.logging.console
     );
 
+    // Store executeWorkflow for event router task
+    this.executeWorkflowFn = executeWorkflow;
+
     return {
       workflowEventLoggerService,
       executeWorkflow,
@@ -636,6 +704,37 @@ export class WorkflowsExecutionEnginePlugin
       });
     }
     await this.initializePromise;
+  }
+
+  /**
+   * Schedule the event router task to run every 30 seconds.
+   */
+  private async scheduleEventRouterTask(
+    taskManager: TaskManagerStartContract,
+    coreStart: CoreStart
+  ): Promise<void> {
+    try {
+      await this.initialize(coreStart);
+
+      const taskId = 'workflows:event_router_poc';
+      this.logger.info(`Scheduling event router task with interval 30s`);
+
+      await taskManager.ensureScheduled({
+        id: taskId,
+        taskType: 'workflows:event_router_poc',
+        schedule: {
+          interval: '30s',
+        },
+        scope: ['workflows'],
+        state: {},
+        params: {},
+      });
+
+      this.logger.info(`Event router task scheduled successfully`);
+    } catch (error) {
+      this.logger.error(`Failed to schedule event router task: ${error}`);
+      throw error;
+    }
   }
 
   /**

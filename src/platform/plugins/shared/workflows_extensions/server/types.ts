@@ -9,9 +9,11 @@
 
 import type { PluginStartContract as ActionsPluginStartContract } from '@kbn/actions-plugin/server';
 import type { InferenceServerStart } from '@kbn/inference-plugin/server';
+import type { SpacesPluginStart } from '@kbn/spaces-plugin/server';
 import type { ServerStepDefinition } from './step_registry/types';
 import type { TriggerDefinition } from './trigger_registry/types';
 import type { WorkflowsExtensionsStartContract } from '../common/types';
+import type { EmitEventParams, EmitEventResult } from './emit_event';
 
 /**
  * Server-side plugin setup contract.
@@ -39,18 +41,34 @@ export interface WorkflowsExtensionsServerPluginSetup {
 
 /**
  * Server-side plugin start contract.
- * Exposes methods for retrieving registered server-side step implementations and triggers.
+ * Exposes methods for retrieving registered server-side step implementations and triggers,
+ * and for emitting events.
  */
-export type WorkflowsExtensionsServerPluginStart = WorkflowsExtensionsStartContract<
-  ServerStepDefinition,
-  TriggerDefinition
->;
+export interface WorkflowsExtensionsServerPluginStart
+  extends WorkflowsExtensionsStartContract<ServerStepDefinition, TriggerDefinition> {
+  /**
+   * Emit an event into the event store.
+   * Validates the trigger exists and payload matches schema, then persists to Elasticsearch.
+   *
+   * @param params - Event emission parameters
+   * @returns Promise that resolves to the event ID
+   * @throws Error if trigger is unknown or payload validation fails
+   */
+  emitEvent(params: EmitEventParams): Promise<EmitEventResult>;
+}
 
 /**
  * Dependencies for the server plugin setup phase.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface WorkflowsExtensionsServerPluginSetupDeps {}
+export interface WorkflowsExtensionsServerPluginSetupDeps {
+  encryptedSavedObjects?: {
+    registerType: (params: {
+      type: string;
+      attributesToEncrypt: Set<string>;
+      attributesToIncludeInAAD?: Set<string>;
+    }) => void;
+  };
+}
 
 /**
  * Dependencies for the server plugin start phase.
@@ -58,4 +76,11 @@ export interface WorkflowsExtensionsServerPluginSetupDeps {}
 export interface WorkflowsExtensionsServerPluginStartDeps {
   actions: ActionsPluginStartContract;
   inference: InferenceServerStart;
+  spaces?: SpacesPluginStart;
+  encryptedSavedObjects?: {
+    getClient: (options?: { includedHiddenTypes?: string[] }) => {
+      create: (type: string, attributes: any, options?: { id?: string; namespace?: string }) => Promise<any>;
+      getDecryptedAsInternalUser: <T = any>(type: string, id: string, options?: { namespace?: string }) => Promise<{ attributes: T }>;
+    };
+  };
 }

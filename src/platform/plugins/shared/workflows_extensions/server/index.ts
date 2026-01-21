@@ -35,3 +35,4 @@ export type {
 export { createServerStepDefinition } from './step_registry/types';
 
 export type { TriggerDefinition } from './trigger_registry/types';
+export type { EmitEventParams, EmitEventResult, WorkflowEvent } from './emit_event';

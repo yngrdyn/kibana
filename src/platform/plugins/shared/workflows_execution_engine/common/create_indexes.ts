@@ -14,6 +14,10 @@ import {
   WORKFLOWS_EXECUTIONS_INDEX_MAPPINGS,
   WORKFLOWS_STEP_EXECUTIONS_INDEX,
   WORKFLOWS_STEP_EXECUTIONS_INDEX_MAPPINGS,
+  WORKFLOWS_EVENTS_INDEX,
+  WORKFLOWS_EVENTS_INDEX_MAPPINGS,
+  WORKFLOWS_SUBSCRIPTIONS_INDEX,
+  WORKFLOWS_SUBSCRIPTIONS_INDEX_MAPPINGS,
 } from './mappings';
 
 interface CreateIndexesOptions {
@@ -34,6 +38,18 @@ export async function createIndexes(options: CreateIndexesOptions): Promise<void
       esClient,
       indexName: WORKFLOWS_STEP_EXECUTIONS_INDEX,
       mappings: WORKFLOWS_STEP_EXECUTIONS_INDEX_MAPPINGS,
+      logger,
+    }),
+    createIndexWithMappings({
+      esClient,
+      indexName: WORKFLOWS_EVENTS_INDEX,
+      mappings: WORKFLOWS_EVENTS_INDEX_MAPPINGS,
+      logger,
+    }),
+    createIndexWithMappings({
+      esClient,
+      indexName: WORKFLOWS_SUBSCRIPTIONS_INDEX,
+      mappings: WORKFLOWS_SUBSCRIPTIONS_INDEX_MAPPINGS,
       logger,
     }),
   ]);
