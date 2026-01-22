@@ -175,6 +175,7 @@ export class WorkflowsExtensionsServerPlugin
         return emitEvent(params, {
           triggerRegistry: this.triggerRegistry,
           esClient,
+          elasticsearch: core.elasticsearch,
           spaces: plugins.spaces,
           logger: this.logger,
           indexName,

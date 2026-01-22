@@ -11,11 +11,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import agent from 'elastic-apm-node';
-import type { CoreStart } from '@kbn/core/server';
+import type { CoreStart, KibanaRequest } from '@kbn/core/server';
 import type { EsWorkflowExecution, StackFrame } from '@kbn/workflows';
 import { ExecutionStatus, isTerminalStatus } from '@kbn/workflows';
 import type { GraphNodeUnion, WorkflowGraph } from '@kbn/workflows/graph';
 import { ExecutionError } from '@kbn/workflows/server';
+import { WorkflowExecutionFailedTriggerId } from '@kbn/workflows-extensions/common/triggers/workflow_execution_failed_trigger';
 import { buildWorkflowContext } from './build_workflow_context';
 import type { ContextDependencies } from './types';
 import type { WorkflowExecutionState } from './workflow_execution_state';
@@ -29,6 +30,7 @@ interface WorkflowExecutionRuntimeManagerInit {
   workflowLogger: IWorkflowEventLogger;
   coreStart?: CoreStart;
   dependencies?: ContextDependencies;
+  fakeRequest?: KibanaRequest;
 }
 
 /**
@@ -60,6 +62,8 @@ export class WorkflowExecutionRuntimeManager {
   private nextNodeId: string | undefined;
   private coreStart?: CoreStart;
   private dependencies?: ContextDependencies;
+  private fakeRequest?: KibanaRequest;
+  private hasEmittedFailureEvent: boolean = false; // Track if we've already emitted the failure event for this execution
   private get topologicalOrder(): string[] {
     return this.workflowGraph.topologicalOrder;
   }
@@ -72,6 +76,7 @@ export class WorkflowExecutionRuntimeManager {
     this.workflowExecutionState = workflowExecutionRuntimeManagerInit.workflowExecutionState;
     this.coreStart = workflowExecutionRuntimeManagerInit.coreStart;
     this.dependencies = workflowExecutionRuntimeManagerInit.dependencies;
+    this.fakeRequest = workflowExecutionRuntimeManagerInit.fakeRequest;
   }
 
   public get workflowExecution() {
@@ -429,9 +434,110 @@ export class WorkflowExecutionRuntimeManager {
           );
         }
       }
+
+      // Emit workflow_execution_failed event when workflow fails (only once per execution)
+      if (workflowExecutionUpdate.status === ExecutionStatus.FAILED && !this.hasEmittedFailureEvent) {
+        this.hasEmittedFailureEvent = true; // Mark as emitted before async call to prevent duplicate emissions
+        this.emitWorkflowFailureEvent(workflowExecution).catch((error) => {
+        });
+      }
     }
 
     this.workflowExecutionState.updateWorkflowExecution(workflowExecutionUpdate);
+  }
+
+  /**
+   * Emits a workflow_execution_failed event when a workflow execution fails.
+   * This enables workflows to subscribe to workflow failures for error handling,
+   * notifications, cleanup, retries, and analytics.
+   */
+  private async emitWorkflowFailureEvent(workflowExecution: EsWorkflowExecution): Promise<void> {
+    if (!this.dependencies?.workflowsExtensions) {
+      return;
+    }
+
+    if (!workflowExecution.error) {
+      return;
+    }
+
+    // Find the failed step
+    const allStepExecutions = this.workflowExecutionState.getAllStepExecutions();
+    const failedStepExecution = allStepExecutions.find(
+      (step) => step.status === ExecutionStatus.FAILED && step.error
+    );
+
+    // Get step information
+    let stepId = 'unknown';
+    let stepName = 'unknown';
+    if (failedStepExecution) {
+      stepId = failedStepExecution.stepId;
+      // Try to get step name from workflow graph node
+      const stepNode = this.workflowGraph.getStepNode(stepId);
+      if (stepNode) {
+        // Try to get name from configuration if available
+        const config = (stepNode as any).configuration;
+        if (config?.name) {
+          stepName = config.name;
+        } else {
+          // Fallback to stepId
+          stepName = stepId;
+        }
+      } else {
+        // Fallback to stepId if node not found
+        stepName = stepId;
+      }
+    }
+
+    // Determine if this workflow is an error handler
+    // A workflow is an error handler if it was triggered by workflow.execution_failed event
+    // Note: When workflows subscribe using "on:workflow_error" in their YAML, they're actually
+    // subscribing to events with trigger type "workflow.execution_failed", so triggeredBy will
+    // be set to "workflow.execution_failed" (the actual event trigger type), not "on:workflow_error"
+    const triggeredBy = workflowExecution.triggeredBy || '';
+    const isErrorHandler = triggeredBy === WorkflowExecutionFailedTriggerId;
+
+    // Use the original request context from the workflow execution
+    // The fakeRequest is created by Task Manager from taskInstance.apiKey and includes
+    // the authorization header with the API key, preserving the user's authentication context
+    // Task Manager creates this fakeRequest with: authorization: `ApiKey ${apiKey}`
+    if (!this.fakeRequest) {
+      return;
+    }
+
+    const requestForEmission: KibanaRequest = this.fakeRequest;
+
+    // Build event payload
+    const payload = {
+      workflow: {
+        id: workflowExecution.workflowId,
+        name: workflowExecution.workflowDefinition?.name || workflowExecution.workflowId,
+        spaceId: workflowExecution.spaceId,
+        isErrorHandler,
+      },
+      execution: {
+        id: workflowExecution.id,
+        startedAt: workflowExecution.startedAt,
+        failedAt: workflowExecution.finishedAt || new Date().toISOString(),
+      },
+      error: {
+        message: workflowExecution.error.message || 'Workflow execution failed',
+        stepId,
+        stepName,
+        ...(workflowExecution.error.details?.stackTrace
+          ? { stackTrace: String(workflowExecution.error.details.stackTrace) }
+          : {}),
+      },
+    };
+
+    try {
+      await this.dependencies.workflowsExtensions.emitEvent({
+        triggerType: WorkflowExecutionFailedTriggerId,
+        payload,
+        kibanaRequest: requestForEmission,
+      });
+    } catch (error) {
+      // Don't throw - event emission failure should not affect workflow execution
+    }
   }
 
   private logWorkflowStart(): void {

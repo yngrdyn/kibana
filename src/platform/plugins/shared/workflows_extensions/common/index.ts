@@ -10,3 +10,8 @@
 export type { CommonStepDefinition } from './step_registry/types';
 export type { CommonTriggerDefinition } from './trigger_registry/types';
 export { DataMapStepTypeId } from './steps/data';
+export {
+  WorkflowExecutionFailedTriggerId,
+  workflowExecutionFailedTriggerDefinition,
+  type WorkflowExecutionFailedEventSchema,
+} from './triggers/workflow_execution_failed_trigger';

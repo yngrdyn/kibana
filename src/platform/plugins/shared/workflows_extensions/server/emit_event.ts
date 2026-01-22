@@ -53,6 +53,13 @@ export interface EmitEventResult {
 export interface EmitEventOptions {
   triggerRegistry: TriggerRegistry;
   esClient: ElasticsearchClient;
+  elasticsearch?: {
+    client: {
+      asScoped: (request: KibanaRequest) => {
+        asCurrentUser: ElasticsearchClient;
+      };
+    };
+  };
   spaces?: SpacesPluginStart;
   logger: Logger;
   indexName: string;
@@ -109,7 +116,37 @@ export async function emitEvent(
   const credentials = (auth as any).credentials;
   
   let principalId = 'system';
-  if (options.security?.authc?.getCurrentUser) {
+  let credentialType: 'user' | 'api_key' | 'service' = 'user';
+  
+  // Try to get user information from the request
+  // For fake requests (like those from Task Manager), getCurrentUser might not work
+  // because they don't go through authentication middleware. Try to authenticate via Elasticsearch instead.
+  const hasAuthHeader = !!kibanaRequest.headers?.authorization;
+  
+  // First, try Elasticsearch authentication for requests with API keys
+  if (hasAuthHeader && options.elasticsearch?.client) {
+    try {
+      const scopedClient = options.elasticsearch.client.asScoped(kibanaRequest);
+      const authResult = await scopedClient.asCurrentUser.security.authenticate();
+      if (authResult?.username) {
+        principalId = authResult.username;
+        // Check if this is API key authentication
+        if (
+          authResult.authentication_type === 'api_key' ||
+          authResult.authentication_realm?.type === '_es_api_key' ||
+          authResult.lookup_realm?.type === '_es_api_key'
+        ) {
+          credentialType = 'api_key';
+        }
+      }
+    } catch (error) {
+      // Silently continue - authentication failure shouldn't block event emission
+      logger.debug(`Failed to authenticate via Elasticsearch: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  // Fallback: try getCurrentUser
+  if (principalId === 'system' && options.security?.authc?.getCurrentUser) {
     try {
       const currentUser = options.security.authc.getCurrentUser(kibanaRequest);
       if (currentUser?.username) {
@@ -122,83 +159,131 @@ export async function emitEvent(
   
   if (principalId === 'system' && isAuthenticated && credentials) {
     principalId = credentials.username || credentials.appName || 'system';
+    if (credentials.type === 'api_key') {
+      credentialType = 'api_key';
+    }
   }
   
   const credentialRef = {
-    type: (isAuthenticated && credentials?.type === 'api_key' ? 'api_key' : 'user') as
-      | 'user'
-      | 'api_key'
-      | 'service',
+    type: credentialType,
     principalId,
   };
 
-  logger.debug(
-    `Event emission auth check: isAuthenticated=${isAuthenticated}, hasSecurity=${!!options.security?.authc?.apiKeys}, hasEncryptedSO=${!!options.encryptedSavedObjects}, hasSavedObjects=${!!options.savedObjects}`
-  );
-
   const eventId = uuidv4();
 
-  // 6. Create API key for workflow execution (if security service is available)
+  // 6. Create or extract API key for workflow execution (if security service is available)
   // This API key will be used when executing workflows triggered by this event
   // Store the API key value in EncryptedSavedObjects and only store the ID in credentialRef
   let apiKeyId: string | undefined;
   
-  const canCreateApiKey =
-    options.security?.authc?.apiKeys?.grantAsInternalUser &&
-    options.encryptedSavedObjects &&
-    options.savedObjects &&
-    isAuthenticated;
-  
-  if (!canCreateApiKey) {
-    logger.warn(
-      `Cannot create API key for event: security=${!!options.security?.authc?.apiKeys}, encryptedSavedObjects=${!!options.encryptedSavedObjects}, savedObjects=${!!options.savedObjects}, isAuthenticated=${isAuthenticated}`
-    );
-  }
-  
-  if (canCreateApiKey && options.security?.authc?.apiKeys) {
+  // Check if request already has an API key (like fake requests from Task Manager)
+  // If so, extract and reuse it instead of creating a new one
+  const getApiKeyFromRequest = (): { id: string; api_key: string } | null => {
+    const authHeader = kibanaRequest.headers?.authorization;
+    if (!authHeader || typeof authHeader !== 'string') {
+      return null;
+    }
+    const [scheme, credentials] = authHeader.split(/\s+/);
+    if (scheme !== 'ApiKey' || !credentials) {
+      return null;
+    }
     try {
-      const apiKeyResult = await options.security.authc.apiKeys.grantAsInternalUser(kibanaRequest, {
-        name: `Event-driven workflow execution - ${triggerType}`,
-        role_descriptors: {},
-        metadata: {
-          managed: true,
-          event_driven_workflow: true,
-          triggerType,
-          eventSpaceId: spaceId,
-        },
-      });
+      const decoded = Buffer.from(credentials, 'base64').toString().split(':');
+      if (decoded.length === 2) {
+        return {
+          id: decoded[0],
+          api_key: decoded[1],
+        };
+      }
+    } catch {
+      // Invalid base64 or format
+    }
+    return null;
+  };
 
-      if (apiKeyResult) {
-        const { id, api_key } = apiKeyResult;
-        apiKeyId = id;
+  // Check if request has an API key (fake requests from Task Manager or api_key credential type)
+  const hasApiKey = (kibanaRequest.isFakeRequest && hasAuthHeader) || credentialType === 'api_key';
+  
+  if (hasApiKey) {
+    // Extract existing API key from request
+    const apiKeyFromRequest = getApiKeyFromRequest();
+    if (apiKeyFromRequest && options.savedObjects && options.encryptedSavedObjects) {
+      try {
+        const soClient = options.savedObjects.getScopedClient(kibanaRequest, {
+          includedHiddenTypes: ['workflow-event-api-key'],
+        });
 
-        if (options.savedObjects) {
-          const soClient = options.savedObjects.getScopedClient(kibanaRequest, {
-            includedHiddenTypes: ['workflow-event-api-key'],
-          });
+        await soClient.create(
+          'workflow-event-api-key',
+          {
+            apiKey: apiKeyFromRequest.api_key,
+            apiKeyId: apiKeyFromRequest.id,
+            eventId,
+            triggerType,
+            spaceId,
+          },
+          {
+            id: eventId,
+            namespace: spaceId !== 'default' ? spaceId : undefined,
+          }
+        );
 
-          await soClient.create(
-            'workflow-event-api-key',
-            {
-              apiKey: api_key,
-              apiKeyId: id,
-              eventId,
-              triggerType,
-              spaceId,
-            },
-            {
-              id: eventId,
+        apiKeyId = apiKeyFromRequest.id;
+      } catch (error) {
+        logger.warn(`Failed to store extracted API key for event ${eventId}: ${error}`);
+      }
+    }
+  } else {
+    // Create new API key using grantAsInternalUser
+    const canCreateApiKey =
+      options.security?.authc?.apiKeys?.grantAsInternalUser &&
+      options.encryptedSavedObjects &&
+      options.savedObjects &&
+      (isAuthenticated || hasAuthHeader);
+    
+    if (canCreateApiKey && options.security?.authc?.apiKeys) {
+      try {
+        const apiKeyResult = await options.security.authc.apiKeys.grantAsInternalUser(kibanaRequest, {
+          name: `Event-driven workflow execution - ${triggerType}`,
+          role_descriptors: {},
+          metadata: {
+            managed: true,
+            event_driven_workflow: true,
+            triggerType,
+            eventSpaceId: spaceId,
+          },
+        });
+
+        if (apiKeyResult) {
+          const { id, api_key } = apiKeyResult;
+          apiKeyId = id;
+
+          if (options.savedObjects) {
+            const soClient = options.savedObjects.getScopedClient(kibanaRequest, {
+              includedHiddenTypes: ['workflow-event-api-key'],
+            });
+
+            await soClient.create(
+              'workflow-event-api-key',
+              {
+                apiKey: api_key,
+                apiKeyId: id,
+                eventId,
+                triggerType,
+                spaceId,
+              },
+              {
+                id: eventId,
               namespace: spaceId !== 'default' ? spaceId : undefined,
             }
           );
-
-          logger.debug(`Created and stored API key for event execution: ${id} (event: ${eventId})`);
-        } else {
-          logger.warn(`SavedObjects not available, cannot store API key for event ${eventId}`);
+          } else {
+            logger.warn(`SavedObjects not available, cannot store API key for event ${eventId}`);
+          }
         }
+      } catch (error) {
+        logger.warn(`Failed to create API key for event execution: ${error}. Workflow execution may fail without authentication.`);
       }
-    } catch (error) {
-      logger.warn(`Failed to create API key for event execution: ${error}. Workflow execution may fail without authentication.`);
     }
   }
 

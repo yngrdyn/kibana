@@ -101,6 +101,7 @@ export async function setupDependencies(
     workflowExecutionState,
     coreStart,
     dependencies,
+    fakeRequest,
   });
 
   const esClient: ElasticsearchClient =

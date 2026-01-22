@@ -23,6 +23,7 @@ import type {
 } from '@kbn/workflows';
 import { ExecutionStatus, WorkflowRepository } from '@kbn/workflows';
 import { WorkflowExecutionNotFoundError } from '@kbn/workflows/common/errors';
+import { workflowExecutionFailedTriggerDefinition } from '@kbn/workflows-extensions/common/triggers/workflow_execution_failed_trigger';
 import { ConcurrencyManager } from './concurrency/concurrency_manager';
 import type { WorkflowsExecutionEngineConfig } from './config';
 import {
@@ -86,6 +87,9 @@ export class WorkflowsExecutionEnginePlugin
 
     const logger = this.logger;
     const config = this.config;
+
+    // Register workflow.execution_failed trigger
+    plugins.workflowsExtensions.registerTrigger(workflowExecutionFailedTriggerDefinition);
 
     initializeLogsRepositoryDataStream(core.dataStreams);
 
