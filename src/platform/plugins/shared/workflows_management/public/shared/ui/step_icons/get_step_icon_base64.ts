@@ -14,6 +14,9 @@ import { HardcodedIcons } from './hardcoded_icons';
 import { ElasticsearchLogo } from './icons/elasticsearch.svg';
 import { KibanaLogo } from './icons/kibana.svg';
 
+// Built-in trigger types that are not event-driven
+const BUILT_IN_TRIGGER_TYPES = new Set(['alert', 'scheduled', 'manual']);
+
 export interface GetStepIconBase64Params {
   actionTypeId: string;
   icon?: IconType;
@@ -61,6 +64,15 @@ async function resolveLazyComponent(
 
 function defaultIconForConnector(connector: GetStepIconBase64Params): string {
   if (connector.fromRegistry) {
+    // Check if this is an event-driven trigger (not alert, scheduled, or manual)
+    const isEventDrivenTrigger = !BUILT_IN_TRIGGER_TYPES.has(connector.actionTypeId);
+    
+    if (isEventDrivenTrigger) {
+      // Use bolt icon for event-driven triggers (lightning bolt represents events/triggers)
+      // This matches the icon used in the actions menu and provides a better visual indicator
+      return HardcodedIcons.bolt || HardcodedIcons.warning || HardcodedIcons.default;
+    }
+    
     // default to kibana icon if the step is comes from custom step registry
     return HardcodedIcons.kibana;
   }

@@ -7,12 +7,15 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { WorkflowsExtensionsServerPluginSetup } from '@kbn/workflows-extensions/server';
-import { registerExampleTrigger } from './event_example_trigger';
+import type { WorkflowsExtensionsPublicPluginSetup } from '@kbn/workflows-extensions/public';
+import { exampleTriggerCommonDefinition } from '../../common/triggers/event_example_trigger';
 
 /**
- * Register all triggers for the example plugin.
+ * Register the event.example trigger on the public side.
+ * This provides UI metadata for the trigger.
  */
-export function registerTriggers(workflowsExtensions: WorkflowsExtensionsServerPluginSetup): void {
-  registerExampleTrigger(workflowsExtensions);
+export function registerExampleTrigger(
+  workflowsExtensions: WorkflowsExtensionsPublicPluginSetup
+): void {
+  workflowsExtensions.registerTrigger(exampleTriggerCommonDefinition);
 }

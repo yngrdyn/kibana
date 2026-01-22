@@ -11,27 +11,27 @@ import { z } from '@kbn/zod/v4';
 import type { CommonTriggerDefinition } from '@kbn/workflows-extensions/common';
 
 /**
- * Trigger type ID for the workflow.error trigger.
+ * Trigger type ID for the event.example trigger.
  */
-export const WorkflowErrorTriggerId = 'workflow.error';
+export const ExampleTriggerId = 'event.example';
 
 /**
- * Event schema for the workflow.error trigger.
+ * Event schema for the event.example trigger.
  */
 export const EventSchema = z.object({
   workflowId: z.string(),
-  executionId: z.string(),
-  error: z.string(),
+  message: z.string(),
+  type: z.string(),
 });
 
-export type WorkflowErrorEventSchema = typeof EventSchema;
+export type ExampleEventSchema = typeof EventSchema;
 
 /**
- * Common trigger definition for workflow.error trigger.
+ * Common trigger definition for event.example trigger.
  * This is shared between server and public implementations.
  */
-export const workflowErrorTriggerCommonDefinition: CommonTriggerDefinition<WorkflowErrorEventSchema> = {
-  id: WorkflowErrorTriggerId,
-  description: 'Emitted when a workflow execution fails',
+export const exampleTriggerCommonDefinition: CommonTriggerDefinition<ExampleEventSchema> = {
+  id: ExampleTriggerId,
+  description: 'Example event trigger for testing',
   eventSchema: EventSchema,
 };

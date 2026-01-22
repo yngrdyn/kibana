@@ -8,11 +8,11 @@
  */
 
 import type { WorkflowsExtensionsPublicPluginSetup } from '@kbn/workflows-extensions/public';
-import { registerWorkflowErrorTrigger } from './workflow_error_trigger';
+import { registerExampleTrigger } from './event_example_trigger';
 
 /**
  * Register all triggers for the example plugin on the public side.
  */
 export function registerTriggers(workflowsExtensions: WorkflowsExtensionsPublicPluginSetup): void {
-  registerWorkflowErrorTrigger(workflowsExtensions);
+  registerExampleTrigger(workflowsExtensions);
 }

@@ -7,15 +7,15 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { WorkflowsExtensionsPublicPluginSetup } from '@kbn/workflows-extensions/public';
-import { workflowErrorTriggerCommonDefinition } from '../../common/triggers/workflow_error_trigger';
+import type { WorkflowsExtensionsServerPluginSetup } from '@kbn/workflows-extensions/server';
+import { exampleTriggerCommonDefinition } from '../../common/triggers/event_example_trigger';
 
 /**
- * Register the workflow.error trigger on the public side.
- * This provides UI metadata for the trigger.
+ * Register the event.example trigger.
+ * This is an example trigger that can be used to test the event-driven workflow system.
  */
-export function registerWorkflowErrorTrigger(
-  workflowsExtensions: WorkflowsExtensionsPublicPluginSetup
+export function registerExampleTrigger(
+  workflowsExtensions: WorkflowsExtensionsServerPluginSetup
 ): void {
-  workflowsExtensions.registerTrigger(workflowErrorTriggerCommonDefinition);
+  workflowsExtensions.registerTrigger(exampleTriggerCommonDefinition);
 }

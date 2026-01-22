@@ -8,7 +8,7 @@
  */
 
 import { monaco } from '@kbn/monaco';
-import type { WorkflowsExtensionsPublicPluginStart } from '@kbn/workflows-extensions';
+import type { WorkflowsExtensionsPublicPluginStart } from '@kbn/workflows-extensions/public';
 import { buildAutocompleteContext } from './context/build_autocomplete_context';
 import { getAllYamlProviders } from './intercept_monaco_yaml_provider';
 import { getSuggestions } from './suggestions/get_suggestions';

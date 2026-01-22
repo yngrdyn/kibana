@@ -80,17 +80,16 @@ export function useDynamicTypeIcons(connectorsData: ConnectorsResponse | undefin
   const { actionTypeRegistry } = triggersActionsUi;
 
   useEffect(() => {
-    if (!connectorsData?.connectorTypes) {
-      return;
-    }
-    const connectorTypes = Object.values(connectorsData.connectorTypes).map((connector) => {
-      const actionType = actionTypeRegistry.get(connector.actionTypeId);
-      return {
-        actionTypeId: connector.actionTypeId,
-        displayName: connector.displayName,
-        icon: actionType.iconClass,
-      };
-    });
+    const connectorTypes = connectorsData?.connectorTypes
+      ? Object.values(connectorsData.connectorTypes).map((connector) => {
+          const actionType = actionTypeRegistry.get(connector.actionTypeId);
+          return {
+            actionTypeId: connector.actionTypeId,
+            displayName: connector.displayName,
+            icon: actionType.iconClass,
+          };
+        })
+      : [];
 
     const registeredTypes = workflowsExtensions.getAllStepDefinitions().map((step) => ({
       actionTypeId: step.id,
@@ -101,11 +100,30 @@ export function useDynamicTypeIcons(connectorsData: ConnectorsResponse | undefin
 
     const allTypes = [...predefinedStepTypes, ...connectorTypes, ...registeredTypes];
 
+    // Add trigger types for icon injection
+    const triggerTypes = [
+      { actionTypeId: 'alert', displayName: 'Alert' },
+      { actionTypeId: 'scheduled', displayName: 'Scheduled' },
+      { actionTypeId: 'manual', displayName: 'Manual' },
+    ];
+
+    // Get event-driven trigger types from extensions
+    const eventDrivenTriggers = workflowsExtensions.getAllTriggers();
+    const eventDrivenTriggerTypes = eventDrivenTriggers.map((trigger) => ({
+      actionTypeId: trigger.id,
+      displayName: (trigger as any).label || trigger.id,
+      fromRegistry: true,
+      icon: (trigger as any).icon,
+    }));
+
+    const allTypesWithTriggers = [...allTypes, ...triggerTypes, ...eventDrivenTriggerTypes];
+
     // Run async functions
     (async () => {
       await Promise.all([
-        injectDynamicConnectorIcons(allTypes),
-        injectDynamicShadowIcons(allTypes),
+        injectDynamicConnectorIcons(allTypesWithTriggers),
+        injectDynamicShadowIcons(allTypesWithTriggers),
+        injectDynamicTriggerTypeIcons(allTypesWithTriggers),
       ]);
     })();
   }, [connectorsData?.connectorTypes, actionTypeRegistry, workflowsExtensions]);
@@ -249,6 +267,87 @@ async function injectDynamicShadowIcons(connectorTypes: ConnectorTypeInfoMinimal
         ${cssProperties}
         background-size: contain;
         background-repeat: no-repeat;
+      }
+    `;
+  }
+
+  // Inject the CSS
+  if (cssToInject) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = cssToInject;
+    document.head.appendChild(style);
+  }
+}
+
+/**
+ * Inject dynamic CSS for trigger type icons in Monaco autocompletion
+ * This creates CSS rules for each trigger type to show custom icons in the suggestion dropdown
+ */
+async function injectDynamicTriggerTypeIcons(allTypes: ConnectorTypeInfoMinimal[]) {
+  const styleId = 'dynamic-trigger-type-icons';
+
+  // Remove existing dynamic styles
+  const existingStyle = document.getElementById(styleId);
+  if (existingStyle) {
+    existingStyle.remove();
+  }
+
+  // Filter to only trigger types (alert, scheduled, manual, and event-driven triggers)
+  // We identify event-driven triggers by checking if they're in the predefined list or have fromRegistry flag
+  const triggerTypes = allTypes.filter((type) => {
+    const id = type.actionTypeId;
+    // Built-in triggers
+    if (id === 'alert' || id === 'scheduled' || id === 'manual') {
+      return true;
+    }
+    // Event-driven triggers from registry (they have fromRegistry flag)
+    if (type.fromRegistry) {
+      return true;
+    }
+    return false;
+  });
+
+  // Generate CSS for each trigger type
+  let cssToInject = '';
+
+  for (const trigger of triggerTypes) {
+    const triggerType = trigger.actionTypeId;
+    const displayName = trigger.displayName;
+
+    // Generate CSS rule for this trigger
+    const iconBase64 = await getStepIconBase64(trigger);
+
+    // Target Monaco autocomplete suggestions by aria-label
+    // Monaco uses the label as the aria-label in the suggestion list
+    // Use both exact match and starts-with to catch variations
+    const selector = `.monaco-list .monaco-list-row[aria-label="${triggerType}"] .suggest-icon:before,
+      .monaco-list .monaco-list-row[aria-label^="${triggerType}"] .suggest-icon:before,
+      .monaco-list .monaco-list-row[aria-label="${displayName}"] .suggest-icon:before,
+      .monaco-list .monaco-list-row[aria-label^="${displayName}"] .suggest-icon:before`;
+
+    let cssProperties = '';
+    if (MonochromeIcons.has(triggerType)) {
+      cssProperties = `
+        mask-image: url("${iconBase64}");
+        mask-size: contain;
+        background-color: currentColor;
+      `;
+    } else {
+      cssProperties = `background-image: url("${iconBase64}") !important;`;
+    }
+
+    cssToInject += `
+      /* Target trigger type suggestions in autocomplete */
+      ${selector} {
+        ${cssProperties}
+        background-size: 12px 12px !important;
+        background-repeat: no-repeat !important;
+        background-position: center !important;
+        content: " " !important;
+        width: 16px !important;
+        height: 16px !important;
+        display: block !important;
       }
     `;
   }
