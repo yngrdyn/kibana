@@ -10,10 +10,12 @@
 import type { PluginStartContract as ActionsPluginStartContract } from '@kbn/actions-plugin/server';
 import type { InferenceServerStart } from '@kbn/inference-plugin/server';
 import type { SpacesPluginStart } from '@kbn/spaces-plugin/server';
+import type { CustomRequestHandlerContext } from '@kbn/core/server';
 import type { ServerStepDefinition } from './step_registry/types';
 import type { TriggerDefinition } from './trigger_registry/types';
 import type { WorkflowsExtensionsStartContract } from '../common/types';
 import type { EmitEventParams, EmitEventResult } from './emit_event';
+import type { WorkflowsExtensionsApiRequestHandlerContext } from './request_context_factory';
 
 /**
  * Server-side plugin setup contract.
@@ -84,3 +86,11 @@ export interface WorkflowsExtensionsServerPluginStartDeps {
     };
   };
 }
+
+/**
+ * Request handler context for workflows_extensions plugin.
+ * Provides access to the workflows context with emitEvent method.
+ */
+export type WorkflowsExtensionsPluginRequestHandlerContext = CustomRequestHandlerContext<{
+  workflows: WorkflowsExtensionsApiRequestHandlerContext;
+}>;

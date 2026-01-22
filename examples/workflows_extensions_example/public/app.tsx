@@ -23,6 +23,7 @@ import {
   type EuiStepProps,
 } from '@elastic/eui';
 import type { CoreStart } from '@kbn/core/public';
+import { isTerminalStatus, ExecutionStatus } from '@kbn/workflows';
 import { ExampleTriggerId } from '../common/triggers/event_example_trigger';
 
 interface AppProps {
@@ -32,7 +33,7 @@ interface AppProps {
 export const App: React.FC<AppProps> = ({ core }) => {
   const [loading, setLoading] = useState(false);
   const [creatingWorkflow, setCreatingWorkflow] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string; eventId?: string; executionId?: string } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; message: string; eventId?: string; executionId?: string; executionStatus?: ExecutionStatus } | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [workflowCreationResult, setWorkflowCreationResult] = useState<{ success: boolean; message: string; workflowId?: string } | null>(null);
   // Fixed to the only trigger registered in this example app
@@ -136,9 +137,11 @@ export const App: React.FC<AppProps> = ({ core }) => {
 
       // Poll for the execution (it's created asynchronously)
       let executionId: string | undefined;
-      const maxAttempts = 10;
+      let executionStatus: ExecutionStatus | undefined;
+      const maxAttempts = 30; // Increased for waiting for completion
       const delay = 1000; // 1 second
 
+      // First, find the execution ID
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, delay));
         
@@ -163,11 +166,40 @@ export const App: React.FC<AppProps> = ({ core }) => {
         }
       }
 
+      // Then, poll for execution completion
+      if (executionId) {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          
+          try {
+            const executionResponse = await core.http.get<{ id: string; status: ExecutionStatus }>(
+              `/api/workflowExecutions/${executionId}`
+            );
+
+            if (executionResponse && executionResponse.status) {
+              executionStatus = executionResponse.status;
+              
+              // Check if execution has reached a terminal status
+              if (isTerminalStatus(executionStatus)) {
+                break;
+              }
+            }
+          } catch {
+            // Continue polling
+          }
+        }
+      }
+
+      const statusMessage = executionStatus 
+        ? `Execution ${executionStatus === ExecutionStatus.COMPLETED ? 'completed' : executionStatus === ExecutionStatus.FAILED ? 'failed' : 'ended'} with status: ${executionStatus}`
+        : 'Event emitted successfully!';
+
       setResult({
         success: true,
-        message: 'Event emitted successfully!',
+        message: statusMessage,
         eventId: response.eventId,
         executionId,
+        executionStatus,
       });
     } catch (error: any) {
       setResult({

@@ -8,7 +8,7 @@
  */
 
 import type { Plugin, CoreSetup, CoreStart } from '@kbn/core/server';
-import type { WorkflowsExtensionsServerPluginSetup, WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
+import type { WorkflowsExtensionsServerPluginSetup, WorkflowsExtensionsServerPluginStart, WorkflowsExtensionsPluginRequestHandlerContext } from '@kbn/workflows-extensions/server';
 import { registerStepDefinitions } from './step_types';
 import { registerTriggers } from './triggers';
 import { registerEmitEventRoute } from './routes/emit_event';
@@ -48,8 +48,8 @@ export class WorkflowsExtensionsExamplePlugin
     registerTriggers(plugins.workflowsExtensions);
 
     // Register route for emitting events
-    const router = core.http.createRouter();
-    registerEmitEventRoute(router, () => core.getStartServices());
+    const router = core.http.createRouter<WorkflowsExtensionsPluginRequestHandlerContext>();
+    registerEmitEventRoute(router);
 
     return {};
   }

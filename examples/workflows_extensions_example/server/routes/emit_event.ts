@@ -9,15 +9,15 @@
 
 import { schema } from '@kbn/config-schema';
 import type { IRouter } from '@kbn/core/server';
-import type { WorkflowsExtensionsExamplePluginStartDeps } from '../plugin';
+import type { WorkflowsExtensionsPluginRequestHandlerContext } from '@kbn/workflows-extensions/server';
 
 /**
  * Route handler for event emission.
- * Uses WorkflowsExtensionsServerPluginStart.emitEvent to emit events.
+ * Uses the workflows context handler to emit events.
+ * The kibanaRequest is automatically injected by the context handler.
  */
 export function registerEmitEventRoute(
-  router: IRouter,
-  getStartServices: () => Promise<[any, WorkflowsExtensionsExamplePluginStartDeps, unknown]>
+  router: IRouter<WorkflowsExtensionsPluginRequestHandlerContext>
 ) {
   router.post(
     {
@@ -38,22 +38,12 @@ export function registerEmitEventRoute(
     },
     async (context, request, response) => {
       try {
-        const [, plugins] = await getStartServices();
-        const workflowsExtensions = plugins.workflowsExtensions;
-        
-        if (!workflowsExtensions) {
-          return response.badRequest({
-            body: {
-              message: 'Workflows extensions service not available',
-            },
-          });
-        }
+        const workflowsContext = await context.workflows;
 
-        const result = await workflowsExtensions.emitEvent({
-          triggerType: request.body.triggerType,
-          payload: request.body.payload,
-          kibanaRequest: request,
-        });
+        const result = await workflowsContext.emitEvent(
+          request.body.triggerType,
+          request.body.payload
+        );
 
         return response.ok({
           body: {

@@ -7,18 +7,20 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { CoreSetup, CoreStart, Logger, Plugin, PluginInitializerContext } from '@kbn/core/server';
+import type { CoreSetup, CoreStart, Logger, Plugin, PluginInitializerContext, KibanaRequest } from '@kbn/core/server';
 import { registerGetStepDefinitionsRoute } from './routes/get_step_definitions';
 import { registerGetTriggersRoute } from './routes/get_triggers';
 import { ServerStepRegistry } from './step_registry';
 import { TriggerRegistry } from './trigger_registry';
 import { registerInternalStepDefinitions } from './steps';
 import { emitEvent } from './emit_event';
+import { RequestContextFactory } from './request_context_factory';
 import type {
   WorkflowsExtensionsServerPluginSetup,
   WorkflowsExtensionsServerPluginSetupDeps,
   WorkflowsExtensionsServerPluginStart,
   WorkflowsExtensionsServerPluginStartDeps,
+  WorkflowsExtensionsPluginRequestHandlerContext,
 } from './types';
 
 export class WorkflowsExtensionsServerPlugin
@@ -76,6 +78,62 @@ export class WorkflowsExtensionsServerPlugin
         attributesToIncludeInAAD: new Set(['apiKeyId', 'eventId', 'triggerType', 'spaceId']),
       });
     }
+
+    // Register route handler context for workflows
+    core.http.registerRouteHandlerContext<
+      WorkflowsExtensionsPluginRequestHandlerContext,
+      'workflows'
+    >('workflows', async (context, request) => {
+      const [coreStart, startPlugins] = await core.getStartServices();
+      const esClient = coreStart.elasticsearch.client.asInternalUser;
+      const indexName = '.workflows-events-poc';
+
+      const factory = new RequestContextFactory({
+        logger: this.logger,
+        triggerRegistry: this.triggerRegistry,
+        getEmitEventOptions: () => ({
+          esClient,
+          spaces: startPlugins.spaces,
+          indexName,
+          security: coreStart.security?.authc
+            ? {
+                authc: {
+                  ...(coreStart.security.authc.apiKeys && {
+                    apiKeys: {
+                      grantAsInternalUser: async (req: KibanaRequest, params: { name: string; role_descriptors?: Record<string, any>; metadata?: Record<string, any> }) => {
+                        return coreStart.security!.authc.apiKeys!.grantAsInternalUser(req, {
+                          name: params.name,
+                          role_descriptors: params.role_descriptors || {},
+                          metadata: params.metadata,
+                        });
+                      },
+                    },
+                  }),
+                  getCurrentUser: (req: KibanaRequest) => {
+                    return coreStart.security!.authc.getCurrentUser(req);
+                  },
+                },
+              }
+            : undefined,
+          encryptedSavedObjects: startPlugins.encryptedSavedObjects
+            ? {
+                getClient: (options?: { includedHiddenTypes?: string[] }) => {
+                  return startPlugins.encryptedSavedObjects!.getClient(options);
+                },
+              }
+            : undefined,
+          savedObjects: coreStart.savedObjects
+            ? {
+                getScopedClient: (req: KibanaRequest, options?: { excludedExtensions?: string[]; includedHiddenTypes?: string[] }) => {
+                  return coreStart.savedObjects.getScopedClient(req, options);
+                },
+              }
+            : undefined,
+        }),
+      });
+
+      return factory.create(context, request);
+    });
 
     return {
       registerStepDefinition: (definition) => {

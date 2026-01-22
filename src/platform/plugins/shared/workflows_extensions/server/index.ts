@@ -23,6 +23,7 @@ export type {
   WorkflowsExtensionsServerPluginStart,
   WorkflowsExtensionsServerPluginSetupDeps,
   WorkflowsExtensionsServerPluginStartDeps,
+  WorkflowsExtensionsPluginRequestHandlerContext,
 } from './types';
 
 export type {
