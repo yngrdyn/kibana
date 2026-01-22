@@ -16,7 +16,7 @@
  * License v3.0 only", or the "Server Side Public License v 1".
  */
 
-import type { Plugin, CoreSetup, CoreStart } from '@kbn/core/public';
+import type { Plugin, CoreSetup, CoreStart, AppMountParameters } from '@kbn/core/public';
 import type { WorkflowsExtensionsPublicPluginSetup } from '@kbn/workflows-extensions/public';
 import { registerStepDefinitions } from './step_types';
 import { registerTriggers } from './triggers';
@@ -34,6 +34,9 @@ export interface WorkflowsExtensionsExamplePublicPluginStart {
 
 export interface WorkflowsExtensionsExamplePublicPluginSetupDeps {
   workflowsExtensions: WorkflowsExtensionsPublicPluginSetup;
+  developerExamples?: {
+    register: (def: { appId: string; title: string; description: string }) => void;
+  };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -51,7 +54,7 @@ export class WorkflowsExtensionsExamplePlugin
     >
 {
   public setup(
-    _core: CoreSetup,
+    core: CoreSetup,
     plugins: WorkflowsExtensionsExamplePublicPluginSetupDeps
   ): WorkflowsExtensionsExamplePublicPluginSetup {
     // Register steps on setup phase
@@ -66,6 +69,29 @@ export class WorkflowsExtensionsExamplePlugin
     });
     // Register triggers on setup phase
     registerTriggers(plugins.workflowsExtensions);
+
+    // Register application
+    core.application.register({
+      id: 'workflowsExtensionsExample',
+      title: 'Workflows Extensions Example',
+      visibleIn: [],
+      async mount(params: AppMountParameters) {
+        // Load application bundle
+        const { renderApp } = await import('./application');
+        // Get start services
+        const [coreStart] = await core.getStartServices();
+        // Render the application
+        return renderApp(coreStart, params);
+      },
+    });
+
+    // Register with developer examples
+    plugins.developerExamples?.register({
+      appId: 'workflowsExtensionsExample',
+      title: 'Workflows Extensions Example',
+      description:
+        'Example plugin demonstrating how to register custom workflow extensions and emit events',
+    });
 
     return {};
   }

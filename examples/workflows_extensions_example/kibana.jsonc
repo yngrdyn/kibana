@@ -10,7 +10,8 @@
     "server": true,
     "browser": true,
     "requiredPlugins": [
-      "workflowsExtensions"
+      "workflowsExtensions",
+      "developerExamples"
     ]
   }
 }
