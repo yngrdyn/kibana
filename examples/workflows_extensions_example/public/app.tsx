@@ -125,7 +125,7 @@ export const App: React.FC<AppProps> = ({ core }) => {
       }
 
       const response = await core.http.post<{ eventId: string }>(
-        '/internal/workflows_extensions/emit_event',
+        '/internal/workflowsExtensionsExample/emit_event',
         {
           body: JSON.stringify({
             triggerType,

@@ -10,7 +10,6 @@
 import type { CoreSetup, CoreStart, Logger, Plugin, PluginInitializerContext } from '@kbn/core/server';
 import { registerGetStepDefinitionsRoute } from './routes/get_step_definitions';
 import { registerGetTriggersRoute } from './routes/get_triggers';
-import { registerTestEmitEventRoute } from './routes/test_emit_event';
 import { ServerStepRegistry } from './step_registry';
 import { TriggerRegistry } from './trigger_registry';
 import { registerInternalStepDefinitions } from './steps';
@@ -51,7 +50,6 @@ export class WorkflowsExtensionsServerPlugin
     // Register HTTP routes to expose step definitions and triggers for testing
     registerGetStepDefinitionsRoute(router, this.stepRegistry);
     registerGetTriggersRoute(router, this.triggerRegistry);
-    registerTestEmitEventRoute(router, () => core.getStartServices());
     registerInternalStepDefinitions(core, this.stepRegistry);
 
     // Register saved object type for storing encrypted API keys

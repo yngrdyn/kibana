@@ -8,9 +8,10 @@
  */
 
 import type { Plugin, CoreSetup, CoreStart } from '@kbn/core/server';
-import type { WorkflowsExtensionsServerPluginSetup } from '@kbn/workflows-extensions/server';
+import type { WorkflowsExtensionsServerPluginSetup, WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
 import { registerStepDefinitions } from './step_types';
 import { registerTriggers } from './triggers';
+import { registerEmitEventRoute } from './routes/emit_event';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface WorkflowsExtensionsExamplePluginSetup {
@@ -24,9 +25,8 @@ export interface WorkflowsExtensionsExamplePluginStart {
 export interface WorkflowsExtensionsExamplePluginSetupDeps {
   workflowsExtensions: WorkflowsExtensionsServerPluginSetup;
 }
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface WorkflowsExtensionsExamplePluginStartDeps {
-  // No dependencies needed
+  workflowsExtensions: WorkflowsExtensionsServerPluginStart;
 }
 
 export class WorkflowsExtensionsExamplePlugin
@@ -39,13 +39,17 @@ export class WorkflowsExtensionsExamplePlugin
     >
 {
   public setup(
-    _core: CoreSetup,
+    core: CoreSetup<WorkflowsExtensionsExamplePluginStartDeps>,
     plugins: WorkflowsExtensionsExamplePluginSetupDeps
   ): WorkflowsExtensionsExamplePluginSetup {
     // Register steps on setup phase
     registerStepDefinitions(plugins.workflowsExtensions);
     // Register triggers on setup phase
     registerTriggers(plugins.workflowsExtensions);
+
+    // Register route for emitting events
+    const router = core.http.createRouter();
+    registerEmitEventRoute(router, () => core.getStartServices());
 
     return {};
   }
