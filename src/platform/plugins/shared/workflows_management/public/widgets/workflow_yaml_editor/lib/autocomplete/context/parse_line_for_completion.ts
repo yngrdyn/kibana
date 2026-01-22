@@ -64,6 +64,14 @@ export interface TimezoneLineParseResult extends BaseLineParseResult {
   valueStartIndex: number;
 }
 
+export interface WhereClauseLineParseResult extends BaseLineParseResult {
+  matchType: 'where-clause';
+  match: RegExpMatchArray;
+  valueStartIndex: number;
+  queryPrefix: string; // The KQL query prefix typed so far
+  needsClosingQuote: boolean; // Whether the where clause value needs a closing single quote
+}
+
 export type LineParseResult =
   | VariableLineParseResult
   | ForeachVariableLineParseResult
@@ -71,7 +79,8 @@ export type LineParseResult =
   | LiquidSyntaxLineParseResult
   | ConnectorIdLineParseResult
   | TypeLineParseResult
-  | TimezoneLineParseResult;
+  | TimezoneLineParseResult
+  | WhereClauseLineParseResult;
 
 // eslint-disable-next-line complexity
 export function parseLineForCompletion(lineUpToCursor: string): LineParseResult | null {
@@ -97,6 +106,99 @@ export function parseLineForCompletion(lineUpToCursor: string): LineParseResult 
       fullKey: typePrefix,
       match: typeMatch,
       valueStartIndex: typeMatch.groups.prefix.length + 1,
+    };
+  }
+
+  // Check for where clause in event-driven triggers
+  // Match both quoted and unquoted values: where: "value" or where: value
+  const whereClauseMatch = lineUpToCursor.match(/^(?<prefix>\s*where:)\s*(?<value>.*)$/);
+  if (whereClauseMatch && whereClauseMatch.groups) {
+    // Preserve the original value to detect trailing spaces
+    const originalValue = whereClauseMatch.groups.value;
+    const originalTrimmed = originalValue.trim();
+    
+    // Check if we need a closing single quote BEFORE removing quotes
+    // The value needs a closing quote if:
+    // 1. It starts with a single quote (after trimming)
+    // 2. It doesn't end with a single quote, OR it's just a single quote (cursor inside empty quotes)
+    const startsWithSingleQuote = originalTrimmed.startsWith("'");
+    const startsWithDoubleQuote = originalTrimmed.startsWith('"');
+    
+    // IMPORTANT: Check the ORIGINAL value (trimEnd only) for the closing quote
+    // This is because trimming removes the trailing space, which might be before the closing quote
+    // For example: 'event.workflowId:value ' -> originalValue ends with ' ', originalTrimmed ends with '
+    const originalTrimEnd = originalValue.trimEnd();
+    const endsWithSingleQuote = originalTrimEnd.endsWith("'");
+    const endsWithDoubleQuote = originalTrimEnd.endsWith('"');
+    
+    // Check if original value ends with space (cursor might be before closing quote)
+    const originalEndsWithSpace = originalValue.endsWith(' ');
+    
+    // We need closing quote if: starts with ' and (doesn't end with ' OR is just "'" meaning cursor is inside empty quotes)
+    const needsClosingQuote = startsWithSingleQuote && (!endsWithSingleQuote || originalTrimmed === "'");
+    
+    // Detect trailing space INSIDE quotes (before the closing quote)
+    // For example: 'event.workflowId:value ' (space before closing quote)
+    // OR: 'event.workflowId:value ' (cursor before closing quote, no closing quote in lineUpToCursor)
+    let hasTrailingSpace = false;
+    let queryPrefix = originalValue.trim();
+    
+    // If starts with single quote but doesn't end with single quote, cursor might be before closing quote
+    // In this case, check if there's a trailing space
+    if (startsWithSingleQuote && !endsWithSingleQuote && originalEndsWithSpace) {
+      // Cursor is before closing quote, extract content up to the space
+      const contentInsideQuotes = originalValue.slice(1); // Remove opening quote, keep everything including trailing space
+      hasTrailingSpace = true;
+      queryPrefix = contentInsideQuotes; // This includes the trailing space
+    } else if (startsWithSingleQuote && endsWithSingleQuote) {
+      // Fully quoted with single quotes: 'content' or 'content '
+      // Find the last single quote in the original value (before trimming)
+      const lastSingleQuoteIndex = originalTrimEnd.lastIndexOf("'");
+      
+      if (lastSingleQuoteIndex > 0) {
+        // Extract content between first and last single quote
+        const contentInsideQuotes = originalValue.slice(1, lastSingleQuoteIndex);
+        const contentTrimmed = contentInsideQuotes.trim();
+        // If content has trailing space (before closing quote), detect it
+        hasTrailingSpace = contentInsideQuotes !== contentTrimmed && contentInsideQuotes.endsWith(' ');
+        queryPrefix = contentInsideQuotes; // Keep the content including trailing space
+      } else {
+        // Fallback: use trimmed version
+        const contentInsideQuotes = originalTrimmed.slice(1, -1);
+        queryPrefix = contentInsideQuotes;
+      }
+    } else if (startsWithDoubleQuote && endsWithDoubleQuote) {
+      // Fully quoted with double quotes: "content" or "content "
+      const lastDoubleQuoteIndex = originalTrimEnd.lastIndexOf('"');
+      if (lastDoubleQuoteIndex > 0) {
+        const contentInsideQuotes = originalValue.slice(1, lastDoubleQuoteIndex);
+        const contentTrimmed = contentInsideQuotes.trim();
+        hasTrailingSpace = contentInsideQuotes !== contentTrimmed && contentInsideQuotes.endsWith(' ');
+        queryPrefix = contentInsideQuotes;
+      } else {
+        const contentInsideQuotes = originalTrimmed.slice(1, -1);
+        queryPrefix = contentInsideQuotes;
+      }
+    } else if (startsWithSingleQuote || startsWithDoubleQuote) {
+      const contentInsideQuotes = originalTrimmed.slice(1); // Remove opening quote
+      const contentTrimmed = contentInsideQuotes.trim();
+      // Check for trailing space before cursor (which might be before closing quote)
+      hasTrailingSpace = contentInsideQuotes !== contentTrimmed && contentInsideQuotes.endsWith(' ');
+      queryPrefix = contentInsideQuotes;
+    } else {
+      // Not quoted: check for trailing space in original value
+      hasTrailingSpace = originalValue.trim() !== originalValue && originalValue.endsWith(' ');
+      // Preserve trailing space in queryPrefix for detection (only trim leading spaces)
+      queryPrefix = originalValue.trimStart();
+    }
+
+    return {
+      matchType: 'where-clause',
+      fullKey: queryPrefix,
+      queryPrefix,
+      match: whereClauseMatch,
+      valueStartIndex: whereClauseMatch.groups.prefix.length + 1,
+      needsClosingQuote,
     };
   }
 

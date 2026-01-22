@@ -150,6 +150,9 @@ export const WORKFLOWS_SUBSCRIPTIONS_INDEX_MAPPINGS: MappingTypeMapping = {
     spaceId: {
       type: 'keyword',
     },
+    where: {
+      type: 'text',
+    },
     enabled: {
       type: 'boolean',
     },

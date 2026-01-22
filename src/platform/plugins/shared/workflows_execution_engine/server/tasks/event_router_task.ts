@@ -172,6 +172,50 @@ export function createEventRouterTaskRunner({
             
             for (const subscription of subscriptions) {
               try {
+                // Evaluate where clause if present
+                if (subscription.where) {
+                  const { evaluateKql } = await import('../utils/eval_kql/eval_kql');
+                  const { WorkflowTemplatingEngine } = await import('../templating_engine');
+                  
+                  // Build context for template rendering and KQL evaluation
+                  // Similar to if_step condition, we provide event as the context
+                  // Users must reference event.workflowId (explicit access only, no direct access)
+                  const context = {
+                    event: event.payload,
+                  };
+                  
+                  // Render templates in the where clause (same as if_step condition)
+                  const templateEngine = new WorkflowTemplatingEngine();
+                  const renderedWhere = templateEngine.render(subscription.where, context);
+                  
+                  // Evaluate the rendered condition as KQL (same as if_step)
+                  let matches = false;
+                  if (typeof renderedWhere === 'boolean') {
+                    matches = renderedWhere;
+                  } else if (typeof renderedWhere === 'string') {
+                    // Evaluate KQL against the context (which includes event payload)
+                    matches = evaluateKql(renderedWhere, context);
+                  } else if (typeof renderedWhere === 'undefined') {
+                    matches = false;
+                  } else {
+                    throw new Error(
+                      `Invalid where clause type for subscription ${subscription.id}. ` +
+                      `Got ${JSON.stringify(renderedWhere)} (type: ${typeof renderedWhere}), ` +
+                      `but expected boolean or string (KQL expression).`
+                    );
+                  }
+                  
+                  if (!matches) {
+                    logger.debug(
+                      `Event router task: Event ${event.id} does not match where clause for subscription ${subscription.id}: ${subscription.where}`
+                    );
+                    continue;
+                  }
+                  logger.debug(
+                    `Event router task: Event ${event.id} matches where clause for subscription ${subscription.id}`
+                  );
+                }
+
                 logger.debug(
                   `Event router task: Loading workflow ${subscription.workflowId} for event ${event.id}`
                 );

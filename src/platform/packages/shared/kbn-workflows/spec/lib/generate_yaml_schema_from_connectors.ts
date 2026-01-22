@@ -167,11 +167,16 @@ function getTriggerSchema(eventDrivenTriggers?: EventDrivenTrigger[]): z.ZodType
   ];
 
   // Generate schemas for event-driven triggers
-  // We create a simple schema that just validates the trigger type exists
-  // TODO: use eventSchema to generate type safe where clause
+  // Event-driven triggers support a 'where' clause (KQL query) to filter events
   const eventDrivenTriggerSchemas = (eventDrivenTriggers || []).map((trigger) =>
     z.object({
       type: z.literal(trigger.id).describe(trigger.description),
+      where: z
+        .string()
+        .optional()
+        .describe(
+          'KQL query to filter events. Only properties from the event schema can be used in the query.'
+        ),
     }).passthrough()
   );
 

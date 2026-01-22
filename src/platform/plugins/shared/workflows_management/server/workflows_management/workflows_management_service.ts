@@ -78,7 +78,7 @@ import { createStorage } from '../storage/workflow_storage';
 import type { WorkflowProperties, WorkflowStorage } from '../storage/workflow_storage';
 import type { WorkflowTaskScheduler } from '../tasks/workflow_task_scheduler';
 import type { WorkflowsServerPluginStartDeps } from '../types';
-import { SubscriptionStore } from '@kbn/workflows-execution-engine/server/repositories/subscription_store';
+import { EventSubscription, SubscriptionStore } from '@kbn/workflows-execution-engine/server/repositories/subscription_store';
 
 const DEFAULT_PAGE_SIZE = 100;
 export interface SearchWorkflowExecutionsParams {
@@ -107,13 +107,16 @@ function isEventDrivenTrigger(triggerType: string): boolean {
  */
 function extractEventDrivenTriggers(
   definition: EsWorkflow['definition']
-): Array<{ type: string }> {
+): Array<{ type: string; where?: string }> {
   if (!definition?.triggers) {
     return [];
   }
-  return definition.triggers.filter((trigger) =>
-    isEventDrivenTrigger(trigger.type)
-  );
+  return definition.triggers
+    .filter((trigger) => isEventDrivenTrigger(trigger.type))
+    .map((trigger) => ({
+      type: trigger.type,
+      where: (trigger as { where?: string }).where,
+    }));
 }
 
 export class WorkflowsService {
@@ -298,10 +301,11 @@ export class WorkflowsService {
               workflowId: id,
               triggerType: trigger.type,
               spaceId,
+              where: trigger.where,
               createdBy: authenticatedUser,
             });
             this.logger.debug(
-              `Created subscription for workflow ${id}, trigger ${trigger.type} in space ${spaceId}`
+              `Created subscription for workflow ${id}, trigger ${trigger.type} in space ${spaceId}${trigger.where ? ` with where clause: ${trigger.where}` : ''}`
             );
           }
         }
@@ -548,16 +552,27 @@ export class WorkflowsService {
                   workflowId: id,
                   triggerType: trigger.type,
                   spaceId,
+                  where: trigger.where,
                   createdBy: authenticatedUser,
                 });
                 this.logger.debug(
-                  `Created subscription for workflow ${id}, trigger ${trigger.type} in space ${spaceId}`
+                  `Created subscription for workflow ${id}, trigger ${trigger.type} in space ${spaceId}${trigger.where ? ` with where clause: ${trigger.where}` : ''}`
                 );
-              } else if (!existing.enabled) {
-                await this.subscriptionStore.updateSubscription(existing.id, { enabled: true });
-                this.logger.debug(
-                  `Re-enabled subscription ${existing.id} for workflow ${id}, trigger ${trigger.type}`
-                );
+              } else {
+                // Update subscription if where clause changed or if it was disabled
+                const updates: Partial<Pick<EventSubscription, 'enabled' | 'where'>> = {};
+                if (!existing.enabled) {
+                  updates.enabled = true;
+                }
+                if (existing.where !== trigger.where) {
+                  updates.where = trigger.where;
+                }
+                if (Object.keys(updates).length > 0) {
+                  await this.subscriptionStore.updateSubscription(existing.id, updates);
+                  this.logger.debug(
+                    `Updated subscription ${existing.id} for workflow ${id}, trigger ${trigger.type}${trigger.where ? ` with where clause: ${trigger.where}` : ''}`
+                  );
+                }
               }
             }
           } else {

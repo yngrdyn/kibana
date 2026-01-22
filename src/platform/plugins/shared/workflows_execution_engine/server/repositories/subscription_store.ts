@@ -10,6 +10,10 @@
 import type { ElasticsearchClient } from '@kbn/core-elasticsearch-server';
 import { WORKFLOWS_SUBSCRIPTIONS_INDEX } from '../../common/mappings';
 import { v4 as generateUuid } from 'uuid';
+import { validateWhereClause } from '../utils/validate_where_clause';
+// eslint-disable-next-line @kbn/imports/no_boundary_crossing
+import { stepSchemas } from '../../../workflows_management/common/step_schemas';
+import type { TriggerDefinition } from '@kbn/workflows-extensions/server';
 
 /**
  * Event subscription document structure
@@ -19,6 +23,7 @@ export interface EventSubscription {
   workflowId: string;
   triggerType: string;
   spaceId: string;
+  where?: string; // KQL query to filter events
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
@@ -32,6 +37,7 @@ export interface CreateSubscriptionParams {
   workflowId: string;
   triggerType: string;
   spaceId: string;
+  where?: string; // KQL query to filter events
   createdBy?: string;
 }
 
@@ -49,16 +55,35 @@ export class SubscriptionStore {
    *
    * @param params - Subscription creation parameters
    * @returns Promise that resolves to the created subscription
+   * @throws Error if where clause is invalid or uses properties not in the event schema
    */
   public async createSubscription(
     params: CreateSubscriptionParams
   ): Promise<EventSubscription> {
+    // Validate where clause if present
+    if (params.where) {
+      const registeredTriggers = stepSchemas.getAllRegisteredTriggers();
+      const trigger = registeredTriggers.find((t: TriggerDefinition) => t.id === params.triggerType);
+      
+      if (!trigger || !trigger.eventSchema) {
+        throw new Error(
+          `Cannot validate where clause: trigger "${params.triggerType}" not found or has no event schema`
+        );
+      }
+
+      const validation = validateWhereClause(params.where, trigger.eventSchema);
+      if (!validation.isValid) {
+        throw new Error(validation.error);
+      }
+    }
+
     const now = new Date().toISOString();
     const subscription: EventSubscription = {
       id: generateUuid(),
       workflowId: params.workflowId,
       triggerType: params.triggerType,
       spaceId: params.spaceId,
+      where: params.where,
       enabled: true,
       createdAt: now,
       updatedAt: now,
@@ -156,16 +181,41 @@ export class SubscriptionStore {
   }
 
   /**
-   * Update a subscription (enable/disable or update trigger type).
+   * Update a subscription (enable/disable, update trigger type, or update where clause).
    *
    * @param subscriptionId - The subscription ID
    * @param updates - Partial subscription updates
    * @returns Promise that resolves when the subscription has been updated
+   * @throws Error if where clause is invalid or uses properties not in the event schema
    */
   public async updateSubscription(
     subscriptionId: string,
-    updates: Partial<Pick<EventSubscription, 'enabled' | 'triggerType'>>
+    updates: Partial<Pick<EventSubscription, 'enabled' | 'triggerType' | 'where'>>
   ): Promise<void> {
+    // Validate where clause if being updated
+    if (updates.where !== undefined) {
+      // Get the subscription to find the trigger type
+      const subscription = await this.getSubscriptionById(subscriptionId);
+      if (!subscription) {
+        throw new Error(`Subscription ${subscriptionId} not found`);
+      }
+
+      const triggerType = updates.triggerType || subscription.triggerType;
+      const registeredTriggers = stepSchemas.getAllRegisteredTriggers();
+      const trigger = registeredTriggers.find((t: TriggerDefinition) => t.id === triggerType);
+      
+      if (!trigger || !trigger.eventSchema) {
+        throw new Error(
+          `Cannot validate where clause: trigger "${triggerType}" not found or has no event schema`
+        );
+      }
+
+      const validation = validateWhereClause(updates.where, trigger.eventSchema);
+      if (!validation.isValid) {
+        throw new Error(validation.error);
+      }
+    }
+
     const updateDoc: Partial<EventSubscription> = {
       updatedAt: new Date().toISOString(),
       ...updates,

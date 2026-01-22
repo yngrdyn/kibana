@@ -8,7 +8,7 @@
  */
 
 import type { monaco } from '@kbn/monaco';
-import type { TriggerDefinition, WorkflowsExtensionsPublicPluginStart } from '@kbn/workflows-extensions';
+import type { WorkflowsExtensionsPublicPluginStart } from '@kbn/workflows-extensions/public';
 import { getConnectorIdSuggestions } from './connector_id/get_connector_id_suggestions';
 import { getConnectorTypeSuggestions } from './connector_type/get_connector_type_suggestions';
 import { getCustomPropertySuggestions } from './custom_property/get_custom_property_suggestions';
@@ -21,6 +21,7 @@ import { getRRuleSchedulingSuggestions } from './rrule/get_rrule_scheduling_sugg
 import { getTimezoneSuggestions } from './timezone/get_timezone_suggestions';
 import { getTriggerTypeSuggestions } from './trigger_type/get_trigger_type_suggestions';
 import { getVariableSuggestions } from './variable/get_variable_suggestions';
+import { getWhereClauseSuggestions } from './where_clause/get_where_clause_suggestions';
 import { getPropertyHandler } from '../../../../../../common/schema';
 import { stepSchemas } from '../../../../../../common/step_schemas';
 import type { ExtendedAutocompleteContext } from '../context/autocomplete.types';
@@ -32,7 +33,6 @@ interface GetSuggestionsContext extends ExtendedAutocompleteContext {
 export async function getSuggestions(
   autocompleteContext: GetSuggestionsContext
 ): Promise<monaco.languages.CompletionItem[]> {
-  // console.log('getSuggestions', autocompleteContext);
   const { lineParseResult } = autocompleteContext;
 
   // Check if we're in a scheduled trigger's with block for RRule suggestions
@@ -156,6 +156,42 @@ export async function getSuggestions(
     };
 
     return getTimezoneSuggestions(adjustedRange, lineParseResult.fullKey);
+  }
+
+  // Where clause completion for event-driven triggers
+  // e.g.
+  // triggers:
+  // - type: workflow.error
+  //   where: |<-
+  // Note: We don't require isInTriggersContext because when cursor is inside the where clause
+  // string value, the YAML path might not correctly indicate we're in triggers context.
+  // Instead, we rely on getTriggerTypeForWhereClause to validate we're in a valid trigger.
+  if (
+    lineParseResult?.matchType === 'where-clause' &&
+    autocompleteContext.yamlDocument
+  ) {
+    const whereClauseResult = lineParseResult as import('../context/parse_line_for_completion').WhereClauseLineParseResult;
+    
+    // When space is the trigger character, use the range from autocompleteContext
+    // (which is set to current position), otherwise adjust to value start
+    const adjustedRange = autocompleteContext.triggerCharacter === ' '
+      ? autocompleteContext.range // Use the space-triggered range (current position)
+      : {
+          ...autocompleteContext.range,
+          startColumn: whereClauseResult.valueStartIndex + 1,
+        };
+
+    const suggestions = getWhereClauseSuggestions(
+      adjustedRange,
+      whereClauseResult.queryPrefix,
+      autocompleteContext.yamlDocument,
+      autocompleteContext.absoluteOffset,
+      whereClauseResult.needsClosingQuote
+    );
+
+    // getWhereClauseSuggestions will return empty array if no valid trigger type is found
+    // So we can safely return the suggestions
+    return suggestions;
   }
 
   // Custom property completion for steps registered via workflows_extensions

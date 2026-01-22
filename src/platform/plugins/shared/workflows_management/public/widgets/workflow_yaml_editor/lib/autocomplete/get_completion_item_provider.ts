@@ -85,9 +85,10 @@ export function getCompletionItemProvider(
     // Trigger characters for completion:
     // '@' - variable references
     // '.' - property access within variables
-    // ' ' - space, used for separating tokens in Liquid syntax
+    // ' ' - space, used for separating tokens in Liquid syntax and KQL
     // '|' - Liquid filters (e.g., {{ variable | filter }})
     // '{' - start of Liquid blocks (e.g., {{ ... }})
+    // ':' - KQL field:value syntax (for where clause)
     triggerCharacters: ['@', '.', ' ', '|', '{'],
     provideCompletionItems: async (model, position, completionContext) => {
       const editorState = getState();
@@ -142,8 +143,9 @@ export function getCompletionItemProvider(
         }
       }
 
+      const finalSuggestions = Array.from(deduplicatedMap.values());
       return {
-        suggestions: Array.from(deduplicatedMap.values()),
+        suggestions: finalSuggestions,
         incomplete: isIncomplete,
       };
     },
