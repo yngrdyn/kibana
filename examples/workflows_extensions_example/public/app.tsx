@@ -101,7 +101,7 @@ steps:
   - name: console_payload
     type: console
     with:
-      message: "{{ payload.error }}"`;
+      message: "{{ event.error }}"`;
 
   return (
     <EuiPageTemplate restrictWidth={true} offset={0}>
