@@ -23,6 +23,18 @@ const TRIGGERS_ICONS: Record<string, string> = {
   scheduled: 'clock',
 };
 
+/**
+ * Get the icon type for a trigger. Returns 'bolt' (lightning bolt) for event-driven triggers,
+ * or the specific icon for built-in trigger types.
+ */
+const getTriggerIcon = (triggerType: string): string => {
+  if (TRIGGERS_ICONS[triggerType]) {
+    return TRIGGERS_ICONS[triggerType];
+  }
+  // Use bolt icon for event-driven triggers (e.g., 'event.example', 'workflow.execution_failed')
+  return 'bolt';
+};
+
 export const WorkflowsTriggersList = ({ triggers }: WorkflowsTriggersListProps) => {
   if (triggers.length === 0) {
     return (
@@ -44,7 +56,7 @@ export const WorkflowsTriggersList = ({ triggers }: WorkflowsTriggersListProps) 
   return (
     <EuiFlexGroup alignItems="center" gutterSize="xs" responsive={false}>
       <EuiFlexItem grow={false}>
-        <EuiIcon type={TRIGGERS_ICONS[firstTrigger.type]} size="s" />
+        <EuiIcon type={getTriggerIcon(firstTrigger.type)} size="s" />
       </EuiFlexItem>
       <EuiFlexItem grow={false}>
         <EuiText size="s">{capitalize(firstTrigger.type)}</EuiText>
@@ -64,7 +76,7 @@ export const WorkflowsTriggersList = ({ triggers }: WorkflowsTriggersListProps) 
                 responsive={false}
               >
                 <EuiFlexItem grow={false}>
-                  <EuiIcon type={TRIGGERS_ICONS[trigger.type]} size="s" />
+                  <EuiIcon type={getTriggerIcon(trigger.type)} size="s" />
                 </EuiFlexItem>
                 <EuiFlexItem grow={false}>
                   <EuiText size="s">{capitalize(trigger.type)}</EuiText>

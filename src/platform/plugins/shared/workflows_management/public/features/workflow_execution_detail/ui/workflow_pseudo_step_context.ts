@@ -11,7 +11,7 @@ import type { JsonValue } from '@kbn/utility-types';
 import type { WorkflowExecutionDto, WorkflowStepExecutionDto } from '@kbn/workflows';
 import { ExecutionStatus } from '@kbn/workflows';
 
-export type TriggerType = 'alert' | 'scheduled' | 'manual';
+export type TriggerType = 'alert' | 'scheduled' | 'manual' | string;
 
 export interface TriggerContextFromExecution {
   triggerType: TriggerType;
@@ -25,16 +25,26 @@ export function buildTriggerContextFromExecution(
     return null;
   }
 
+  // First, check if triggeredBy is explicitly set in the context
+  // This is set from the execution's triggeredBy field for event-driven triggers
+  const triggeredBy = executionContext.triggeredBy as string | undefined;
+  
   let triggerType: TriggerType = 'manual'; // Default to manual trigger type
 
-  const hasEvent = executionContext.event !== undefined;
-  const isScheduled =
-    (executionContext.event as { type?: string } | undefined)?.type === 'scheduled';
+  if (triggeredBy) {
+    // Use the explicit triggeredBy value (supports event-driven triggers like 'event.example', 'workflow.execution_failed', etc.)
+    triggerType = triggeredBy;
+  } else {
+    // Fall back to inference from event structure for backward compatibility
+    const hasEvent = executionContext.event !== undefined;
+    const isScheduled =
+      (executionContext.event as { type?: string } | undefined)?.type === 'scheduled';
 
-  if (isScheduled) {
-    triggerType = 'scheduled';
-  } else if (hasEvent) {
-    triggerType = 'alert';
+    if (isScheduled) {
+      triggerType = 'scheduled';
+    } else if (hasEvent) {
+      triggerType = 'alert';
+    }
   }
 
   const inputData = (executionContext as { event?: JsonValue; inputs?: JsonValue }).event
@@ -50,9 +60,19 @@ export function buildTriggerContextFromExecution(
 export function buildTriggerStepExecutionFromContext(
   workflowExecution: WorkflowExecutionDto
 ): WorkflowStepExecutionDto | null {
-  const triggerContext = buildTriggerContextFromExecution(
-    workflowExecution.context as Record<string, unknown> | undefined | null
-  );
+  // Merge execution's triggeredBy into context if it exists and context doesn't have it
+  const context = workflowExecution.context as Record<string, unknown> | undefined | null;
+  const enrichedContext = context
+    ? {
+        ...context,
+        // Use execution's triggeredBy if context doesn't have it
+        triggeredBy: context.triggeredBy ?? workflowExecution.triggeredBy,
+      }
+    : workflowExecution.triggeredBy
+    ? { triggeredBy: workflowExecution.triggeredBy }
+    : null;
+
+  const triggerContext = buildTriggerContextFromExecution(enrichedContext);
 
   if (!triggerContext) {
     return null;

@@ -242,6 +242,9 @@ steps:
     with:
       message: "{{ event.message }} from workflow {{ event.workflowId }} with type {{ event.type }}"`;
 
+  // Step 0 is always complete and non-actionable (reference only)
+  const step0Status: EuiStepProps['status'] = 'complete';
+
   // Determine step statuses
   const step1Status: EuiStepProps['status'] = workflowId
     ? 'complete'
@@ -279,6 +282,37 @@ steps:
 
   const steps: EuiStepProps[] = useMemo(
     () => [
+      {
+        title: 'Trigger Registration (Reference)',
+        status: step0Status,
+        children: (
+          <>
+            <EuiText>
+              <p>
+                To register a custom trigger like <code>event.example</code>, call <code>registerTrigger</code> in your plugin's setup phase:
+              </p>
+            </EuiText>
+            <EuiSpacer size="m" />
+            <EuiCodeBlock language="typescript" isCopyable fontSize="m">
+              {`workflowsExtensions.registerTrigger({
+  id: 'event.example',
+  description: 'Example event trigger for testing',
+  eventSchema: {
+    workflowId: string,
+    message: string,
+    type: string,
+  }
+});`}
+            </EuiCodeBlock>
+            <EuiSpacer size="s" />
+            <EuiText size="s" color="subdued">
+              <p>
+                This trigger is registered in both the server and public plugin setup phases. See the plugin code for the complete implementation.
+              </p>
+            </EuiText>
+          </>
+        ),
+      },
       {
         title: 'Create a workflow',
         status: step1Status,
@@ -423,6 +457,7 @@ steps:
       },
     ],
     [
+      step0Status,
       step1Status,
       step2Status,
       step3Status,
