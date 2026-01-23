@@ -30,6 +30,7 @@ export const WorkflowExecutionFailedEventSchema = z.object({
     id: z.string(),
     startedAt: z.string(), // ISO timestamp
     failedAt: z.string(), // ISO timestamp
+    url: z.string(), // URL to view the execution in Kibana
   }),
   error: z.object({
     message: z.string(),

@@ -17,6 +17,7 @@ import { ExecutionStatus, isTerminalStatus } from '@kbn/workflows';
 import type { GraphNodeUnion, WorkflowGraph } from '@kbn/workflows/graph';
 import { ExecutionError } from '@kbn/workflows/server';
 import { WorkflowExecutionFailedTriggerId } from '@kbn/workflows-extensions/common/triggers/workflow_execution_failed_trigger';
+import { getKibanaUrl, buildWorkflowExecutionUrl } from '../utils/get_kibana_url';
 import { buildWorkflowContext } from './build_workflow_context';
 import type { ContextDependencies } from './types';
 import type { WorkflowExecutionState } from './workflow_execution_state';
@@ -469,8 +470,10 @@ export class WorkflowExecutionRuntimeManager {
     // Get step information
     let stepId = 'unknown';
     let stepName = 'unknown';
+    let stepExecutionId: string | undefined;
     if (failedStepExecution) {
       stepId = failedStepExecution.stepId;
+      stepExecutionId = failedStepExecution.id;
       // Try to get step name from workflow graph node
       const stepNode = this.workflowGraph.getStepNode(stepId);
       if (stepNode) {
@@ -506,6 +509,16 @@ export class WorkflowExecutionRuntimeManager {
 
     const requestForEmission: KibanaRequest = this.fakeRequest;
 
+    // Build execution URL for easy access in workflows
+    const kibanaUrl = getKibanaUrl(this.coreStart);
+    const executionUrl = buildWorkflowExecutionUrl(
+      kibanaUrl,
+      workflowExecution.spaceId,
+      workflowExecution.workflowId,
+      workflowExecution.id,
+      stepExecutionId
+    );
+
     // Build event payload
     const payload = {
       workflow: {
@@ -518,6 +531,7 @@ export class WorkflowExecutionRuntimeManager {
         id: workflowExecution.id,
         startedAt: workflowExecution.startedAt,
         failedAt: workflowExecution.finishedAt || new Date().toISOString(),
+        url: executionUrl,
       },
       error: {
         message: workflowExecution.error.message || 'Workflow execution failed',
