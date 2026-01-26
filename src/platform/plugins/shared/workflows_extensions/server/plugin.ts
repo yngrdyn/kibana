@@ -54,7 +54,7 @@ export class WorkflowsExtensionsServerPlugin
     registerGetTriggersRoute(router, this.triggerRegistry);
     registerInternalStepDefinitions(core, this.stepRegistry);
 
-    // Register saved object type for storing encrypted API keys
+    // Register saved object type for storing encrypted API keys per event
     core.savedObjects.registerType({
       name: 'workflow-event-api-key',
       hidden: true,
@@ -70,12 +70,34 @@ export class WorkflowsExtensionsServerPlugin
       },
     });
 
+    // Register saved object type for storing encrypted API keys per connector
+    // This allows connectors to have a reusable API key for external events
+    core.savedObjects.registerType({
+      name: 'workflow-connector-api-key',
+      hidden: true,
+      namespaceType: 'single',
+      mappings: {
+        properties: {
+          apiKey: { type: 'binary' }, // Encrypted API key value
+          apiKeyId: { type: 'keyword' },
+          connectorId: { type: 'keyword' },
+          spaceId: { type: 'keyword' },
+        },
+      },
+    });
+
     // Register with EncryptedSavedObjects to encrypt the apiKey attribute
     if (plugins.encryptedSavedObjects) {
       plugins.encryptedSavedObjects.registerType({
         type: 'workflow-event-api-key',
         attributesToEncrypt: new Set(['apiKey']),
         attributesToIncludeInAAD: new Set(['apiKeyId', 'eventId', 'triggerType', 'spaceId']),
+      });
+      
+      plugins.encryptedSavedObjects.registerType({
+        type: 'workflow-connector-api-key',
+        attributesToEncrypt: new Set(['apiKey']),
+        attributesToIncludeInAAD: new Set(['apiKeyId', 'connectorId', 'spaceId']),
       });
     }
 

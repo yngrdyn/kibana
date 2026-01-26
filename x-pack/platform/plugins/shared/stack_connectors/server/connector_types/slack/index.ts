@@ -44,6 +44,9 @@ import {
   SecretsSchema,
 } from '@kbn/connector-schemas/slack';
 import { getRetryAfterIntervalFromHeaders } from '../lib/http_response_retry_header';
+import type { StartServicesAccessor } from '@kbn/core/server';
+import { createConnectorApiKeyForExternalEvents } from '../../lib/external_events_api_key';
+import type { ConnectorsPluginsStart } from '../../plugin';
 
 export type SlackConnectorType = ConnectorType<
   ConnectorTypeConfigType,
@@ -62,8 +65,10 @@ export type SlackConnectorTypeExecutorOptions = ConnectorTypeExecutorOptions<
 // customizing executor is only used for tests
 export function getConnectorType({
   executor = slackExecutor,
+  getStartServices,
 }: {
   executor?: ExecutorType<{}, ConnectorTypeSecretsType, ActionParamsType, unknown>;
+  getStartServices?: StartServicesAccessor<ConnectorsPluginsStart, unknown>;
 }): SlackConnectorType {
   return {
     id: CONNECTOR_ID,
@@ -87,6 +92,33 @@ export function getConnectorType({
     },
     renderParameterTemplates,
     executor,
+    // Automatically create and store API key for external events when connector is created/updated
+    // This ensures workflows triggered by Slack events execute with the connector creator's permissions
+    postSaveHook: getStartServices
+      ? async ({ connectorId, request, logger, wasSuccessful }) => {
+          // Only create API key if the save was successful
+          if (!wasSuccessful) {
+            return;
+          }
+
+          try {
+            // Create API key for external events using the user's authentication context
+            await createConnectorApiKeyForExternalEvents({
+              connectorId,
+              connectorTypeId: CONNECTOR_ID,
+              request,
+              getStartServices,
+              logger,
+            });
+          } catch (error) {
+            // Log error but don't fail the connector creation/update
+            // The API key can be created later if needed
+            logger.warn(
+              `Failed to create API key for external events for Slack connector ${connectorId}: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+        }
+      : undefined,
   };
 }
 

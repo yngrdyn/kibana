@@ -142,6 +142,7 @@ export async function setupDependencies(
     workflowTaskManager,
     nodesFactory,
     workflowExecutionRepository,
+    stepExecutionRepository,
     esClient,
   };
 }

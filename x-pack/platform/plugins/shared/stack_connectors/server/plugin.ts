@@ -5,17 +5,20 @@
  * 2.0.
  */
 
-import type { PluginInitializerContext, Plugin, CoreSetup } from '@kbn/core/server';
+import type { PluginInitializerContext, Plugin, CoreSetup, Logger } from '@kbn/core/server';
 import type { UsageCollectionSetup } from '@kbn/usage-collection-plugin/server';
 import type { PluginSetupContract as ActionsPluginSetupContract } from '@kbn/actions-plugin/server';
 import type { PluginStartContract as ActionsPluginStartContract } from '@kbn/actions-plugin/server';
 
 import type { EncryptedSavedObjectsPluginStart } from '@kbn/encrypted-saved-objects-plugin/server';
+import type { SecurityPluginStart } from '@kbn/security-plugin/server';
 
 import type { SpacesPluginSetup } from '@kbn/spaces-plugin/server';
+import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
 import { registerInferenceConnectorsUsageCollector } from './usage/inference/inference_connectors_usage_collector';
 import { registerConnectorTypes } from './connector_types';
 import { getWellKnownEmailServiceRoute, getWebhookSecretHeadersKeyRoute } from './routes';
+import { registerSlackEventsRoute } from './connector_types/slack/events_handler';
 import type { ExperimentalFeatures } from '../common/experimental_features';
 import { parseExperimentalConfigValue } from '../common/experimental_features';
 import type { ConfigSchema as StackConnectorsConfigType } from './config';
@@ -30,6 +33,8 @@ export interface ConnectorsPluginsStart {
   encryptedSavedObjects: EncryptedSavedObjectsPluginStart;
   actions: ActionsPluginStartContract;
   spaces: SpacesPluginSetup;
+  security?: SecurityPluginStart; // Optional - may not be available in all environments
+  workflowsExtensions?: WorkflowsExtensionsServerPluginStart;
 }
 
 export class StackConnectorsPlugin
@@ -37,10 +42,12 @@ export class StackConnectorsPlugin
 {
   private config: StackConnectorsConfigType;
   readonly experimentalFeatures: ExperimentalFeatures;
+  private readonly logger: Logger;
 
   constructor(context: PluginInitializerContext) {
     this.config = context.config.get();
     this.experimentalFeatures = parseExperimentalConfigValue(this.config.enableExperimental || []);
+    this.logger = context.logger.get();
   }
 
   public setup(core: CoreSetup<ConnectorsPluginsStart>, plugins: ConnectorsPluginsSetup) {
@@ -51,11 +58,13 @@ export class StackConnectorsPlugin
 
     getWellKnownEmailServiceRoute(router, awsSesConfig);
     getWebhookSecretHeadersKeyRoute(router, core.getStartServices);
+    registerSlackEventsRoute(router, core.getStartServices, this.logger);
 
     registerConnectorTypes({
       actions,
       publicBaseUrl: core.http.basePath.publicBaseUrl,
       experimentalFeatures: this.experimentalFeatures,
+      getStartServices: core.getStartServices,
     });
 
     if (this.experimentalFeatures.connectorsFromSpecs) {

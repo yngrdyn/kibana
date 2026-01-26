@@ -17,7 +17,7 @@
       "encryptedSavedObjects",
       "spaces"
     ],
-    "optionalPlugins": ["usageCollection"],
+    "optionalPlugins": ["usageCollection", "workflowsExtensions"],
     "extraPublicDirs": ["public/common"]
   }
 }

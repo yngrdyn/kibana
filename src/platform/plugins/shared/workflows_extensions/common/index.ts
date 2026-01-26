@@ -15,3 +15,8 @@ export {
   workflowExecutionFailedTriggerDefinition,
   type WorkflowExecutionFailedEventSchema,
 } from './triggers/workflow_execution_failed_trigger';
+export {
+  ExternalEventTriggerId,
+  externalEventTriggerDefinition,
+  type ExternalEventEventSchema,
+} from './triggers/external_event_trigger';

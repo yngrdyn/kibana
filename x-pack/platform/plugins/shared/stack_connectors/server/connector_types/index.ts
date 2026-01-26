@@ -46,17 +46,19 @@ export function registerConnectorTypes({
   actions,
   publicBaseUrl,
   experimentalFeatures,
+  getStartServices,
 }: {
   actions: ActionsPluginSetupContract;
   publicBaseUrl?: string;
   experimentalFeatures: ExperimentalFeatures;
+  getStartServices: () => Promise<[any, any, unknown]>;
 }) {
   actions.registerType(getEmailConnectorType({ publicBaseUrl }));
   actions.registerType(getIndexConnectorType());
   actions.registerType(getPagerDutyConnectorType());
   actions.registerType(getSwimlaneConnectorType());
   actions.registerType(getServerLogConnectorType());
-  actions.registerType(getSlackWebhookConnectorType({}));
+  actions.registerType(getSlackWebhookConnectorType({ getStartServices }));
   actions.registerType(getSlackApiConnectorType());
   actions.registerType(getWebhookConnectorType());
   actions.registerType(getCasesWebhookConnectorType());

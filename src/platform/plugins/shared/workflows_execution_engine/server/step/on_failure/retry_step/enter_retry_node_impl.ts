@@ -33,6 +33,12 @@ export class EnterRetryNodeImpl implements NodeImplementation, NodeWithErrorCatc
   }
 
   public catchError(failedContext: StepExecutionRuntime): void {
+    // Check if this is a validation error - validation errors should not be retried
+    const error = failedContext.getCurrentStepResult()?.error;
+    if (error?.type === 'InputValidationError' || error?.details?.nonRetryable === true) {
+      return; // Don't retry validation errors
+    }
+
     const shouldRetry = failedContext.contextManager.evaluateBooleanExpressionInContext(
       this.node.configuration.condition || true,
       {

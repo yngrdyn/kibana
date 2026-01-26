@@ -14,8 +14,136 @@ import { EventStore } from '../repositories/event_store';
 import { SubscriptionStore } from '../repositories/subscription_store';
 import type { EsWorkflow, WorkflowExecutionEngineModel } from '@kbn/workflows';
 import type { ElasticsearchClient } from '@kbn/core-elasticsearch-server';
+import { z } from '@kbn/zod';
+import type { WorkflowInput } from '@kbn/workflows/spec/schema';
 
 const WORKFLOW_INDEX_NAME = '.workflows-workflows';
+
+/**
+ * Projects event payload to workflow inputs based on workflow's input definitions.
+ * 
+ * Only needed for external.event triggers, which have nested payload structure:
+ * {
+ *   source: "slack",
+ *   type: "message.posted",
+ *   payload: {
+ *     channel: "...",
+ *     text: "...",
+ *     ...
+ *   }
+ * }
+ * 
+ * For other triggers (e.g., workflow.execution.failed), the payload is already
+ * in the correct shape and doesn't need projection.
+ * 
+ * If workflow defines inputs like:
+ * - name: channel, type: string
+ * - name: text, type: string
+ * 
+ * This function extracts values from event.payload.payload and maps them to inputs.
+ */
+function projectEventToInputs(
+  eventPayload: Record<string, any>,
+  inputs: WorkflowInput[],
+  triggerType: string
+): Record<string, any> {
+  const projectedInputs: Record<string, any> = {};
+  
+  // Only project for external.event triggers (nested payload structure)
+  // For other triggers, use eventPayload directly
+  const dataSource = triggerType === 'external.event' 
+    ? (eventPayload.payload || eventPayload)
+    : eventPayload;
+  
+  for (const input of inputs) {
+    const value = dataSource[input.name];
+    
+    if (value !== undefined) {
+      projectedInputs[input.name] = value;
+    } else if (input.default !== undefined) {
+      // Use default value if input not found in event
+      projectedInputs[input.name] = input.default;
+    } else if (input.required) {
+      // Required input is missing and no default - will fail validation
+      projectedInputs[input.name] = undefined;
+    }
+  }
+  
+  return projectedInputs;
+}
+
+/**
+ * Builds a Zod schema from workflow input definitions for validation.
+ */
+function buildInputsValidationSchema(inputs: WorkflowInput[]): z.ZodObject<any> {
+  const schemaFields: Record<string, z.ZodTypeAny> = {};
+  
+  for (const input of inputs) {
+    let fieldSchema: z.ZodTypeAny;
+    
+    switch (input.type) {
+      case 'string':
+        fieldSchema = z.string();
+        break;
+      case 'number':
+        fieldSchema = z.number();
+        break;
+      case 'boolean':
+        fieldSchema = z.boolean();
+        break;
+      case 'choice':
+        if (input.options && input.options.length > 0) {
+          fieldSchema = z.enum(input.options as [string, ...string[]]);
+        } else {
+          fieldSchema = z.string();
+        }
+        break;
+      case 'array':
+        // Arrays can be string[], number[], or boolean[]
+        // We'll use a union to allow any of these
+        fieldSchema = z.union([
+          z.array(z.string()),
+          z.array(z.number()),
+          z.array(z.boolean()),
+        ]);
+        break;
+      default:
+        fieldSchema = z.any();
+    }
+    
+    // Apply required/optional
+    if (input.required) {
+      schemaFields[input.name] = fieldSchema;
+    } else {
+      schemaFields[input.name] = fieldSchema.optional();
+    }
+  }
+  
+  return z.object(schemaFields);
+}
+
+/**
+ * Validates projected inputs against workflow input schema.
+ */
+function validateInputs(
+  inputs: Record<string, any>,
+  schema: z.ZodObject<any>,
+  logger: Logger
+): { isValid: boolean; error?: string } {
+  try {
+    schema.parse(inputs);
+    return { isValid: true };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const errorMessages = error.errors.map(
+        (err) => `${err.path.join('.')}: ${err.message}`
+      ).join(', ');
+      logger.warn(`Input validation failed: ${errorMessages}. Inputs: ${JSON.stringify(inputs, null, 2)}`);
+      return { isValid: false, error: errorMessages };
+    }
+    return { isValid: false, error: String(error) };
+  }
+}
 
 async function loadWorkflow(
   esClient: ElasticsearchClient,
@@ -234,17 +362,54 @@ export function createEventRouterTaskRunner({
                   continue;
                 }
 
+                if (!workflow.definition) {
+                  continue;
+                }
+
                 const workflowModel = toWorkflowExecutionModel(workflow);
+                const workflowDefinition = workflow.definition; // Type narrowing helper
+
+                // Project event payload to workflow inputs (if workflow defines inputs)
+                let workflowInputs: Record<string, unknown>;
+                let validationError: string | undefined;
+                
+                if (workflowDefinition.inputs && workflowDefinition.inputs.length > 0) {
+                  // Project event payload to match workflow input definitions
+                  // Only external.event triggers need projection (nested payload structure)
+                  workflowInputs = projectEventToInputs(
+                    event.payload, 
+                    workflowDefinition.inputs,
+                    event.triggerType
+                  );
+                  
+                  // Validate projected inputs against workflow input schema
+                  const validationSchema = buildInputsValidationSchema(workflowDefinition.inputs);
+                  const validation = validateInputs(workflowInputs, validationSchema, logger);
+                  
+                  // Store validation result to use during execution
+                  if (!validation.isValid) {
+                    validationError = validation.error;
+                  }
+                } else {
+                  // No inputs defined, pass event payload directly
+                  workflowInputs = event.payload;
+                }
 
                 // Prepare execution context
-                // Pass event.payload as workflow inputs
                 const context: Record<string, unknown> = {
                   spaceId: subscription.spaceId,
                   triggeredBy: event.triggerType, 
                   source: 'task-manager', 
                   event: event.payload,
-                  inputs: event.payload,
+                  inputs: workflowInputs,
                 };
+
+                // If validation failed, add error to context so workflow can fail immediately
+                // This ensures users see a failed execution record in the UI
+                if (validationError) {
+                  context.__inputValidationError = validationError;
+                  context.__inputValidationFailed = true;
+                }
 
                 const { kibanaRequestFactory } = await import('@kbn/core-http-server-utils');
 
@@ -259,6 +424,13 @@ export function createEventRouterTaskRunner({
                   'kbn-system-request': 'true',
                   'x-elastic-internal-origin': 'Kibana',
                 };
+                
+                // Ensure authorization header is preserved from systemRequest if it exists
+                // This is critical for workflows that need to make authenticated requests
+                if (systemRequest?.headers?.authorization) {
+                  const authHeader = systemRequest.headers.authorization;
+                  headers.authorization = Array.isArray(authHeader) ? authHeader[0] : String(authHeader);
+                }
                 
                 // If event has an API key ID, retrieve the API key value from EncryptedSavedObjects
                 logger.debug(
