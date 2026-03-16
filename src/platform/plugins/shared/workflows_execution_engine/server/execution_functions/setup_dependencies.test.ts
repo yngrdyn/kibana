@@ -47,6 +47,7 @@ describe('setupDependencies', () => {
   } as unknown as Logger;
 
   const mockConfig = {
+    eventDriven: { enabled: true },
     logging: {
       console: true,
     },

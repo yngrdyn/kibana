@@ -9,7 +9,15 @@
 
 import type { Logger } from '@kbn/core/server';
 import type { WorkflowDetailDto } from '@kbn/workflows';
+import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
 import { createTriggerEventHandler } from './trigger_event_handler';
+
+function getEngineMock(enabled: boolean): () => Promise<WorkflowsExecutionEnginePluginStart> {
+  return () =>
+    Promise.resolve({
+      isEventDrivenExecutionEnabled: () => enabled,
+    } as WorkflowsExecutionEnginePluginStart);
+}
 
 const createMockWorkflow = (overrides: Partial<WorkflowDetailDto> = {}): WorkflowDetailDto =>
   ({
@@ -59,8 +67,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
+      getWorkflowExecutionEngine: getEngineMock(true),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -106,8 +113,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => false }),
+      getWorkflowExecutionEngine: getEngineMock(false),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -135,8 +141,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
+      getWorkflowExecutionEngine: getEngineMock(true),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -177,8 +182,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
+      getWorkflowExecutionEngine: getEngineMock(true),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -233,8 +237,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
+      getWorkflowExecutionEngine: getEngineMock(true),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -274,8 +277,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
+      getWorkflowExecutionEngine: getEngineMock(true),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -329,8 +331,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
+      getWorkflowExecutionEngine: getEngineMock(true),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -396,8 +397,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
+      getWorkflowExecutionEngine: getEngineMock(true),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -433,8 +433,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: () =>
-        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
+      getWorkflowExecutionEngine: getEngineMock(true),
       resolveMatchingWorkflowSubscriptions,
     });
 
