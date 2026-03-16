@@ -50,6 +50,7 @@ export function registerEmitEventRoute(router: IRouter<ExampleRequestHandlerCont
           ...(request.body.source !== undefined && { source: request.body.source }),
           ...(request.body.category !== undefined && { category: request.body.category }),
           ...(request.body.foo !== undefined && { foo: request.body.foo }),
+          another: request.body.another,
         });
         return response.ok({
           body: { ok: true, triggerId: CUSTOM_TRIGGER_ID },

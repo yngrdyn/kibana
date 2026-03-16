@@ -67,13 +67,17 @@ function getZodTypeName(schema: z.ZodType): string {
 /** Display shape for one event schema property (derived from getEventSchemaProperties return type). */
 type EventPropertyInfo = ReturnType<typeof getEventSchemaProperties>[number];
 
+const DEFAULT_EVENT_SCHEMA_MAX_DEPTH = 20;
+
 /**
  * Recursively collect event schema properties (including nested objects) for display.
  * Each property is emitted with a dotted path (e.g. foo, foo.bar, foo.bar.baz).
  */
 function getEventSchemaPropertiesRecursive(
   schema: z.ZodType,
-  prefix: string
+  prefix: string,
+  currentDepth: number,
+  maxDepth: number = DEFAULT_EVENT_SCHEMA_MAX_DEPTH
 ): Array<{ name: string; type: string; description?: string }> {
   const shape = getZodObjectShape(schema);
   if (!shape || typeof shape !== 'object') return [];
@@ -85,9 +89,11 @@ function getEventSchemaPropertiesRecursive(
     const description = getZodDescription(subSchema);
     const innerShape = getZodObjectShape(subSchema);
 
-    if (innerShape && Object.keys(innerShape).length > 0) {
+    if (innerShape && Object.keys(innerShape).length > 0 && currentDepth < maxDepth) {
       result.push({ name: fullName, type: 'object', description });
-      result.push(...getEventSchemaPropertiesRecursive(subSchema, fullName));
+      result.push(
+        ...getEventSchemaPropertiesRecursive(subSchema, fullName, currentDepth + 1, maxDepth)
+      );
     } else {
       result.push({
         name: fullName,
@@ -111,7 +117,7 @@ function getEventSchemaProperties(eventSchema: z.ZodType): Array<{
   description?: string;
 }> {
   try {
-    return getEventSchemaPropertiesRecursive(eventSchema, '');
+    return getEventSchemaPropertiesRecursive(eventSchema, '', 0);
   } catch {
     return [];
   }
@@ -124,11 +130,10 @@ function getEventSchemaProperties(eventSchema: z.ZodType): Array<{
 function formatEventPropertiesAsTree(eventProperties: EventPropertyInfo[]): string {
   const lines: string[] = [];
   for (const prop of eventProperties) {
-    const depth = prop.name.includes('.') ? prop.name.split('.').length - 1 : 0;
+    const parts = prop.name.split('.');
+    const depth = parts.length - 1;
+    const segment = parts[parts.length - 1];
     const indent = '  '.repeat(depth);
-    const segment = prop.name.includes('.')
-      ? prop.name.split('.').slice(-1)[0] ?? prop.name
-      : prop.name;
     const typeInfo = prop.type ? ` _(${prop.type})_` : '';
     lines.push(`${indent}- \`${segment}\`${typeInfo}`);
     if (prop.description) {
