@@ -84,7 +84,7 @@ describe('createTriggerEventHandler', () => {
 
     expect(spaceIdArg).toBe(spaceId);
     expect(requestArg).toBe(mockRequest);
-    expect(triggerIdArg).toBe('manual');
+    expect(triggerIdArg).toBe(triggerId);
     expect(workflowArg.id).toBe('wf-1');
 
     const event = inputsArg?.event as Record<string, unknown>;
@@ -119,8 +119,9 @@ describe('createTriggerEventHandler', () => {
 
     expect(resolveMatchingWorkflowSubscriptions).not.toHaveBeenCalled();
     expect(scheduleWorkflow).not.toHaveBeenCalled();
+    expect(mockLogger.debug).toHaveBeenCalledTimes(1);
     expect(mockLogger.debug).toHaveBeenCalledWith(
-      expect.stringContaining('Event-driven execution is disabled')
+      'Event-driven execution is disabled (eventDrivenExecutionEnabled: false); skipping workflow scheduling.'
     );
   });
 
@@ -190,22 +191,22 @@ describe('createTriggerEventHandler', () => {
       expect.objectContaining({ id: 'wf-1' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
     expect(scheduleWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-2' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
     expect(scheduleWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-3' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
 
     expect(mockLogger.warn).toHaveBeenCalledTimes(1);
@@ -246,15 +247,15 @@ describe('createTriggerEventHandler', () => {
       expect.objectContaining({ id: 'wf-1' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
     expect(scheduleWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-2' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
   });
 
@@ -291,16 +292,16 @@ describe('createTriggerEventHandler', () => {
           spaceId: 'default',
         }),
       }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
     expect(scheduleWorkflow).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ id: 'wf-no-condition-2' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
   });
 
@@ -339,15 +340,15 @@ describe('createTriggerEventHandler', () => {
       expect.objectContaining({ id: 'wf-valid-1' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
     expect(scheduleWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-valid-2' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
-      'manual',
-      mockRequest
+      mockRequest,
+      'cases.updated'
     );
     expect(scheduleWorkflow).not.toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-invalid' }),

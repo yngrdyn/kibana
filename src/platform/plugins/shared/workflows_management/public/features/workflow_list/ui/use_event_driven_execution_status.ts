@@ -18,12 +18,14 @@ export interface EventDrivenExecutionStatus {
 export function useEventDrivenExecutionStatus(): {
   eventDrivenExecutionEnabled: boolean;
   isLoading: boolean;
+  error: boolean;
 } {
   const { http } = useKibana().services;
   const [status, setStatus] = useState<EventDrivenExecutionStatus>({
     eventDrivenExecutionEnabled: true,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,9 +38,11 @@ export function useEventDrivenExecutionStatus(): {
         const result = await http.get<EventDrivenExecutionStatus>(EVENT_DRIVEN_STATUS_PATH);
         if (!cancelled) {
           setStatus(result);
+          setError(false);
         }
       } catch {
         if (!cancelled) {
+          setError(true);
           setStatus({ eventDrivenExecutionEnabled: true });
         }
       } finally {
@@ -56,5 +60,6 @@ export function useEventDrivenExecutionStatus(): {
   return {
     eventDrivenExecutionEnabled: status.eventDrivenExecutionEnabled,
     isLoading,
+    error,
   };
 }

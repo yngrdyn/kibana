@@ -31,15 +31,16 @@ describe(`GET ${EVENT_DRIVEN_STATUS_PATH}`, () => {
     routeHandler = getCall?.[1];
   });
 
-  it('returns eventDrivenExecutionEnabled from getter', async () => {
+  it('returns eventDrivenExecutionEnabled true when getter returns true', async () => {
     const mockResponse = { ok: jest.fn().mockReturnThis() };
     await routeHandler(null, {} as any, mockResponse);
+    expect(mockResponse.ok).toHaveBeenCalledTimes(1);
     expect(mockResponse.ok).toHaveBeenCalledWith({
       body: { eventDrivenExecutionEnabled: true },
     });
   });
 
-  it('returns false when getter returns false', async () => {
+  it('returns eventDrivenExecutionEnabled false when getter returns false', async () => {
     mockRouter = createMockRouterInstance();
     registerGetEventDrivenStatusRoute({
       router: mockRouter,
@@ -51,6 +52,7 @@ describe(`GET ${EVENT_DRIVEN_STATUS_PATH}`, () => {
     const handler = getCall?.[1];
     const mockResponse = { ok: jest.fn().mockReturnThis() };
     await handler(null, {} as any, mockResponse);
+    expect(mockResponse.ok).toHaveBeenCalledTimes(1);
     expect(mockResponse.ok).toHaveBeenCalledWith({
       body: { eventDrivenExecutionEnabled: false },
     });

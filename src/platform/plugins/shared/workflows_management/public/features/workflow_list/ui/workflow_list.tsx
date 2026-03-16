@@ -54,7 +54,11 @@ interface WorkflowListProps {
 export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowListProps) {
   const { application, notifications } = useKibana().services;
   const { data: workflows, isLoading: isLoadingWorkflows, error, refetch } = useWorkflows(search);
-  const { eventDrivenExecutionEnabled } = useEventDrivenExecutionStatus();
+  const {
+    eventDrivenExecutionEnabled,
+    isLoading: isLoadingEventDrivenStatus,
+    error: eventDrivenStatusError,
+  } = useEventDrivenExecutionStatus();
   const [workflowToDelete, setWorkflowToDelete] = useState<WorkflowListItemDto | null>(null);
   const modalTitleId = useGeneratedHtmlId();
   const telemetry = useTelemetry();
@@ -464,7 +468,7 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
 
   return (
     <>
-      {!eventDrivenExecutionEnabled && (
+      {!isLoadingEventDrivenStatus && !eventDrivenStatusError && !eventDrivenExecutionEnabled && (
         <>
           <EuiSpacer size="m" />
           <EuiCallOut
