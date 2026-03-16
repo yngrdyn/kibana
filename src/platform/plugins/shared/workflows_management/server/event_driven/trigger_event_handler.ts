@@ -97,8 +97,8 @@ export function createTriggerEventHandler({
           workflowToRun,
           spaceId,
           { event: eventContext },
-          'manual',
-          request
+          request,
+          triggerId
         );
       })
     );

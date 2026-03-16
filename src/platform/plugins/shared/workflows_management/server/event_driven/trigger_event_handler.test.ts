@@ -79,12 +79,12 @@ describe('createTriggerEventHandler', () => {
     });
     expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
 
-    const [workflowArg, spaceIdArg, inputsArg, triggeredByArg, requestArg] =
+    const [workflowArg, spaceIdArg, inputsArg, requestArg, triggerIdArg] =
       scheduleWorkflow.mock.calls[0];
 
     expect(spaceIdArg).toBe(spaceId);
     expect(requestArg).toBe(mockRequest);
-    expect(triggeredByArg).toBe('manual');
+    expect(triggerIdArg).toBe('manual');
     expect(workflowArg.id).toBe('wf-1');
 
     const event = inputsArg?.event as Record<string, unknown>;
@@ -155,7 +155,7 @@ describe('createTriggerEventHandler', () => {
     expect(scheduleWorkflow).not.toHaveBeenCalled();
   });
 
-  it('should run all workflows and log once per failure when one scheduleWorkflow rejects', async () => {
+  it('should schedule all workflows and log once per failure when one scheduleWorkflow rejects', async () => {
     const wf1 = createMockWorkflow({ id: 'wf-1' });
     const wf2 = createMockWorkflow({ id: 'wf-2' });
     const wf3 = createMockWorkflow({ id: 'wf-3' });
@@ -218,7 +218,7 @@ describe('createTriggerEventHandler', () => {
     );
   });
 
-  it('should run only workflows returned by resolver (KQL-matched and enabled)', async () => {
+  it('should schedule only workflows returned by resolver (KQL-matched and enabled)', async () => {
     const wf1 = createMockWorkflow({ id: 'wf-1' });
     const wf2 = createMockWorkflow({ id: 'wf-2' });
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
@@ -258,7 +258,7 @@ describe('createTriggerEventHandler', () => {
     );
   });
 
-  it('should run all resolved workflows when none have conditions', async () => {
+  it('should schedule all resolved workflows when none have conditions', async () => {
     const wf1 = createMockWorkflow({ id: 'wf-no-condition-1' });
     const wf2 = createMockWorkflow({ id: 'wf-no-condition-2' });
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
@@ -304,7 +304,7 @@ describe('createTriggerEventHandler', () => {
     );
   });
 
-  it('should run valid workflows and log warning when one fails validation', async () => {
+  it('should schedule valid workflows and log warning when one fails validation', async () => {
     const validWf1 = createMockWorkflow({ id: 'wf-valid-1' });
     const invalidWf = createMockWorkflow({
       id: 'wf-invalid',
@@ -361,5 +361,87 @@ describe('createTriggerEventHandler', () => {
       expect.stringContaining('Event-driven workflow scheduling failed')
     );
     expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('wf-invalid'));
+  });
+
+  it('should cap concurrent scheduleWorkflow calls at SCHEDULE_CONCURRENCY (20)', async () => {
+    const workflowCount = 25;
+    const workflows = Array.from({ length: workflowCount }, (_, i) =>
+      createMockWorkflow({ id: `wf-${i}` })
+    );
+
+    let currentConcurrent = 0;
+    let maxConcurrent = 0;
+    const scheduleWorkflow = jest.fn().mockImplementation(() => {
+      currentConcurrent += 1;
+      maxConcurrent = Math.max(maxConcurrent, currentConcurrent);
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          currentConcurrent -= 1;
+          resolve();
+        }, 1);
+      });
+    });
+
+    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue(workflows);
+
+    const handler = createTriggerEventHandler({
+      api: { scheduleWorkflow } as any,
+      logger: mockLogger,
+      getTriggerEventsClient: () => null,
+      isEventDrivenExecutionEnabled: () => true,
+      resolveMatchingWorkflowSubscriptions,
+    });
+
+    await handler({
+      timestamp: '2025-01-01T12:00:00.000Z',
+      triggerId: 'cases.updated',
+      spaceId: 'default',
+      payload: {},
+      request: mockRequest,
+    });
+
+    expect(scheduleWorkflow).toHaveBeenCalledTimes(workflowCount);
+    expect(maxConcurrent).toBeLessThanOrEqual(20);
+  });
+
+  it('should resolve after all scheduleWorkflow calls are invoked (fire-and-forget scheduling)', async () => {
+    const resolveOrder: string[] = [];
+    const scheduleWorkflow = jest.fn().mockImplementation((workflow: { id: string }) => {
+      resolveOrder.push(`schedule-start-${workflow.id}`);
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolveOrder.push(`schedule-done-${workflow.id}`);
+          resolve();
+        }, 5);
+      });
+    });
+
+    const wf1 = createMockWorkflow({ id: 'wf-1' });
+    const wf2 = createMockWorkflow({ id: 'wf-2' });
+    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue([wf1, wf2]);
+
+    const handler = createTriggerEventHandler({
+      api: { scheduleWorkflow } as any,
+      logger: mockLogger,
+      getTriggerEventsClient: () => null,
+      isEventDrivenExecutionEnabled: () => true,
+      resolveMatchingWorkflowSubscriptions,
+    });
+
+    const handlerPromise = handler({
+      timestamp: '2025-01-01T12:00:00.000Z',
+      triggerId: 'cases.updated',
+      spaceId: 'default',
+      payload: {},
+      request: mockRequest,
+    });
+
+    await handlerPromise;
+
+    expect(scheduleWorkflow).toHaveBeenCalledTimes(2);
+    expect(resolveOrder).toContain('schedule-start-wf-1');
+    expect(resolveOrder).toContain('schedule-start-wf-2');
+    expect(resolveOrder).toContain('schedule-done-wf-1');
+    expect(resolveOrder).toContain('schedule-done-wf-2');
   });
 });

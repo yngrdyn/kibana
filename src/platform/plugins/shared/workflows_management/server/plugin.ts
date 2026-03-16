@@ -149,8 +149,8 @@ export class WorkflowsPlugin
             workflowToSchedule,
             spaceId,
             inputs,
-            triggeredBy,
-            request
+            request,
+            triggeredBy
           );
         };
       };
