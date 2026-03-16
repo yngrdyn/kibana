@@ -21,8 +21,11 @@ import type { WorkflowsManagementApi } from '../workflows_management_api';
 
 export const mockLogger = loggingSystemMock.create().get();
 
-/** Default getter for route tests; event-driven execution enabled. */
-export const getIsEventDrivenExecutionEnabledMock = (): boolean => true;
+/** Default engine mock for route tests; event-driven execution enabled. */
+export const getWorkflowExecutionEngineMock = (enabled = true) =>
+  jest.fn().mockResolvedValue({
+    isEventDrivenExecutionEnabled: () => enabled,
+  });
 
 export const createMockRouterInstance = () => createMockRouter.create();
 

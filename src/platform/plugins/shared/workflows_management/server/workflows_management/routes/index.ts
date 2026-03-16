@@ -11,10 +11,10 @@ import type { Logger } from '@kbn/core/server';
 import type { SpacesServiceStart } from '@kbn/spaces-plugin/server';
 
 // Import all route registration functions
+import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
 import { registerDeleteWorkflowByIdRoute } from './delete_workflow_by_id';
 import { registerDeleteWorkflowsBulkRoute } from './delete_workflows_bulk';
 import { registerGetConnectorsRoute } from './get_connectors';
-import { registerGetEventDrivenStatusRoute } from './get_event_driven_status';
 import { registerGetStepExecutionRoute } from './get_step_execution';
 import { registerGetWorkflowAggsRoute } from './get_workflow_aggs';
 import { registerGetWorkflowByIdRoute } from './get_workflow_by_id';
@@ -23,6 +23,7 @@ import { registerGetWorkflowExecutionLogsRoute } from './get_workflow_execution_
 import { registerGetWorkflowExecutionsRoute } from './get_workflow_executions';
 import { registerGetWorkflowJsonSchemaRoute } from './get_workflow_json_schema';
 import { registerGetWorkflowStatsRoute } from './get_workflow_stats';
+import { registerGetWorkflowsConfigRoute } from './get_workflows_config';
 import { registerPostBulkCreateWorkflowsRoute } from './post_bulk_create_workflows';
 import { registerPostCancelWorkflowExecutionRoute } from './post_cancel_workflow_execution';
 import { registerPostCloneWorkflowRoute } from './post_clone_workflow';
@@ -43,7 +44,7 @@ export function defineRoutes(
   api: WorkflowsManagementApi,
   logger: Logger,
   spaces: SpacesServiceStart,
-  getIsEventDrivenExecutionEnabled: () => boolean
+  getWorkflowExecutionEngine: () => Promise<WorkflowsExecutionEnginePluginStart>
 ) {
   const deps: RouteDependencies = {
     router,
@@ -54,7 +55,7 @@ export function defineRoutes(
 
   // Register all routes
   registerGetWorkflowStatsRoute(deps);
-  registerGetEventDrivenStatusRoute({ ...deps, getIsEventDrivenExecutionEnabled });
+  registerGetWorkflowsConfigRoute({ ...deps, getWorkflowExecutionEngine });
   registerGetWorkflowAggsRoute(deps);
   registerGetWorkflowByIdRoute(deps);
   registerGetConnectorsRoute(deps);

@@ -185,6 +185,8 @@ export class WorkflowsExecutionEnginePlugin
                 dependencies,
                 workflowsExecutionEngine,
                 meteringService: this.meteringService,
+                isEventDrivenExecutionEnabled:
+                  workflowsExecutionEngine.isEventDrivenExecutionEnabled,
               });
             },
             cancel: async () => {
@@ -843,10 +845,15 @@ export class WorkflowsExecutionEnginePlugin
       scheduleWorkflow,
       cancelWorkflowExecution,
       resumeWorkflowExecution,
+      isEventDrivenExecutionEnabled: this.isEventDrivenExecutionEnabled.bind(this),
     };
   }
 
   public stop() {}
+
+  private isEventDrivenExecutionEnabled(): boolean {
+    return this.config?.eventDriven?.enabled ?? true;
+  }
 
   private async initialize(coreStart: CoreStart): Promise<void> {
     if (!this.initializePromise) {

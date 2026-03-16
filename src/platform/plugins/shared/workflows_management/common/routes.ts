@@ -7,4 +7,5 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-export const EVENT_DRIVEN_STATUS_PATH = '/internal/workflows/event-driven-status';
+/** Operational config (kill switches, rate limits, etc.); extend with more keys as needed */
+export const WORKFLOWS_CONFIG_PATH = '/internal/workflows/config';

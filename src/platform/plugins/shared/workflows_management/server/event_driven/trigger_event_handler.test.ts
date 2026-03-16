@@ -59,7 +59,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => true,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -105,7 +106,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => false,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => false }),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -133,7 +135,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => true,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -174,7 +177,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => true,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -229,7 +233,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => true,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -269,7 +274,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => true,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -323,7 +329,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => true,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -389,7 +396,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => true,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -425,7 +433,8 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      isEventDrivenExecutionEnabled: () => true,
+      getWorkflowExecutionEngine: () =>
+        Promise.resolve({ isEventDrivenExecutionEnabled: () => true }),
       resolveMatchingWorkflowSubscriptions,
     });
 

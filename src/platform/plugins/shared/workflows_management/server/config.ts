@@ -13,14 +13,6 @@ import type { PluginConfigDescriptor } from '@kbn/core/server';
 
 const configSchema = schema.object({
   enabled: schema.boolean({ defaultValue: true }),
-  /**
-   * When false, event-driven workflow execution is disabled: events emitted via
-   * emitEvent will not schedule or run any workflows. Manual and scheduled
-   * runs are unchanged.
-   */
-  eventDrivenExecution: schema.object({
-    enabled: schema.boolean({ defaultValue: true }),
-  }),
   logging: schema.object({
     console: schema.boolean({ defaultValue: false }),
   }),
@@ -30,11 +22,4 @@ export type WorkflowsManagementConfig = TypeOf<typeof configSchema>;
 
 export const config: PluginConfigDescriptor<WorkflowsManagementConfig> = {
   schema: configSchema,
-  /**
-   * Allow runtime toggling via PUT /internal/core/_settings when
-   * coreApp.allowDynamicConfigOverrides is true
-   */
-  dynamicConfig: {
-    eventDrivenExecution: { enabled: true },
-  },
 };

@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { EVENT_DRIVEN_STATUS_PATH } from '../../../../common/routes';
+import { WORKFLOWS_CONFIG_PATH } from '../../../../common/routes';
 import { useKibana } from '../../../hooks/use_kibana';
 
 export interface EventDrivenExecutionStatus {
@@ -35,7 +35,7 @@ export function useEventDrivenExecutionStatus(): {
         return;
       }
       try {
-        const result = await http.get<EventDrivenExecutionStatus>(EVENT_DRIVEN_STATUS_PATH);
+        const result = await http.get<EventDrivenExecutionStatus>(WORKFLOWS_CONFIG_PATH);
         if (!cancelled) {
           setStatus(result);
           setError(false);

@@ -7,30 +7,33 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
 import { WORKFLOW_ROUTE_OPTIONS } from './route_constants';
 import { WORKFLOW_READ_SECURITY } from './route_security';
-import { EVENT_DRIVEN_STATUS_PATH } from '../../../common/routes';
+import { WORKFLOWS_CONFIG_PATH } from '../../../common/routes';
 import type { WorkflowsRouter } from '../../types';
 import { withLicenseCheck } from '../lib/with_license_check';
 
-export function registerGetEventDrivenStatusRoute({
+export function registerGetWorkflowsConfigRoute({
   router,
-  getIsEventDrivenExecutionEnabled,
+  getWorkflowExecutionEngine,
 }: {
   router: WorkflowsRouter;
-  getIsEventDrivenExecutionEnabled: () => boolean;
+  getWorkflowExecutionEngine: () => Promise<WorkflowsExecutionEnginePluginStart>;
 }) {
   router.get(
     {
-      path: EVENT_DRIVEN_STATUS_PATH,
+      path: WORKFLOWS_CONFIG_PATH,
       options: WORKFLOW_ROUTE_OPTIONS,
       security: WORKFLOW_READ_SECURITY,
       validate: false,
     },
-    withLicenseCheck(async (_context, request, response) => {
-      const eventDrivenExecutionEnabled = getIsEventDrivenExecutionEnabled();
+    withLicenseCheck(async (_context, _request, response) => {
+      const engine = await getWorkflowExecutionEngine();
       return response.ok({
-        body: { eventDrivenExecutionEnabled },
+        body: {
+          eventDrivenExecutionEnabled: engine.isEventDrivenExecutionEnabled(),
+        },
       });
     })
   );

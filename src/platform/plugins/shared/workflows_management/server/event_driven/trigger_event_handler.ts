@@ -10,6 +10,7 @@
 import pLimit from 'p-limit';
 import type { Logger } from '@kbn/core/server';
 import type { WorkflowDetailDto, WorkflowExecutionEngineModel } from '@kbn/workflows';
+import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
 import type { TriggerEventHandlerParams } from '@kbn/workflows-extensions/server';
 import type { ResolveMatchingWorkflowSubscriptionsParams } from './resolve_workflow_subscriptions';
 import { validateWorkflowForExecution } from '../connectors/workflows/validate_workflow_for_execution';
@@ -20,7 +21,7 @@ export interface CreateTriggerEventHandlerParams {
   api: WorkflowsManagementApi;
   logger: Logger;
   getTriggerEventsClient: () => TriggerEventsDataStreamClient | null;
-  isEventDrivenExecutionEnabled: () => boolean;
+  getWorkflowExecutionEngine: () => Promise<WorkflowsExecutionEnginePluginStart>;
   resolveMatchingWorkflowSubscriptions: (
     params: ResolveMatchingWorkflowSubscriptionsParams
   ) => Promise<WorkflowDetailDto[]>;
@@ -37,11 +38,12 @@ export function createTriggerEventHandler({
   api,
   logger,
   getTriggerEventsClient,
-  isEventDrivenExecutionEnabled,
+  getWorkflowExecutionEngine,
   resolveMatchingWorkflowSubscriptions,
 }: CreateTriggerEventHandlerParams): (params: TriggerEventHandlerParams) => Promise<void> {
   return async (params: TriggerEventHandlerParams): Promise<void> => {
-    if (!isEventDrivenExecutionEnabled()) {
+    const engine = await getWorkflowExecutionEngine();
+    if (!engine.isEventDrivenExecutionEnabled()) {
       logger.debug(
         'Event-driven execution is disabled (eventDrivenExecutionEnabled: false); skipping workflow scheduling.'
       );

@@ -7,31 +7,31 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { registerGetEventDrivenStatusRoute } from './get_event_driven_status';
-import { createMockRouterInstance, getIsEventDrivenExecutionEnabledMock } from './test_utils';
-import { EVENT_DRIVEN_STATUS_PATH } from '../../../common/routes';
+import { registerGetWorkflowsConfigRoute } from './get_workflows_config';
+import { createMockRouterInstance, getWorkflowExecutionEngineMock } from './test_utils';
+import { WORKFLOWS_CONFIG_PATH } from '../../../common/routes';
 
 jest.mock('../lib/with_license_check', () => ({
   withLicenseCheck: (handler: Function) => handler,
 }));
 
-describe(`GET ${EVENT_DRIVEN_STATUS_PATH}`, () => {
+describe(`GET ${WORKFLOWS_CONFIG_PATH}`, () => {
   let mockRouter: ReturnType<typeof createMockRouterInstance>;
   let routeHandler: (context: unknown, request: unknown, response: any) => Promise<unknown>;
 
   beforeEach(() => {
     mockRouter = createMockRouterInstance();
-    registerGetEventDrivenStatusRoute({
+    registerGetWorkflowsConfigRoute({
       router: mockRouter,
-      getIsEventDrivenExecutionEnabled: getIsEventDrivenExecutionEnabledMock,
+      getWorkflowExecutionEngine: getWorkflowExecutionEngineMock(true),
     });
     const getCall = (mockRouter.get as jest.Mock).mock.calls.find(
-      (call: unknown[]) => (call[0] as { path?: string })?.path === EVENT_DRIVEN_STATUS_PATH
+      (call: unknown[]) => (call[0] as { path?: string })?.path === WORKFLOWS_CONFIG_PATH
     );
     routeHandler = getCall?.[1];
   });
 
-  it('returns eventDrivenExecutionEnabled true when getter returns true', async () => {
+  it('returns eventDrivenExecutionEnabled true when engine getter returns true', async () => {
     const mockResponse = { ok: jest.fn().mockReturnThis() };
     await routeHandler(null, {} as any, mockResponse);
     expect(mockResponse.ok).toHaveBeenCalledTimes(1);
@@ -40,14 +40,14 @@ describe(`GET ${EVENT_DRIVEN_STATUS_PATH}`, () => {
     });
   });
 
-  it('returns eventDrivenExecutionEnabled false when getter returns false', async () => {
+  it('returns eventDrivenExecutionEnabled false when engine getter returns false', async () => {
     mockRouter = createMockRouterInstance();
-    registerGetEventDrivenStatusRoute({
+    registerGetWorkflowsConfigRoute({
       router: mockRouter,
-      getIsEventDrivenExecutionEnabled: () => false,
+      getWorkflowExecutionEngine: getWorkflowExecutionEngineMock(false),
     });
     const getCall = (mockRouter.get as jest.Mock).mock.calls.find(
-      (call: unknown[]) => (call[0] as { path?: string })?.path === EVENT_DRIVEN_STATUS_PATH
+      (call: unknown[]) => (call[0] as { path?: string })?.path === WORKFLOWS_CONFIG_PATH
     );
     const handler = getCall?.[1];
     const mockResponse = { ok: jest.fn().mockReturnThis() };

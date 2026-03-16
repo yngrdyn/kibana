@@ -14,6 +14,13 @@ import { DEFAULT_MAX_STEP_SIZE } from './step/errors';
 
 const configSchema = schema.object({
   enabled: schema.boolean({ defaultValue: true }),
+  /**
+   * When false, event-driven workflow execution is disabled: event-triggered runs
+   * (triggeredBy not in manual/scheduled/alert) are skipped at execution time.
+   */
+  eventDriven: schema.object({
+    enabled: schema.boolean({ defaultValue: true }),
+  }),
   logging: schema.object({
     console: schema.boolean({ defaultValue: false }),
   }),
