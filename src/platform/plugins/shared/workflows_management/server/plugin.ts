@@ -7,6 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import type { Subscription } from 'rxjs';
 import type {
   CoreSetup,
   CoreStart,
@@ -19,6 +20,7 @@ import type { SpacesServiceStart } from '@kbn/spaces-plugin/server';
 import type { TriggerType } from '@kbn/workflows/spec/schema/triggers/trigger_schema';
 import type { WorkflowExecutionEngineModel } from '@kbn/workflows/types/latest';
 import { registerWorkflowAgentBuilderIntegration } from './agent_builder';
+import type { WorkflowsManagementConfig } from './config';
 import {
   getWorkflowsConnectorAdapter,
   getConnectorType as getWorkflowsConnectorType,
@@ -65,9 +67,14 @@ export class WorkflowsPlugin
   private api: WorkflowsManagementApi | null = null;
   private spaces?: SpacesServiceStart | null = null;
   private triggerEventsClient: TriggerEventsDataStreamClient | null = null;
+  private workflowsConfig: WorkflowsManagementConfig | null = null;
+  private readonly initializerContext: PluginInitializerContext;
+  private configSubscription: Subscription | null = null;
 
   constructor(initializerContext: PluginInitializerContext) {
+    this.initializerContext = initializerContext;
     this.logger = initializerContext.logger.get();
+    this.workflowsConfig = initializerContext.config.get<WorkflowsManagementConfig>();
   }
 
   public setup(
@@ -75,6 +82,13 @@ export class WorkflowsPlugin
     plugins: WorkflowsServerPluginSetupDeps
   ) {
     this.logger.debug('Workflows Management: Setup');
+
+    // Subscribe to config so runtime updates via PUT /internal/core/_settings are reflected
+    this.configSubscription = this.initializerContext.config
+      .create<WorkflowsManagementConfig>()
+      .subscribe((config) => {
+        this.workflowsConfig = config;
+      });
 
     registerUISettings(core, plugins);
 
@@ -157,6 +171,9 @@ export class WorkflowsPlugin
 
     this.logger.debug('Workflows Management: Creating workflows service');
 
+    const getIsEventDrivenExecutionEnabled = (): boolean =>
+      this.workflowsConfig?.eventDrivenExecution?.enabled ?? true;
+
     const getCoreStart = () => core.getStartServices().then(([coreStart]) => coreStart);
     const getPluginsStart = () => core.getStartServices().then(([, pluginsStart]) => pluginsStart);
     const getWorkflowExecutionEngine = () =>
@@ -183,6 +200,7 @@ export class WorkflowsPlugin
       api: this.api,
       logger: this.logger,
       getTriggerEventsClient: () => this.triggerEventsClient,
+      isEventDrivenExecutionEnabled: getIsEventDrivenExecutionEnabled,
       resolveMatchingWorkflowSubscriptions: resolveMatchingWorkflowSubscriptionsFn,
     });
 
@@ -192,7 +210,7 @@ export class WorkflowsPlugin
     const router = core.http.createRouter<WorkflowsRequestHandlerContext>();
 
     // Register server side APIs
-    defineRoutes(router, this.api, this.logger, this.spaces);
+    defineRoutes(router, this.api, this.logger, this.spaces, getIsEventDrivenExecutionEnabled);
 
     void core.plugins
       .onSetup<{ agentBuilder: AgentBuilderPluginSetupContract }>('agentBuilder')
@@ -258,5 +276,8 @@ export class WorkflowsPlugin
     }
   }
 
-  public stop() {}
+  public stop() {
+    this.configSubscription?.unsubscribe();
+    this.configSubscription = null;
+  }
 }

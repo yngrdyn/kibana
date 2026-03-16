@@ -21,6 +21,9 @@ import type { WorkflowsManagementApi } from '../workflows_management_api';
 
 export const mockLogger = loggingSystemMock.create().get();
 
+/** Default getter for route tests; event-driven execution enabled. */
+export const getIsEventDrivenExecutionEnabledMock = (): boolean => true;
+
 export const createMockRouterInstance = () => createMockRouter.create();
 
 interface MockSpaces {

@@ -14,6 +14,7 @@ import type { SpacesServiceStart } from '@kbn/spaces-plugin/server';
 import { registerDeleteWorkflowByIdRoute } from './delete_workflow_by_id';
 import { registerDeleteWorkflowsBulkRoute } from './delete_workflows_bulk';
 import { registerGetConnectorsRoute } from './get_connectors';
+import { registerGetEventDrivenStatusRoute } from './get_event_driven_status';
 import { registerGetStepExecutionRoute } from './get_step_execution';
 import { registerGetWorkflowAggsRoute } from './get_workflow_aggs';
 import { registerGetWorkflowByIdRoute } from './get_workflow_by_id';
@@ -41,12 +42,19 @@ export function defineRoutes(
   router: WorkflowsRouter,
   api: WorkflowsManagementApi,
   logger: Logger,
-  spaces: SpacesServiceStart
+  spaces: SpacesServiceStart,
+  getIsEventDrivenExecutionEnabled: () => boolean
 ) {
-  const deps: RouteDependencies = { router, api, logger, spaces };
+  const deps: RouteDependencies = {
+    router,
+    api,
+    logger,
+    spaces,
+  };
 
   // Register all routes
   registerGetWorkflowStatsRoute(deps);
+  registerGetEventDrivenStatusRoute({ ...deps, getIsEventDrivenExecutionEnabled });
   registerGetWorkflowAggsRoute(deps);
   registerGetWorkflowByIdRoute(deps);
   registerGetConnectorsRoute(deps);
