@@ -7,11 +7,11 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@kbn/react-query';
 import { WORKFLOWS_CONFIG_PATH } from '../../../../common/routes';
 import { useKibana } from '../../../hooks/use_kibana';
 
-export interface EventDrivenExecutionStatus {
+export interface WorkflowsConfig {
   eventDrivenExecutionEnabled: boolean;
 }
 
@@ -21,45 +21,20 @@ export function useEventDrivenExecutionStatus(): {
   error: boolean;
 } {
   const { http } = useKibana().services;
-  const [status, setStatus] = useState<EventDrivenExecutionStatus>({
-    eventDrivenExecutionEnabled: true,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchStatus = async () => {
+  const { data, isLoading, isError } = useQuery<WorkflowsConfig>({
+    queryKey: ['workflows', 'config'],
+    queryFn: async () => {
       if (!http) {
-        setIsLoading(false);
-        return;
+        throw new Error('Http service is not available');
       }
-      try {
-        const result = await http.get<EventDrivenExecutionStatus>(WORKFLOWS_CONFIG_PATH);
-        if (!cancelled) {
-          setStatus(result);
-          setError(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setError(true);
-          setStatus({ eventDrivenExecutionEnabled: true });
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    };
-    fetchStatus();
-    return () => {
-      cancelled = true;
-    };
-  }, [http]);
+      return http.get<WorkflowsConfig>(WORKFLOWS_CONFIG_PATH);
+    },
+  });
 
   return {
-    eventDrivenExecutionEnabled: status.eventDrivenExecutionEnabled,
+    eventDrivenExecutionEnabled: data?.eventDrivenExecutionEnabled ?? true,
     isLoading,
-    error,
+    error: isError,
   };
 }
