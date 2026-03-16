@@ -19,12 +19,7 @@ import {
 import { createCasesClientMockArgs } from '../mocks';
 import { commentAttachmentType } from '../../attachment_framework/attachments';
 import { addComment } from './add';
-import { getCaseOwner } from './utils';
 import type { CasesEventBus } from '../../events';
-
-jest.mock('./utils', () => ({
-  getCaseOwner: jest.fn(),
-}));
 
 describe('addComment', () => {
   const caseId = 'test-case';
@@ -40,7 +35,6 @@ describe('addComment', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(getCaseOwner).mockResolvedValue(SECURITY_SOLUTION_OWNER);
   });
 
   it('throws with excess fields', async () => {
@@ -86,7 +80,7 @@ describe('addComment', () => {
     );
   });
 
-  it('accepts unified type (v2) request without owner and uses case owner', async () => {
+  it('accepts unified type (v2) request', async () => {
     clientArgs.unifiedAttachmentTypeRegistry.register(commentAttachmentType);
     userActionService.getMultipleCasesUserActionsTotal.mockResolvedValue({ [caseId]: 0 });
 
@@ -104,13 +98,16 @@ describe('addComment', () => {
     );
     attachmentService.create.mockResolvedValue(mockCaseUnifiedAttachments[0]);
 
-    const unifiedComment = { type: 'comment' as const, data: { content: 'unified text' } };
+    const unifiedComment = {
+      type: 'comment' as const,
+      data: { content: 'unified text' },
+      owner: SECURITY_SOLUTION_OWNER,
+    };
 
     await expect(
       addComment({ comment: unifiedComment, caseId }, clientArgs)
     ).resolves.toBeDefined();
 
-    expect(getCaseOwner).toHaveBeenCalledWith(caseId, clientArgs);
     expect(clientArgs.authorization.ensureAuthorized).toHaveBeenCalledWith(
       expect.objectContaining({
         entities: expect.arrayContaining([
