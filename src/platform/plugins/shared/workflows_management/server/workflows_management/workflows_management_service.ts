@@ -776,14 +776,12 @@ export class WorkflowsService {
       let searchAfter: estypes.SearchHit['sort'] | undefined;
       let hasMore = true;
       let pageCount = 0;
-      let total: number | undefined;
 
       while (hasMore && pageCount < MAX_PAGES) {
         pageCount++;
         const searchResponse = await this.esClient.search<WorkflowProperties>({
           pit: { id: pitId, keep_alive: keepAlive },
           size: pageSize,
-          track_total_hits: searchAfter === undefined,
           _source,
           query,
           sort,
@@ -791,19 +789,13 @@ export class WorkflowsService {
         });
 
         const hits = searchResponse.hits.hits;
-        if (!searchAfter && searchResponse.hits.total != null) {
-          total =
-            typeof searchResponse.hits.total === 'number'
-              ? searchResponse.hits.total
-              : searchResponse.hits.total?.value ?? 0;
-        }
         for (const hit of hits) {
           if (hit._source && hit._id) {
             allHits.push({ _id: hit._id, _source: hit._source as WorkflowProperties });
           }
         }
 
-        hasMore = total !== undefined ? allHits.length < total : hits.length >= pageSize;
+        hasMore = hits.length >= pageSize;
         if (hasMore) {
           const lastHit = hits[hits.length - 1];
           if (!lastHit.sort) {

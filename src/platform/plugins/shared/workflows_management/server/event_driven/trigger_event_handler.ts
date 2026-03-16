@@ -16,9 +16,6 @@ import { validateWorkflowForExecution } from '../connectors/workflows/validate_w
 import { type TriggerEventsDataStreamClient, writeTriggerEvent } from '../trigger_events_log';
 import type { WorkflowsManagementApi } from '../workflows_management/workflows_management_api';
 
-const SCHEDULE_CONCURRENCY = 20;
-const scheduleConcurrency = pLimit(SCHEDULE_CONCURRENCY);
-
 export interface CreateTriggerEventHandlerParams {
   api: WorkflowsManagementApi;
   logger: Logger;
@@ -75,6 +72,7 @@ export function createTriggerEventHandler({
       return;
     }
 
+    const scheduleConcurrency = pLimit(20);
     const schedulePromises = workflows.map((workflow) =>
       scheduleConcurrency(async () => {
         validateWorkflowForExecution(workflow, workflow.id);
