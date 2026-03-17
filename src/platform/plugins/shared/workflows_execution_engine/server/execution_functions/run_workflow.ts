@@ -76,6 +76,9 @@ export async function runWorkflow({
         await workflowExecutionRepository.updateWorkflowExecution({
           id: workflowRunId,
           status: ExecutionStatus.SKIPPED,
+          cancellationReason: 'Event-driven execution disabled by operator',
+          cancelledAt: new Date().toISOString(),
+          cancelledBy: 'system',
         });
         logger.debug(
           `Event-driven execution is disabled; skipping workflow run ${workflowRunId} (triggeredBy: ${triggeredBy}).`
