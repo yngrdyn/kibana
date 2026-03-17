@@ -98,13 +98,12 @@ export class WorkflowsExtensionsPublicPlugin
       hasTriggerDefinition: (triggerId: string) => {
         return this.triggerRegistry.has(triggerId);
       },
-      isReady: () => {
-        return this.stepRegistry.whenReady().then(() => {
-          if (this.coreStart) {
-            this.pushTriggerDocMetadata(this.coreStart).catch(() => {});
-            this.pushStepDocMetadata(this.coreStart).catch(() => {});
-          }
-        });
+      isReady: async () => {
+        await this.stepRegistry.whenReady();
+        if (this.coreStart) {
+          this.pushTriggerDocMetadata(this.coreStart).catch(() => {});
+          this.pushStepDocMetadata(this.coreStart).catch(() => {});
+        }
       },
     };
   }
