@@ -201,6 +201,16 @@ function generateTriggerUsage(
 }
 
 /**
+ * Stability note for event-driven triggers.
+ */
+function getTriggerStabilityNote(): string {
+  return i18n.translate('workflows.triggerHover.techPreviewStabilityNote', {
+    defaultMessage:
+      '> ⚠️ **Technical Preview** — Event-driven triggers are in technical preview and may be changed or removed in a future release.',
+  });
+}
+
+/**
  * Build markdown hover content from a trigger definition (custom only; from extensions or fallback).
  */
 function buildTriggerHoverFromDefinition(
@@ -208,6 +218,8 @@ function buildTriggerHoverFromDefinition(
   triggerType: string
 ): monaco.IMarkdownString {
   const lines: string[] = [];
+  lines.push(getTriggerStabilityNote());
+  lines.push('');
   lines.push(
     i18n.translate('workflows.triggerHover.workflowTriggerLabel', {
       defaultMessage: '**Workflow Trigger**: `{title}`',

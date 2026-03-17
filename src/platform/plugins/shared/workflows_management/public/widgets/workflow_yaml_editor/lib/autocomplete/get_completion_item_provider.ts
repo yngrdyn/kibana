@@ -121,6 +121,14 @@ export function getCompletionItemProvider(
 
       let isIncomplete = false;
 
+      // Add workflow suggestions first so they win when schema also provides the same key with a snippet (e.g. trigger types get our detail/label).
+      const workflowSuggestions = await getSuggestions({
+        ...autocompleteContext,
+        model,
+        position,
+      });
+      mapSuggestions(deduplicatedMap, workflowSuggestions);
+
       if (!shouldUseExclusiveSuggestions) {
         const allYamlProviders = getAllYamlProviders();
 
@@ -145,14 +153,6 @@ export function getCompletionItemProvider(
           }
         }
       }
-
-      // Workflow-specific suggestions (variables, connectors, workflow outputs, etc.)
-      const workflowSuggestions = await getSuggestions({
-        ...autocompleteContext,
-        model,
-        position,
-      });
-      mapSuggestions(deduplicatedMap, workflowSuggestions);
 
       let suggestions = Array.from(deduplicatedMap.values());
 

@@ -43,6 +43,8 @@ describe('getTriggerHoverContent', () => {
 
     const result = getTriggerHoverContent('cases.updated', getTriggerDefinition('cases.updated'));
     expect(result).not.toBeNull();
+    expect(result!.value).toContain('Technical Preview');
+    expect(result!.value).toContain('Event-driven triggers are in technical preview');
     expect(result!.value).toContain('Case updated');
     expect(result!.value).toContain('**Trigger**:');
     expect(result!.value).toContain('Fired when a case is created or updated');
