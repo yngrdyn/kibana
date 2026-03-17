@@ -99,11 +99,15 @@ export class WorkflowsExtensionsPublicPlugin
         return this.triggerRegistry.has(triggerId);
       },
       isReady: async () => {
-        await this.stepRegistry.whenReady();
-        if (this.coreStart) {
-          this.pushTriggerDocMetadata(this.coreStart).catch(() => {});
-          this.pushStepDocMetadata(this.coreStart).catch(() => {});
-        }
+        const coreStart = this.coreStart;
+        await Promise.all([
+          this.stepRegistry.whenReady().then(() => {
+            if (coreStart) this.pushStepDocMetadata(coreStart).catch(() => {});
+          }),
+          this.triggerRegistry.whenReady().then(() => {
+            if (coreStart) this.pushTriggerDocMetadata(coreStart).catch(() => {});
+          }),
+        ]);
       },
     };
   }
