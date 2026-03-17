@@ -20,6 +20,7 @@ const configSchema = schema.object({
    */
   eventDriven: schema.object({
     enabled: schema.boolean({ defaultValue: true }),
+    logEvents: schema.boolean({ defaultValue: true }),
   }),
   logging: schema.object({
     console: schema.boolean({ defaultValue: false }),

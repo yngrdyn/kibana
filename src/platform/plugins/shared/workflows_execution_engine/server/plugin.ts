@@ -846,6 +846,7 @@ export class WorkflowsExecutionEnginePlugin
       cancelWorkflowExecution,
       resumeWorkflowExecution,
       isEventDrivenExecutionEnabled: this.isEventDrivenExecutionEnabled.bind(this),
+      isLogTriggerEventsEnabled: this.isLogTriggerEventsEnabled.bind(this),
     };
   }
 
@@ -853,6 +854,10 @@ export class WorkflowsExecutionEnginePlugin
 
   private isEventDrivenExecutionEnabled(): boolean {
     return this.config?.eventDriven?.enabled ?? true;
+  }
+
+  private isLogTriggerEventsEnabled(): boolean {
+    return this.config?.eventDriven?.logEvents ?? true;
   }
 
   private async initialize(coreStart: CoreStart): Promise<void> {

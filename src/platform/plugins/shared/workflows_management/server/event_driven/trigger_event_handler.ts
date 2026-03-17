@@ -17,6 +17,79 @@ import { validateWorkflowForExecution } from '../connectors/workflows/validate_w
 import { type TriggerEventsDataStreamClient, writeTriggerEvent } from '../trigger_events_log';
 import type { WorkflowsManagementApi } from '../workflows_management/workflows_management_api';
 
+const SCHEDULE_CONCURRENCY = 20;
+
+async function writeTriggerEvents(
+  client: TriggerEventsDataStreamClient | null,
+  logEventsEnabled: boolean,
+  params: {
+    timestamp: string;
+    triggerId: string;
+    spaceId: string;
+    subscriptions: string[];
+    payload: Record<string, unknown>;
+  },
+  logger: Logger
+): Promise<void> {
+  if (!client || !logEventsEnabled) {
+    return;
+  }
+  try {
+    await writeTriggerEvent(client, params);
+  } catch (error) {
+    logger.warn(
+      `Failed to write trigger event to data stream (trigger: ${params.triggerId}): ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
+async function scheduleMatchingWorkflows(
+  api: WorkflowsManagementApi,
+  workflows: WorkflowDetailDto[],
+  spaceId: string,
+  eventContext: Record<string, unknown>,
+  request: TriggerEventHandlerParams['request'],
+  triggerId: string,
+  logger: Logger
+): Promise<void> {
+  if (workflows.length === 0) {
+    return;
+  }
+  const scheduleConcurrency = pLimit(SCHEDULE_CONCURRENCY);
+  const schedulePromises = workflows.map((workflow) =>
+    scheduleConcurrency(async () => {
+      validateWorkflowForExecution(workflow, workflow.id);
+      const workflowToRun: WorkflowExecutionEngineModel = {
+        id: workflow.id,
+        name: workflow.name,
+        enabled: workflow.enabled,
+        definition: workflow.definition,
+        yaml: workflow.yaml,
+      };
+      await api.scheduleWorkflow(
+        workflowToRun,
+        spaceId,
+        { event: eventContext },
+        request,
+        triggerId
+      );
+    })
+  );
+  const results = await Promise.allSettled(schedulePromises);
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const workflow = workflows[index];
+      const message =
+        result.reason instanceof Error ? result.reason.message : String(result.reason);
+      logger.warn(
+        `Event-driven workflow scheduling failed for workflow ${workflow.id} (trigger: ${triggerId}): ${message}`
+      );
+    }
+  });
+}
+
 export interface CreateTriggerEventHandlerParams {
   api: WorkflowsManagementApi;
   logger: Logger;
@@ -43,7 +116,10 @@ export function createTriggerEventHandler({
 }: CreateTriggerEventHandlerParams): (params: TriggerEventHandlerParams) => Promise<void> {
   return async (params: TriggerEventHandlerParams): Promise<void> => {
     const engine = await getWorkflowExecutionEngine();
-    if (!engine.isEventDrivenExecutionEnabled()) {
+    const executionEnabled = engine.isEventDrivenExecutionEnabled();
+    const logEventsEnabled = engine.isLogTriggerEventsEnabled();
+
+    if (!executionEnabled && !logEventsEnabled) {
       logger.debug(
         'Event-driven execution is disabled (eventDrivenExecutionEnabled: false); skipping workflow scheduling.'
       );
@@ -51,7 +127,6 @@ export function createTriggerEventHandler({
     }
 
     const { timestamp, triggerId, payload, request, spaceId } = params;
-
     const eventContext = { ...payload, timestamp, spaceId };
     const workflows = await resolveMatchingWorkflowSubscriptions({
       triggerId,
@@ -60,61 +135,23 @@ export function createTriggerEventHandler({
     });
     const subscriptions = workflows.map((w) => w.id);
 
-    const client = getTriggerEventsClient();
-
-    if (client) {
-      try {
-        await writeTriggerEvent(client, {
-          timestamp,
-          triggerId,
-          spaceId,
-          subscriptions,
-          payload,
-        });
-      } catch (error) {
-        logger.warn(
-          `Failed to write trigger event to data stream (trigger: ${triggerId}): ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-      }
-    }
-
-    if (workflows.length === 0) {
-      return;
-    }
-
-    const scheduleConcurrency = pLimit(20);
-    const schedulePromises = workflows.map((workflow) =>
-      scheduleConcurrency(async () => {
-        validateWorkflowForExecution(workflow, workflow.id);
-        const workflowToRun: WorkflowExecutionEngineModel = {
-          id: workflow.id,
-          name: workflow.name,
-          enabled: workflow.enabled,
-          definition: workflow.definition,
-          yaml: workflow.yaml,
-        };
-        await api.scheduleWorkflow(
-          workflowToRun,
-          spaceId,
-          { event: eventContext },
-          request,
-          triggerId
-        );
-      })
+    await writeTriggerEvents(
+      getTriggerEventsClient(),
+      logEventsEnabled,
+      { timestamp, triggerId, spaceId, subscriptions, payload },
+      logger
     );
 
-    const results = await Promise.allSettled(schedulePromises);
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        const workflow = workflows[index];
-        const message =
-          result.reason instanceof Error ? result.reason.message : String(result.reason);
-        logger.warn(
-          `Event-driven workflow scheduling failed for workflow ${workflow.id} (trigger: ${triggerId}): ${message}`
-        );
-      }
-    });
+    if (executionEnabled && workflows.length > 0) {
+      await scheduleMatchingWorkflows(
+        api,
+        workflows,
+        spaceId,
+        eventContext,
+        request,
+        triggerId,
+        logger
+      );
+    }
   };
 }
