@@ -64,12 +64,7 @@ export class PublicTriggerRegistry {
    */
   public async whenReady(): Promise<void> {
     if (this.pending.size > 0) {
-      const results = await Promise.allSettled(this.pending);
-      for (const result of results) {
-        if (result.status === 'rejected') {
-          throw result.reason;
-        }
-      }
+      await Promise.all(Array.from(this.pending));
     }
   }
 

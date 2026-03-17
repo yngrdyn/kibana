@@ -73,8 +73,7 @@ export class WorkflowsExtensionsPublicPlugin
         return this.triggerRegistry.has(triggerId);
       },
       isReady: async () => {
-        await this.stepRegistry.whenReady();
-        await this.triggerRegistry.whenReady();
+        await Promise.all([this.stepRegistry.whenReady(), this.triggerRegistry.whenReady()]);
       },
     };
   }
