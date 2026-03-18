@@ -19,7 +19,6 @@ import {
 import { createCasesClientMockArgs } from '../mocks';
 import { commentAttachmentType } from '../../attachment_framework/attachments';
 import { addComment } from './add';
-import type { CasesEventBus } from '../../events';
 
 describe('addComment', () => {
   const caseId = 'test-case';
@@ -118,8 +117,6 @@ describe('addComment', () => {
   });
 
   it('emits commentAdded event after creating a comment', async () => {
-    const emitCommentAdded = jest.fn();
-    clientArgs.casesEventBus = { emitCommentAdded } as unknown as CasesEventBus;
     if (!clientArgs.unifiedAttachmentTypeRegistry.has(commentAttachmentType.id)) {
       clientArgs.unifiedAttachmentTypeRegistry.register(commentAttachmentType);
     }
@@ -140,11 +137,18 @@ describe('addComment', () => {
     attachmentService.create.mockResolvedValue(mockCaseUnifiedAttachments[0]);
 
     await addComment(
-      { comment: { type: 'comment', data: { content: 'unified text' } }, caseId },
+      {
+        comment: {
+          type: 'comment',
+          data: { content: 'unified text' },
+          owner: SECURITY_SOLUTION_OWNER,
+        },
+        caseId,
+      },
       clientArgs
     );
 
-    expect(emitCommentAdded).toHaveBeenCalledWith(
+    expect(clientArgs.casesEventBus.emitCommentAdded).toHaveBeenCalledWith(
       clientArgs.casesEventMetadata,
       expect.objectContaining({
         commentType: 'comment',

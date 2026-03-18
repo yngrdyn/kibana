@@ -59,6 +59,22 @@ import {
   createTemplatesServiceMock,
 } from '../services/mocks';
 import { ConfigSchema } from '../config';
+import { CasesEventBus } from '../events';
+
+const createCasesEventBusMock = (): CasesEventBus => {
+  return {
+    ...new CasesEventBus(),
+    emitCaseCreated: jest.fn(),
+    emitCaseUpdated: jest.fn(),
+    emitCommentAdded: jest.fn(),
+    onCaseCreated: jest.fn(),
+    onCaseUpdated: jest.fn(),
+    onCommentAdded: jest.fn(),
+    removeCaseCreatedListener: jest.fn(),
+    removeCaseUpdatedListener: jest.fn(),
+    removeCommentAddedListener: jest.fn(),
+  };
+};
 
 type CasesSubClientMock = jest.Mocked<CasesSubClient>;
 
@@ -255,6 +271,7 @@ export const createCasesClientMockArgs = () => {
     savedObjectsSerializer: createSavedObjectsSerializerMock(),
     fileService: createFileServiceMock(),
     config: ConfigSchema.validate({}),
+    casesEventBus: createCasesEventBusMock(),
     casesEventMetadata: {
       request: httpServerMock.createKibanaRequest(),
       spaceId: 'default',
@@ -287,7 +304,7 @@ export const createCasesClientFactoryMockArgs = () => {
     persistableStateAttachmentTypeRegistry: createPersistableStateAttachmentTypeRegistryMock(),
     config: ConfigSchema.validate({}),
     unifiedAttachmentTypeRegistry: createUnifiedAttachmentTypeRegistryMock(),
-    casesEventBus: undefined,
+    casesEventBus: createCasesEventBusMock(),
   };
 };
 

@@ -19,7 +19,6 @@ import { mockCases } from '../../mocks';
 import { createCasesClientMock, createCasesClientMockArgs } from '../mocks';
 import { create } from './create';
 import { CaseSeverity, ConnectorTypes, CustomFieldTypes } from '../../../common/types/domain';
-import type { CasesEventBus } from '../../events';
 
 import type { CaseCustomFields } from '../../../common/types/domain';
 import { omit } from 'lodash';
@@ -48,15 +47,17 @@ describe('create', () => {
   describe('workflow events', () => {
     it('emits a caseCreated event on successful create', async () => {
       const clientArgs = createCasesClientMockArgs();
-      const emitCaseCreated = jest.fn();
-      clientArgs.casesEventBus = { emitCaseCreated } as unknown as CasesEventBus;
+
       clientArgs.services.caseService.createCase.mockResolvedValue(caseSO);
 
       await create(theCase, clientArgs, casesClientMock);
 
-      expect(emitCaseCreated).toHaveBeenCalledWith(clientArgs.casesEventMetadata, {
-        case: expect.objectContaining({ id: caseSO.id }),
-      });
+      expect(clientArgs.casesEventBus.emitCaseCreated).toHaveBeenCalledWith(
+        clientArgs.casesEventMetadata,
+        {
+          case: expect.objectContaining({ id: caseSO.id }),
+        }
+      );
     });
   });
 
