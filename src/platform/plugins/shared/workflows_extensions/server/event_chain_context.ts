@@ -13,19 +13,18 @@ import type { KibanaRequest } from '@kbn/core/server';
  * Context attached to the request when a workflow runs, so that when code
  * in that workflow emits an event (e.g. via emitEvent), we can infer the
  * event-chain depth and enforce a cap to prevent infinite loops.
- * Depth is only incremented when the same workflow re-triggers itself (self-loop);
- * composition (workflow A → B → C) does not consume the depth limit.
+ * Depth is incremented for every step in the chain (any workflow); the trigger
+ * event handler caps scheduling when depth exceeds the configured max.
  */
 export interface EventChainContext {
   depth: number;
-  /** Workflow definition id of the execution that emitted the event. Used to detect self-loops. */
   sourceWorkflowId?: string;
 }
 
 /**
  * HTTP header name used when a workflow step (e.g. kibana.request) makes an outbound request
  * to Kibana. The execution engine sets this to the current event-chain depth so the server
- * can restore context on the incoming request and enforce MAX_EVENT_CHAIN_DEPTH.
+ * can restore context on the incoming request and enforce the event-chain depth cap.
  */
 export const EVENT_CHAIN_DEPTH_HEADER = 'x-kibana-event-chain-depth';
 

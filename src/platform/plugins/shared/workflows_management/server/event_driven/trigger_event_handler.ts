@@ -22,13 +22,6 @@ import type { WorkflowsManagementApi } from '../workflows_management/workflows_m
 
 const SCHEDULE_CONCURRENCY = 20;
 
-/**
- * Maximum depth for same-workflow self-loops (workflow A → emit → workflow A → …).
- * Composition (workflow A → B → C) does not count toward this limit; only when the same
- * workflow re-triggers itself do we increment depth and cap at this value.
- */
-export const MAX_EVENT_CHAIN_DEPTH = 5;
-
 async function writeTriggerEvents(
   client: TriggerEventsDataStreamClient | null,
   logEventsEnabled: boolean,
@@ -66,14 +59,14 @@ interface ScheduleEventParams {
 function getEventContextForScheduledWorkflow(
   workflow: WorkflowDetailDto,
   eventParams: ScheduleEventParams,
+  maxEventChainDepth: number,
   logger: Logger
 ): Record<string, unknown> | null {
   const { payload, timestamp, spaceId, eventChainContext, triggerId } = eventParams;
-  const isSameWorkflow = workflow.id === eventChainContext?.sourceWorkflowId;
-  const newDepth = isSameWorkflow ? (eventChainContext?.depth ?? -1) + 1 : 0;
-  if (newDepth > MAX_EVENT_CHAIN_DEPTH) {
+  const newDepth = (eventChainContext?.depth ?? -1) + 1;
+  if (newDepth > maxEventChainDepth) {
     logger.warn(
-      `Event chain depth (${newDepth}) exceeds max (${MAX_EVENT_CHAIN_DEPTH}); skipping self-trigger for workflow ${workflow.id} (trigger: ${triggerId}, space: ${spaceId}) to prevent loops.`
+      `Event chain depth (${newDepth}) exceeds max (${maxEventChainDepth}); skipping workflow ${workflow.id} (trigger: ${triggerId}, space: ${spaceId}) to prevent unbounded chains.`
     );
     return null;
   }
@@ -85,6 +78,7 @@ async function scheduleMatchingWorkflows(
   workflows: WorkflowDetailDto[],
   spaceId: string,
   eventParams: ScheduleEventParams,
+  maxEventChainDepth: number,
   request: TriggerEventHandlerParams['request'],
   logger: Logger
 ): Promise<void> {
@@ -94,7 +88,12 @@ async function scheduleMatchingWorkflows(
   const scheduleConcurrency = pLimit(SCHEDULE_CONCURRENCY);
   const schedulePromises = workflows.map((workflow) =>
     scheduleConcurrency(async () => {
-      const eventContext = getEventContextForScheduledWorkflow(workflow, eventParams, logger);
+      const eventContext = getEventContextForScheduledWorkflow(
+        workflow,
+        eventParams,
+        maxEventChainDepth,
+        logger
+      );
       if (eventContext === null) {
         return;
       }
@@ -182,11 +181,13 @@ export function createTriggerEventHandler({
     );
 
     if (executionEnabled && workflows.length > 0) {
+      const maxEventChainDepth = engine.getMaxEventChainDepth();
       await scheduleMatchingWorkflows(
         api,
         workflows,
         spaceId,
         { payload, timestamp, spaceId, eventChainContext, triggerId },
+        maxEventChainDepth,
         request,
         logger
       );

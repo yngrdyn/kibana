@@ -14,12 +14,15 @@ import { createTriggerEventHandler } from './trigger_event_handler';
 
 function getEngineMock(
   executionEnabled: boolean,
-  logEventsEnabled: boolean = true
+  logEventsEnabled: boolean = true,
+  maxEventChainDepth: number = 10
 ): () => Promise<WorkflowsExecutionEnginePluginStart> {
   return () =>
     Promise.resolve({
       isEventDrivenExecutionEnabled: () => executionEnabled,
       isLogTriggerEventsEnabled: () => logEventsEnabled,
+      getMaxEventChainDepth: () => maxEventChainDepth,
+      getMaxWorkflowDepth: () => 10,
     } as WorkflowsExecutionEnginePluginStart);
 }
 
@@ -108,8 +111,8 @@ describe('createTriggerEventHandler', () => {
     expect(event.eventChainDepth).toBe(0);
   });
 
-  it('should skip scheduling same workflow and log when event chain depth exceeds MAX_EVENT_CHAIN_DEPTH', async () => {
-    const { MAX_EVENT_CHAIN_DEPTH } = await import('./trigger_event_handler');
+  it('should skip scheduling workflow and log when event chain depth exceeds max', async () => {
+    const maxEventChainDepth = 5;
     const timestamp = '2025-01-01T12:00:00.000Z';
     const scheduleWorkflow = jest.fn();
     const resolveMatchingWorkflowSubscriptions = jest
@@ -120,7 +123,7 @@ describe('createTriggerEventHandler', () => {
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
       getTriggerEventsClient: () => null,
-      getWorkflowExecutionEngine: getEngineMock(true),
+      getWorkflowExecutionEngine: getEngineMock(true, true, maxEventChainDepth),
       resolveMatchingWorkflowSubscriptions,
     });
 
@@ -131,22 +134,20 @@ describe('createTriggerEventHandler', () => {
       payload: {},
       request: mockRequest,
       eventChainContext: {
-        depth: MAX_EVENT_CHAIN_DEPTH,
+        depth: maxEventChainDepth,
         sourceWorkflowId: 'wf-1',
       },
     });
 
     expect(resolveMatchingWorkflowSubscriptions).toHaveBeenCalledTimes(1);
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining(`Event chain depth (${MAX_EVENT_CHAIN_DEPTH + 1}) exceeds max`)
+      expect.stringContaining(`Event chain depth (${maxEventChainDepth + 1}) exceeds max`)
     );
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('skipping self-trigger for workflow wf-1')
-    );
+    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('skipping workflow wf-1'));
     expect(scheduleWorkflow).not.toHaveBeenCalled();
   });
 
-  it('should resolve with eventChainDepth 0 and pass depth 0 when different workflow (composition)', async () => {
+  it('should always increment depth (e.g. composition: different workflow gets depth 3 from 2)', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
@@ -176,7 +177,7 @@ describe('createTriggerEventHandler', () => {
     );
     expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
     const event = (scheduleWorkflow.mock.calls[0][2] as { event: Record<string, unknown> }).event;
-    expect(event.eventChainDepth).toBe(0);
+    expect(event.eventChainDepth).toBe(3);
   });
 
   it('should pass incremented eventChainDepth when same workflow re-triggers (self-loop)', async () => {

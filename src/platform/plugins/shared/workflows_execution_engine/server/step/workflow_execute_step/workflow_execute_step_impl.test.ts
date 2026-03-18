@@ -103,6 +103,7 @@ const createMockInit = (
     workflowExecutionRepository,
     stepExecutionRepository,
     workflowLogger,
+    maxWorkflowDepth: MAX_WORKFLOW_DEPTH,
     ...overrides,
   };
 };

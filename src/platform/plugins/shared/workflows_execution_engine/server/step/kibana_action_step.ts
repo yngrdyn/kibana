@@ -241,7 +241,7 @@ export class KibanaActionStepImpl extends BaseAtomicNodeImplementation<KibanaAct
     // emitEvent(fakeRequest) see the Symbol-set context — no headers needed. (2) Outbound HTTP: this
     // step (kibana.request) sends a new HTTP request; the route handler receives a new request object
     // with no Symbol. Inject these headers so the server can restore context (depth + sourceWorkflowId)
-    // and enforce MAX_EVENT_CHAIN_DEPTH and self-loop detection when that handler calls emitEvent.
+    // and enforce the event-chain depth cap when that handler calls emitEvent.
     const fakeRequest = this.stepExecutionRuntime.contextManager.getFakeRequest();
     const outboundHeaders = { ...headers, ...getOutboundEventChainHeaders(fakeRequest) };
 

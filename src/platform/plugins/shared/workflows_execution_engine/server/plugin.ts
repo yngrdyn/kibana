@@ -39,6 +39,7 @@ import { WorkflowExecutionTelemetryClient } from './lib/telemetry/workflow_execu
 import { WorkflowsMeteringService } from './metering/metering_service';
 import { initializeLogsRepositoryDataStream } from './repositories/logs_repository/data_stream';
 import { WorkflowExecutionRepository } from './repositories/workflow_execution_repository';
+import { MAX_WORKFLOW_DEPTH } from './step/workflow_execute_step/constants';
 import type {
   CancelWorkflowExecution,
   ExecuteWorkflow,
@@ -54,11 +55,11 @@ import { generateExecutionTaskScope } from './utils';
 import { buildWorkflowContext } from './workflow_context_manager/build_workflow_context';
 import type { ContextDependencies } from './workflow_context_manager/types';
 import { WorkflowEventLoggerService } from './workflow_event_logger';
-import { WORKFLOW_RESUME_TASK_TYPE } from './workflow_task_manager/types';
 import type {
   ResumeWorkflowExecutionParams,
   StartWorkflowExecutionParams,
 } from './workflow_task_manager/types';
+import { WORKFLOW_RESUME_TASK_TYPE } from './workflow_task_manager/types';
 import { WorkflowTaskManager } from './workflow_task_manager/workflow_task_manager';
 import { createIndexes } from '../common';
 
@@ -849,6 +850,8 @@ export class WorkflowsExecutionEnginePlugin
       resumeWorkflowExecution,
       isEventDrivenExecutionEnabled: this.isEventDrivenExecutionEnabled.bind(this),
       isLogTriggerEventsEnabled: this.isLogTriggerEventsEnabled.bind(this),
+      getMaxEventChainDepth: this.getMaxEventChainDepth.bind(this),
+      getMaxWorkflowDepth: this.getMaxWorkflowDepth.bind(this),
     };
   }
 
@@ -860,6 +863,14 @@ export class WorkflowsExecutionEnginePlugin
 
   private isLogTriggerEventsEnabled(): boolean {
     return this.config?.eventDriven?.logEvents ?? true;
+  }
+
+  private getMaxEventChainDepth(): number {
+    return this.config?.eventDriven?.maxChainDepth ?? 10;
+  }
+
+  private getMaxWorkflowDepth(): number {
+    return this.config?.maxWorkflowDepth ?? MAX_WORKFLOW_DEPTH;
   }
 
   private async initialize(coreStart: CoreStart): Promise<void> {
