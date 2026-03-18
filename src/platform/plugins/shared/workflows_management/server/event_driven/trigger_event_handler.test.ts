@@ -60,7 +60,7 @@ describe('createTriggerEventHandler', () => {
     const triggerId = 'cases.updated';
     const spaceId = 'default';
     const payload = { caseId: 'case-123', status: 'open' as const };
-    const eventContext = { ...payload, timestamp, spaceId };
+    const eventContext = { ...payload, timestamp, spaceId, eventChainDepth: 0 };
 
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const resolveMatchingWorkflowSubscriptions = jest
@@ -105,6 +105,111 @@ describe('createTriggerEventHandler', () => {
     expect(event.spaceId).toBe(spaceId);
     expect(event.caseId).toBe('case-123');
     expect(event.status).toBe('open');
+    expect(event.eventChainDepth).toBe(0);
+  });
+
+  it('should skip scheduling same workflow and log when event chain depth exceeds MAX_EVENT_CHAIN_DEPTH', async () => {
+    const { MAX_EVENT_CHAIN_DEPTH } = await import('./trigger_event_handler');
+    const timestamp = '2025-01-01T12:00:00.000Z';
+    const scheduleWorkflow = jest.fn();
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+
+    const handler = createTriggerEventHandler({
+      api: { scheduleWorkflow } as any,
+      logger: mockLogger,
+      getTriggerEventsClient: () => null,
+      getWorkflowExecutionEngine: getEngineMock(true),
+      resolveMatchingWorkflowSubscriptions,
+    });
+
+    await handler({
+      timestamp,
+      triggerId: 'cases.updated',
+      spaceId: 'default',
+      payload: {},
+      request: mockRequest,
+      eventChainContext: {
+        depth: MAX_EVENT_CHAIN_DEPTH,
+        sourceWorkflowId: 'wf-1',
+      },
+    });
+
+    expect(resolveMatchingWorkflowSubscriptions).toHaveBeenCalledTimes(1);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining(`Event chain depth (${MAX_EVENT_CHAIN_DEPTH + 1}) exceeds max`)
+    );
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('skipping self-trigger for workflow wf-1')
+    );
+    expect(scheduleWorkflow).not.toHaveBeenCalled();
+  });
+
+  it('should resolve with eventChainDepth 0 and pass depth 0 when different workflow (composition)', async () => {
+    const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+
+    const handler = createTriggerEventHandler({
+      api: { scheduleWorkflow } as any,
+      logger: mockLogger,
+      getTriggerEventsClient: () => null,
+      getWorkflowExecutionEngine: getEngineMock(true),
+      resolveMatchingWorkflowSubscriptions,
+    });
+
+    await handler({
+      timestamp: '2025-01-01T12:00:00.000Z',
+      triggerId: 'cases.updated',
+      spaceId: 'default',
+      payload: { id: '1' },
+      request: mockRequest,
+      eventChainContext: { depth: 2, sourceWorkflowId: 'wf-other' },
+    });
+
+    expect(resolveMatchingWorkflowSubscriptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventContext: expect.objectContaining({ eventChainDepth: 0 }),
+      })
+    );
+    expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
+    const event = (scheduleWorkflow.mock.calls[0][2] as { event: Record<string, unknown> }).event;
+    expect(event.eventChainDepth).toBe(0);
+  });
+
+  it('should pass incremented eventChainDepth when same workflow re-triggers (self-loop)', async () => {
+    const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+
+    const handler = createTriggerEventHandler({
+      api: { scheduleWorkflow } as any,
+      logger: mockLogger,
+      getTriggerEventsClient: () => null,
+      getWorkflowExecutionEngine: getEngineMock(true),
+      resolveMatchingWorkflowSubscriptions,
+    });
+
+    await handler({
+      timestamp: '2025-01-01T12:00:00.000Z',
+      triggerId: 'cases.updated',
+      spaceId: 'default',
+      payload: { id: '1' },
+      request: mockRequest,
+      eventChainContext: { depth: 2, sourceWorkflowId: 'wf-1' },
+    });
+
+    expect(resolveMatchingWorkflowSubscriptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventContext: expect.objectContaining({ eventChainDepth: 0 }),
+      })
+    );
+    expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
+    const event = (scheduleWorkflow.mock.calls[0][2] as { event: Record<string, unknown> }).event;
+    expect(event.eventChainDepth).toBe(3);
   });
 
   it('should not resolve or schedule when event-driven execution is disabled and logEvents is disabled', async () => {
@@ -142,7 +247,7 @@ describe('createTriggerEventHandler', () => {
     const triggerId = 'cases.updated';
     const spaceId = 'default';
     const payload = { caseId: 'case-123' };
-    const eventContext = { ...payload, timestamp, spaceId };
+    const eventContext = { ...payload, timestamp, spaceId, eventChainDepth: 0 };
 
     const scheduleWorkflow = jest.fn();
     const resolveMatchingWorkflowSubscriptions = jest
@@ -256,6 +361,7 @@ describe('createTriggerEventHandler', () => {
       eventContext: expect.objectContaining({
         timestamp: '2025-01-01T12:00:00.000Z',
         spaceId: 'default',
+        eventChainDepth: 0,
       }),
     });
     expect(scheduleWorkflow).not.toHaveBeenCalled();

@@ -12,6 +12,7 @@
 
 import type { FetcherConfigSchema } from '@kbn/workflows';
 import { buildKibanaRequest } from '@kbn/workflows';
+import { getOutboundEventChainHeaders } from '@kbn/workflows-extensions/server';
 import type { z } from '@kbn/zod/v4';
 import { ResponseSizeLimitError } from './errors';
 import type { BaseStep, RunStepResult } from './node_implementation';
@@ -235,6 +236,15 @@ export class KibanaActionStepImpl extends BaseAtomicNodeImplementation<KibanaAct
   ): Promise<any> {
     const { method, path, body, query, headers = {} } = requestConfig;
 
+    // Two paths can lead to emitEvent: (1) In-process: a workflow step (e.g. kibana.createCase) runs in
+    // the same process and gets the fakeRequest from step context; getCasesClient(fakeRequest) and later
+    // emitEvent(fakeRequest) see the Symbol-set context — no headers needed. (2) Outbound HTTP: this
+    // step (kibana.request) sends a new HTTP request; the route handler receives a new request object
+    // with no Symbol. Inject these headers so the server can restore context (depth + sourceWorkflowId)
+    // and enforce MAX_EVENT_CHAIN_DEPTH and self-loop detection when that handler calls emitEvent.
+    const fakeRequest = this.stepExecutionRuntime.contextManager.getFakeRequest();
+    const outboundHeaders = { ...headers, ...getOutboundEventChainHeaders(fakeRequest) };
+
     // Build full URL with query parameters
     let fullUrl = `${kibanaUrl}${path}`;
     if (query && Object.keys(query).length > 0) {
@@ -245,7 +255,7 @@ export class KibanaActionStepImpl extends BaseAtomicNodeImplementation<KibanaAct
     // Build fetch options
     const fetchOptions: RequestInit = {
       method,
-      headers,
+      headers: outboundHeaders,
       body: body ? JSON.stringify(body) : undefined,
     };
 

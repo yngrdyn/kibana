@@ -21,6 +21,16 @@ export type ServerTriggerDefinition<EventSchema extends z.ZodType = z.ZodType> =
   CommonTriggerDefinition<EventSchema>;
 
 /**
+ * Event-chain context (depth and optional source ids).
+ * Inferred from the request inside emitEvent when the request was set by a workflow run.
+ * Depth is only incremented for same-workflow self-loops; composition does not consume the limit.
+ */
+export interface EventChainContext {
+  depth: number;
+  sourceWorkflowId?: string;
+}
+
+/**
  * Parameters passed to the trigger event handler when an event is emitted.
  */
 export interface TriggerEventHandlerParams {
@@ -29,6 +39,7 @@ export interface TriggerEventHandlerParams {
   spaceId: string;
   payload: Record<string, unknown>;
   request: KibanaRequest;
+  eventChainContext?: EventChainContext;
 }
 
 /**

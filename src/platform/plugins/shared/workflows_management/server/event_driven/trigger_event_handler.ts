@@ -11,13 +11,23 @@ import pLimit from 'p-limit';
 import type { Logger } from '@kbn/core/server';
 import type { WorkflowDetailDto, WorkflowExecutionEngineModel } from '@kbn/workflows';
 import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
-import type { TriggerEventHandlerParams } from '@kbn/workflows-extensions/server';
+import type {
+  EventChainContext,
+  TriggerEventHandlerParams,
+} from '@kbn/workflows-extensions/server';
 import type { ResolveMatchingWorkflowSubscriptionsParams } from './resolve_workflow_subscriptions';
 import { validateWorkflowForExecution } from '../connectors/workflows/validate_workflow_for_execution';
 import { type TriggerEventsDataStreamClient, writeTriggerEvent } from '../trigger_events_log';
 import type { WorkflowsManagementApi } from '../workflows_management/workflows_management_api';
 
 const SCHEDULE_CONCURRENCY = 20;
+
+/**
+ * Maximum depth for same-workflow self-loops (workflow A → emit → workflow A → …).
+ * Composition (workflow A → B → C) does not count toward this limit; only when the same
+ * workflow re-triggers itself do we increment depth and cap at this value.
+ */
+export const MAX_EVENT_CHAIN_DEPTH = 5;
 
 async function writeTriggerEvents(
   client: TriggerEventsDataStreamClient | null,
@@ -45,13 +55,37 @@ async function writeTriggerEvents(
   }
 }
 
+interface ScheduleEventParams {
+  payload: Record<string, unknown>;
+  timestamp: string;
+  spaceId: string;
+  eventChainContext?: EventChainContext;
+  triggerId: string;
+}
+
+function getEventContextForScheduledWorkflow(
+  workflow: WorkflowDetailDto,
+  eventParams: ScheduleEventParams,
+  logger: Logger
+): Record<string, unknown> | null {
+  const { payload, timestamp, spaceId, eventChainContext, triggerId } = eventParams;
+  const isSameWorkflow = workflow.id === eventChainContext?.sourceWorkflowId;
+  const newDepth = isSameWorkflow ? (eventChainContext?.depth ?? -1) + 1 : 0;
+  if (newDepth > MAX_EVENT_CHAIN_DEPTH) {
+    logger.warn(
+      `Event chain depth (${newDepth}) exceeds max (${MAX_EVENT_CHAIN_DEPTH}); skipping self-trigger for workflow ${workflow.id} (trigger: ${triggerId}, space: ${spaceId}) to prevent loops.`
+    );
+    return null;
+  }
+  return { ...payload, timestamp, spaceId, eventChainDepth: newDepth };
+}
+
 async function scheduleMatchingWorkflows(
   api: WorkflowsManagementApi,
   workflows: WorkflowDetailDto[],
   spaceId: string,
-  eventContext: Record<string, unknown>,
+  eventParams: ScheduleEventParams,
   request: TriggerEventHandlerParams['request'],
-  triggerId: string,
   logger: Logger
 ): Promise<void> {
   if (workflows.length === 0) {
@@ -60,6 +94,10 @@ async function scheduleMatchingWorkflows(
   const scheduleConcurrency = pLimit(SCHEDULE_CONCURRENCY);
   const schedulePromises = workflows.map((workflow) =>
     scheduleConcurrency(async () => {
+      const eventContext = getEventContextForScheduledWorkflow(workflow, eventParams, logger);
+      if (eventContext === null) {
+        return;
+      }
       validateWorkflowForExecution(workflow, workflow.id);
       const workflowToRun: WorkflowExecutionEngineModel = {
         id: workflow.id,
@@ -73,7 +111,7 @@ async function scheduleMatchingWorkflows(
         spaceId,
         { event: eventContext },
         request,
-        triggerId
+        eventParams.triggerId
       );
     })
   );
@@ -84,7 +122,7 @@ async function scheduleMatchingWorkflows(
       const message =
         result.reason instanceof Error ? result.reason.message : String(result.reason);
       logger.warn(
-        `Event-driven workflow scheduling failed for workflow ${workflow.id} (trigger: ${triggerId}): ${message}`
+        `Event-driven workflow scheduling failed for workflow ${workflow.id} (trigger: ${eventParams.triggerId}): ${message}`
       );
     }
   });
@@ -126,12 +164,13 @@ export function createTriggerEventHandler({
       return;
     }
 
-    const { timestamp, triggerId, payload, request, spaceId } = params;
-    const eventContext = { ...payload, timestamp, spaceId };
+    const { timestamp, triggerId, payload, request, spaceId, eventChainContext } = params;
+
+    const eventContextForResolution = { ...payload, timestamp, spaceId, eventChainDepth: 0 };
     const workflows = await resolveMatchingWorkflowSubscriptions({
       triggerId,
       spaceId,
-      eventContext,
+      eventContext: eventContextForResolution,
     });
     const subscriptions = workflows.map((w) => w.id);
 
@@ -147,9 +186,8 @@ export function createTriggerEventHandler({
         api,
         workflows,
         spaceId,
-        eventContext,
+        { payload, timestamp, spaceId, eventChainContext, triggerId },
         request,
-        triggerId,
         logger
       );
     }
