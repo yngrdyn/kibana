@@ -22,6 +22,7 @@ import { Operations } from '../../authorization';
 import type { BulkCreateArgs } from './types';
 import { validateRegisteredAttachments } from './validators';
 import { validateMaxUserActions } from '../../common/validators';
+import { emitCommentAddedEvent } from './utils';
 
 export const bulkCreate = async (
   args: BulkCreateArgs,
@@ -84,7 +85,15 @@ export const bulkCreate = async (
       attachments: attachmentsWithIds,
     });
 
-    return await updatedModel.encodeWithComments();
+    const updatedCase = await updatedModel.encodeWithComments();
+
+    emitCommentAddedEvent(
+      clientArgs,
+      updatedCase,
+      attachmentsWithIds.map((a) => a.id)
+    );
+
+    return updatedCase;
   } catch (error) {
     throw createCaseError({
       message: `Failed while bulk creating attachment to case id: ${caseId} error: ${error}`,

@@ -52,7 +52,7 @@ describe('CasesEventBus', () => {
 
     eventBus.onCommentAdded(listener);
     eventBus.removeCommentAddedListener(listener);
-    eventBus.emitCommentAdded(metadata, { case: { id: 'case-1' }, commentType: 'user' });
+    eventBus.emitCommentAdded(metadata, { caseId: 'case-1', comments: [] });
 
     expect(listener).not.toHaveBeenCalled();
   });

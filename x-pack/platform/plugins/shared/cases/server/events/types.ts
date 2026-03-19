@@ -6,6 +6,7 @@
  */
 
 import type { KibanaRequest } from '@kbn/core/server';
+import type { CaseResponseProperties } from '../../common/bundled-types.gen';
 
 /**
  * Source of a Cases domain event. Used for recursion prevention in the workflow bridge.
@@ -40,8 +41,8 @@ export interface CaseUpdatedEventPayload {
  * Event: comment added
  */
 export interface CommentAddedEventPayload {
-  readonly case: Record<string, unknown>;
-  readonly commentType: string;
+  readonly caseId: string;
+  readonly comments: CaseResponseProperties['comments'];
 }
 
 export type CasesDomainEventPayload =

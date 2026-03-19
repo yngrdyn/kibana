@@ -38,7 +38,7 @@ describe('registerCasesWorkflowEventBridge', () => {
     );
     eventBus.emitCommentAdded(
       { request, spaceId: 'default', source: 'api' },
-      { case: { id: 'case-1' }, commentType: 'user' }
+      { caseId: 'case-1', comments: [] }
     );
 
     await flushMicrotasks();
@@ -58,7 +58,7 @@ describe('registerCasesWorkflowEventBridge', () => {
     });
     expect(workflowsExtensions.emitEvent).toHaveBeenNthCalledWith(3, {
       triggerId: CommentAddedTriggerId,
-      payload: { case: { id: 'case-1' }, commentType: 'user' },
+      payload: { caseId: 'case-1', comments: [] },
       request,
       spaceId: 'default',
     });

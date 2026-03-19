@@ -151,8 +151,8 @@ describe('addComment', () => {
     expect(clientArgs.casesEventBus.emitCommentAdded).toHaveBeenCalledWith(
       clientArgs.casesEventMetadata,
       expect.objectContaining({
-        commentType: 'comment',
-        case: expect.objectContaining({ id: caseId }),
+        caseId,
+        comments: expect.any(Array),
       })
     );
   });
