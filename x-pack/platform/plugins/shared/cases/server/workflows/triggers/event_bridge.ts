@@ -29,7 +29,7 @@ export function registerCasesWorkflowEventBridge(
 
   const forward = async (
     eventType: string,
-    payload: Record<string, unknown>,
+    payload: unknown,
     metadata: { request: unknown; spaceId: string; source: CasesEventSource }
   ) => {
     if (metadata.source === 'workflowStep') {
@@ -39,7 +39,7 @@ export function registerCasesWorkflowEventBridge(
     try {
       await workflowsExtensions.emitEvent({
         triggerId: eventType,
-        payload,
+        payload: payload as Record<string, unknown>,
         request: metadata.request as Parameters<
           WorkflowsExtensionsServerPluginStart['emitEvent']
         >[0]['request'],
