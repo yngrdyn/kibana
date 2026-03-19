@@ -276,7 +276,9 @@ export class CasePlugin
       licensingPluginStart: plugins.licensing,
     });
 
-    registerCasesWorkflowEventBridge(this.casesEventBus, plugins.workflowsExtensions, this.logger);
+    // this.casesEventBus will be set to a defined value in the setup() function
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    registerCasesWorkflowEventBridge(this.casesEventBus!, plugins.workflowsExtensions, this.logger);
 
     this.clientFactory.initialize({
       // securityPluginSetup will be set to a defined value in the setup() function
