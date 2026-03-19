@@ -12,8 +12,8 @@ import { CaseResponseProperties } from '../../bundled-types.gen';
 export const CommentAddedTriggerId = 'cases.commentAdded' as const;
 
 export const commentAddedEventSchema = z.object({
-  case: CaseResponseProperties.describe('The case after adding the comment.'),
-  commentType: z.string().describe('The comment type that was added to the case.'),
+  caseId: z.string().describe('The ID of the case the comments were added to.'),
+  comments: CaseResponseProperties.shape.comments.describe('The comments that were added.'),
 });
 
 export type CommentAddedEvent = z.infer<typeof commentAddedEventSchema>;
