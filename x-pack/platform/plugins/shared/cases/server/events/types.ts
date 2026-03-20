@@ -45,27 +45,9 @@ export interface CommentAddedEventPayload {
   readonly comments: CaseResponseProperties['comments'];
 }
 
-export type CasesDomainEventPayload =
+type CasesDomainEventPayload =
   | { type: 'caseCreated'; payload: CaseCreatedEventPayload }
   | { type: 'caseUpdated'; payload: CaseUpdatedEventPayload }
   | { type: 'commentAdded'; payload: CommentAddedEventPayload };
 
 export type CasesEventPayload = CasesDomainEventPayload & { metadata: CasesEventMetadata };
-
-export function isCaseCreatedEvent(
-  event: CasesEventPayload
-): event is CasesEventPayload & { type: 'caseCreated' } {
-  return event.type === 'caseCreated';
-}
-
-export function isCaseUpdatedEvent(
-  event: CasesEventPayload
-): event is CasesEventPayload & { type: 'caseUpdated' } {
-  return event.type === 'caseUpdated';
-}
-
-export function isCommentAddedEvent(
-  event: CasesEventPayload
-): event is CasesEventPayload & { type: 'commentAdded' } {
-  return event.type === 'commentAdded';
-}

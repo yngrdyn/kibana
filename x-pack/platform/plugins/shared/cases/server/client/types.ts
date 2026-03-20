@@ -33,7 +33,8 @@ import type { LicensingService } from '../services/licensing';
 import type { NotificationService } from '../services/notifications/types';
 import type { User } from '../common/types/user';
 import type { ConfigType } from '../config';
-import type { CasesEventBus, CasesEventMetadata } from '../events';
+import type { CasesEventMetadata } from '../events/types';
+import type { CasesEventBus } from '../events/event_bus';
 
 export interface CasesServices {
   alertsService: AlertService;

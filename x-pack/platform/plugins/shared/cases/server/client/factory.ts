@@ -59,7 +59,8 @@ import type { CasesServices } from './types';
 import { LicensingService } from '../services/licensing';
 import { EmailNotificationService } from '../services/notifications/email_notification_service';
 import type { ConfigType } from '../config';
-import type { CasesEventSource } from '../events';
+import type { CasesEventSource } from '../events/types';
+import type { CasesEventBus } from '../events/event_bus';
 import { getSavedObjectsTypes } from '../../common';
 
 interface CasesClientFactoryArgs {
@@ -81,7 +82,7 @@ interface CasesClientFactoryArgs {
   usageCounter?: IUsageCounter;
   config: ConfigType;
   workflowsExtensions?: WorkflowsExtensionsServerPluginStart;
-  casesEventBus?: import('../events').CasesEventBus;
+  casesEventBus?: CasesEventBus;
 }
 
 /**

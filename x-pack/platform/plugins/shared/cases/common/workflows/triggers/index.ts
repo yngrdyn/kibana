@@ -5,32 +5,44 @@
  * 2.0.
  */
 
+import { z } from '@kbn/zod/v4';
 import type { CommonTriggerDefinition } from '@kbn/workflows-extensions/common';
-import { caseCreatedTriggerCommonDefinition } from './case_created';
-import { caseUpdatedTriggerCommonDefinition } from './case_updated';
-import { commentAddedTriggerCommonDefinition } from './comment_added';
+import { CaseResponseProperties } from '../../bundled-types.gen';
 
-export {
-  CaseCreatedTriggerId,
-  caseCreatedEventSchema,
-  type CaseCreatedEvent,
-  caseCreatedTriggerCommonDefinition,
-} from './case_created';
-export {
-  CaseUpdatedTriggerId,
-  caseUpdatedEventSchema,
-  type CaseUpdatedEvent,
-  caseUpdatedTriggerCommonDefinition,
-} from './case_updated';
-export {
-  CommentAddedTriggerId,
-  commentAddedEventSchema,
-  type CommentAddedEvent,
-  commentAddedTriggerCommonDefinition,
-} from './comment_added';
+export const CaseCreatedTriggerId = 'cases.caseCreated' as const;
 
-export const casesWorkflowTriggers: ReadonlyArray<CommonTriggerDefinition> = Object.freeze([
-  caseCreatedTriggerCommonDefinition,
-  caseUpdatedTriggerCommonDefinition,
-  commentAddedTriggerCommonDefinition,
-]);
+const caseCreatedEventSchema = z.object({
+  case: CaseResponseProperties.describe('The created case.'),
+});
+
+export const caseCreatedTriggerCommonDefinition: CommonTriggerDefinition = {
+  id: CaseCreatedTriggerId,
+  eventSchema: caseCreatedEventSchema,
+};
+
+export const CaseUpdatedTriggerId = 'cases.caseUpdated' as const;
+
+const caseUpdatedEventSchema = z.object({
+  case: CaseResponseProperties.describe('The updated case.'),
+  updatedFields: z
+    .array(z.string())
+    .optional()
+    .describe('A list of case fields updated by this operation.'),
+});
+
+export const caseUpdatedTriggerCommonDefinition: CommonTriggerDefinition = {
+  id: CaseUpdatedTriggerId,
+  eventSchema: caseUpdatedEventSchema,
+};
+
+export const CommentAddedTriggerId = 'cases.commentAdded' as const;
+
+const commentAddedEventSchema = z.object({
+  caseId: z.string().describe('The ID of the case the comments were added to.'),
+  comments: CaseResponseProperties.shape.comments.describe('The comments that were added.'),
+});
+
+export const commentAddedTriggerCommonDefinition: CommonTriggerDefinition = {
+  id: CommentAddedTriggerId,
+  eventSchema: commentAddedEventSchema,
+};

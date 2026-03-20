@@ -7,7 +7,8 @@
 
 import type { KibanaRequest, Logger } from '@kbn/core/server';
 import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
-import type { CasesEventBus, CasesEventSource } from '../../events';
+import type { CasesEventSource } from '../../events/types';
+import type { CasesEventBus } from '../../events/event_bus';
 import {
   CaseCreatedTriggerId,
   CaseUpdatedTriggerId,

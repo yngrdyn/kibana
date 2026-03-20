@@ -12,7 +12,7 @@ import {
   CaseUpdatedTriggerId,
   CommentAddedTriggerId,
 } from '../../../common/workflows/triggers';
-import { CasesEventBus } from '../../events';
+import { CasesEventBus } from '../../events/event_bus';
 import { registerCasesWorkflowEventBridge } from './event_bridge';
 
 const flushMicrotasks = async () => {

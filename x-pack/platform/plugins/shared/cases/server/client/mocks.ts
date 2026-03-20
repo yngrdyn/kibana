@@ -59,7 +59,7 @@ import {
   createTemplatesServiceMock,
 } from '../services/mocks';
 import { ConfigSchema } from '../config';
-import { CasesEventBus } from '../events';
+import { CasesEventBus } from '../events/event_bus';
 
 const createCasesEventBusMock = (): CasesEventBus => {
   return {
