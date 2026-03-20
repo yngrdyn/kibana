@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import type { Logger } from '@kbn/core/server';
+import type { KibanaRequest, Logger } from '@kbn/core/server';
 import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
 import type { CasesEventBus, CasesEventSource } from '../../events';
 import {
@@ -30,7 +30,7 @@ export function registerCasesWorkflowEventBridge(
   const forward = async (
     eventType: string,
     payload: unknown,
-    metadata: { request: unknown; spaceId: string; source: CasesEventSource }
+    metadata: { request: KibanaRequest; spaceId: string; source: CasesEventSource }
   ) => {
     if (metadata.source === 'workflowStep') {
       return;
@@ -40,9 +40,7 @@ export function registerCasesWorkflowEventBridge(
       await workflowsExtensions.emitEvent({
         triggerId: eventType,
         payload: payload as Record<string, unknown>,
-        request: metadata.request as Parameters<
-          WorkflowsExtensionsServerPluginStart['emitEvent']
-        >[0]['request'],
+        request: metadata.request,
         spaceId: metadata.spaceId,
       });
     } catch (error) {

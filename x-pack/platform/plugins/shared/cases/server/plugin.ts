@@ -55,7 +55,7 @@ import type { ServerlessProjectType } from '../common/constants/types';
 import { IncrementalIdTaskManager } from './tasks/incremental_id/incremental_id_task_manager';
 import { createCasesAnalyticsIndexes, registerCasesAnalyticsIndexesTasks } from './cases_analytics';
 import { scheduleCAISchedulerTask } from './cases_analytics/tasks/scheduler_task';
-import { CasesEventBus } from './events';
+import { CasesEventBus, type CasesEventSource } from './events';
 import { registerCaseWorkflowSteps } from './workflows';
 import { registerCaseWorkflowTriggers } from './workflows/triggers';
 import { registerCasesWorkflowEventBridge } from './workflows/triggers/event_bridge';
@@ -348,10 +348,7 @@ export class CasePlugin
 
   private getCasesClientWithRequest =
     (core: CoreStart) =>
-    async (
-      request: KibanaRequest,
-      source: import('./events').CasesEventSource = 'api'
-    ): Promise<CasesClient> => {
+    async (request: KibanaRequest, source: CasesEventSource = 'api'): Promise<CasesClient> => {
       const client = core.elasticsearch.client;
 
       return this.clientFactory.create({
