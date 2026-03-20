@@ -145,7 +145,7 @@ describe('extractSchemaPropertyPaths', () => {
   });
 
   describe('array types', () => {
-    it('should handle array types without extracting paths', () => {
+    it('should extract array field and nested object paths for array-of-object', () => {
       const schema = z.object({
         tags: z.array(z.string()),
         items: z.array(
@@ -161,7 +161,26 @@ describe('extractSchemaPropertyPaths', () => {
       expect(result).toEqual([
         { path: 'tags', type: 'array' },
         { path: 'items', type: 'array' },
+        { path: 'items.id', type: 'string' },
+        { path: 'items.value', type: 'number' },
       ]);
+    });
+
+    it('should unwrap optional array-of-object for nested paths', () => {
+      const schema = z.object({
+        rows: z
+          .array(
+            z.object({
+              key: z.string(),
+            })
+          )
+          .optional(),
+      });
+
+      const result = extractSchemaPropertyPaths(schema);
+
+      expect(result).toContainEqual({ path: 'rows', type: 'optional' });
+      expect(result).toContainEqual({ path: 'rows.key', type: 'string' });
     });
   });
 
@@ -231,6 +250,7 @@ describe('extractSchemaPropertyPaths', () => {
         path: 'foreach.items',
         type: 'array',
       });
+      // foreach.items is z.array(z.any()) — no nested object paths under items
       expect(result).toContainEqual({
         path: 'foreach.index',
         type: 'number',

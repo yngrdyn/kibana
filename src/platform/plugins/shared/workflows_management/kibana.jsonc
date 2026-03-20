@@ -25,6 +25,7 @@
       "stackConnectors",
       "data",
       "dataViews",
+      "kql",
       "fieldFormats",
       "unifiedSearch",
       "embeddable",

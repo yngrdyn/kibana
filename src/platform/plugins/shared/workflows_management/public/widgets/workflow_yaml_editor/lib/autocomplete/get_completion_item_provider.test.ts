@@ -73,7 +73,7 @@ describe('getCompletionItemProvider', () => {
 
     it('should have correct trigger characters', () => {
       const provider = getCompletionItemProvider(getState);
-      expect(provider.triggerCharacters).toEqual(['@', '.', ' ', '|', '{']);
+      expect(provider.triggerCharacters).toEqual(['@', '.', ' ', '|', '{', ':', '(', '"', "'"]);
     });
   });
 

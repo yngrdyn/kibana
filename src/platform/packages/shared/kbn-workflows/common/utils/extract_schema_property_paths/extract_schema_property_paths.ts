@@ -64,9 +64,12 @@ function extractSchemaPropertyPathsRecursive(
     paths.push(...nestedPaths);
   }
 
-  // Handle ZodArray
-  else if (zodSchema.def && zodSchema.def.type === 'array') {
-    // Arrays don't add to property paths in our context
+  // Handle ZodArray: allow KQL like `event.items.id` when items is z.array(z.object({ id: ... })) —
+  // same dot notation used for array-of-object fields in trigger conditions.
+  else if (zodSchema instanceof z.ZodArray) {
+    const elementType = zodSchema.element as ZodType;
+    const nestedPaths = extractSchemaPropertyPathsRecursive(elementType, prefix);
+    paths.push(...nestedPaths);
     return paths;
   }
 
