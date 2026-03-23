@@ -90,7 +90,7 @@ describe('getActionOptions', () => {
   });
 
   it('should set stability tech_preview for registered event-driven trigger options', () => {
-    (triggerSchemas.getTriggerDefinitions as jest.Mock).mockReturnValue([
+    (triggerSchemas.getTriggerDefinitions as jest.Mock).mockReturnValueOnce([
       {
         id: 'cases.updated',
         title: 'Case updated',
@@ -111,8 +111,6 @@ describe('getActionOptions', () => {
         expect(casesOption.stability).toBe('tech_preview');
       }
     }
-
-    (triggerSchemas.getTriggerDefinitions as jest.Mock).mockReturnValue([]);
   });
 
   it('should include flow control options', () => {
