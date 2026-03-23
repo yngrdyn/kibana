@@ -25,7 +25,7 @@ import { emitCommentAddedEvent } from './utils';
  * @ignore
  */
 export const addComment = async (addArgs: AddArgs, clientArgs: CasesClientArgs): Promise<Case> => {
-  const { comment, caseId } = addArgs;
+  const { comment, caseId, mode = 'legacy' } = addArgs;
 
   const {
     logger,
@@ -73,7 +73,7 @@ export const addComment = async (addArgs: AddArgs, clientArgs: CasesClientArgs):
       id: savedObjectID,
     });
 
-    const updatedCase = await updatedModel.encodeWithComments();
+    const updatedCase = await updatedModel.encodeWithComments({ mode });
 
     emitCommentAddedEvent(clientArgs, updatedCase, [savedObjectID]);
 

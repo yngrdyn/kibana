@@ -219,6 +219,7 @@ export class CasePlugin
       getCasesClient,
       getSpaceId,
       serverlessProjectType,
+      isCasesAttachmentsEnabled: this.caseConfig.attachments?.enabled === true,
     });
 
     registerCaseWorkflowSteps(plugins.workflowsExtensions, getCasesClientForWorkflowSteps);

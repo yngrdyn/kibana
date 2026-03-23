@@ -28,7 +28,7 @@ export const bulkCreate = async (
   args: BulkCreateArgs,
   clientArgs: CasesClientArgs
 ): Promise<Case> => {
-  const { attachments, caseId } = args;
+  const { attachments, caseId, mode = 'legacy' } = args;
 
   const {
     logger,
@@ -85,7 +85,7 @@ export const bulkCreate = async (
       attachments: attachmentsWithIds,
     });
 
-    const updatedCase = await updatedModel.encodeWithComments();
+    const updatedCase = await updatedModel.encodeWithComments({ mode });
 
     emitCommentAddedEvent(
       clientArgs,
