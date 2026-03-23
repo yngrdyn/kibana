@@ -29,8 +29,8 @@ export interface EventChainContext {
 export const EVENT_CHAIN_DEPTH_HEADER = 'x-kibana-event-chain-depth';
 
 /**
- * HTTP header name for the workflow id that emitted the event. Set on outbound requests
- * so the server can restore sourceWorkflowId and enforce same-workflow self-loop detection.
+ * HTTP header name for the workflow id associated with the current chain hop. Set on outbound
+ * requests so the server can restore `sourceWorkflowId` on the incoming request (logging and attribution).
  */
 export const EVENT_CHAIN_SOURCE_WORKFLOW_HEADER = 'x-kibana-event-chain-source-workflow';
 
@@ -109,11 +109,7 @@ export function setWorkflowEventChainContext(
   request: KibanaRequest,
   context: EventChainContext
 ): void {
-  const normalized: EventChainContext = {
-    depth: context.depth,
-    sourceWorkflowId: context.sourceWorkflowId ?? '',
-  };
-  setStoredContext(request, normalized);
+  setStoredContext(request, context);
 }
 
 /**
@@ -123,12 +119,10 @@ export function setWorkflowEventChainContext(
  */
 export function getOutboundEventChainHeaders(request: KibanaRequest): Record<string, string> {
   const ctx = getEventChainContext(request);
-  if (!ctx) {
-    return {};
-  }
-  const headers: Record<string, string> = {
-    [EVENT_CHAIN_DEPTH_HEADER]: String(ctx.depth),
-    [EVENT_CHAIN_SOURCE_WORKFLOW_HEADER]: ctx.sourceWorkflowId ?? '',
-  };
-  return headers;
+  return ctx
+    ? {
+        [EVENT_CHAIN_DEPTH_HEADER]: String(ctx.depth),
+        [EVENT_CHAIN_SOURCE_WORKFLOW_HEADER]: ctx.sourceWorkflowId ?? '',
+      }
+    : {};
 }

@@ -12,6 +12,7 @@ import type { KibanaRequest } from '@kbn/core/server';
 import type { InferenceServerStart } from '@kbn/inference-plugin/server';
 import type { SpacesPluginStart } from '@kbn/spaces-plugin/server';
 import type { z } from '@kbn/zod/v4';
+import type { EventChainContext } from './event_chain_context';
 import type { ServerStepDefinition } from './step_registry/types';
 import type { CommonTriggerDefinition } from '../common';
 import type { WorkflowsExtensionsStartContract } from '../common/types';
@@ -20,15 +21,7 @@ import type { WorkflowsExtensionsStartContract } from '../common/types';
 export type ServerTriggerDefinition<EventSchema extends z.ZodType = z.ZodType> =
   CommonTriggerDefinition<EventSchema>;
 
-/**
- * Event-chain context (depth and optional source ids).
- * Inferred from the request inside emitEvent when the request was set by a workflow run.
- * Depth is only incremented for same-workflow self-loops; composition does not consume the limit.
- */
-export interface EventChainContext {
-  depth: number;
-  sourceWorkflowId?: string;
-}
+export type { EventChainContext };
 
 /**
  * Parameters passed to the trigger event handler when an event is emitted.

@@ -27,7 +27,7 @@ export const loopTriggerPublicDefinition: PublicTriggerDefinition = {
   documentation: {
     details: i18n.translate('workflowsExtensionsExample.loopTrigger.documentation.details', {
       defaultMessage:
-        'Used to demonstrate the event-chain depth guardrail (MAX_EVENT_CHAIN_DEPTH). Emit via the emit_loop endpoint; a workflow can use the generic HTTP step to POST back to that endpoint with the next iteration, creating a chain until the guardrail stops scheduling.',
+        'Used to demonstrate the event-chain depth guardrail (workflowsExecutionEngine.eventDriven.maxChainDepth, default 10). Emit via the emit_loop endpoint; a workflow should use a kibana.request step to POST back to that endpoint with the next iteration so chain depth headers propagate until the guardrail stops scheduling.',
     }),
     examples: [
       i18n.translate('workflowsExtensionsExample.loopTrigger.documentation.exampleStart', {

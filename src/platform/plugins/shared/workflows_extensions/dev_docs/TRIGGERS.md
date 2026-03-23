@@ -202,25 +202,44 @@ If you change the trigger's `eventSchema`, the schema hash changes; update the a
 
 To prevent infinite loops and unbounded workflow executions:
 
-- **Event-chain depth (per workflow)**: Depth is inferred from the request inside `emitEvent`. We enforce a maximum depth (`MAX_EVENT_CHAIN_DEPTH`) when scheduling—but **only for same-workflow self-loops**. When workflow A triggers workflow B triggers workflow C (composition), depth is not incremented; the limit does not consume. Only when the *same* workflow re-triggers itself (A → emit → A → emit → A …) do we increment depth and cap at the limit. So composition (A → B → C → …) is not penalized; only self-loops are capped.
+- **Event-chain depth**: Depth is inferred from the request inside `emitEvent` (and propagated on outbound `kibana.request` steps via headers). Each time a trigger event schedules workflow runs, depth is incremented for those runs. If the new depth would exceed the configured maximum, those workflows are **not** scheduled and a server warning is logged.
 
-- **Same request is required for loop detection**: Emitters must pass the **same request** from the current code path when calling `emitEvent`. The platform attaches depth and source workflow id to that request when a workflow runs; if you use a different request (e.g. a new or unrelated one), the platform cannot detect that the emit came from a workflow and cannot enforce the depth limit or same-workflow detection. **Always use the request you use for attribution/space** so loop detection works correctly.
+- **Configuration**: Set the maximum chain depth in `kibana.yml` with **`workflowsExecutionEngine.eventDriven.maxChainDepth`**. Default is **`10`**; minimum is **`1`**. See the [workflows execution engine README](../../workflows_execution_engine/README.md#configuration) and [config](../../workflows_execution_engine/server/config.ts).
+
+- **Same request is required for depth tracking**: Emitters must pass the **same request** from the current code path when calling `emitEvent`. The platform attaches depth and source workflow id to that request when a workflow runs; if you use a different request (e.g. a new or unrelated one), the platform cannot infer chain context and cannot enforce the depth limit. **Always use the request you use for attribution/space** so the guardrail works correctly.
 
 #### Event-chain depth (loop) demo
 
-The example plugin registers a second trigger `example.loopTrigger` (payload: `{ iteration: number }`) and a route that emits it. You can demonstrate the event-chain depth guardrail (`MAX_EVENT_CHAIN_DEPTH`) by running a workflow that re-emits the same trigger via an HTTP step until the guardrail stops scheduling.
+The example plugin registers a second trigger `example.loopTrigger` (payload: `{ iteration: number }`) and a route that emits it. You can demonstrate the event-chain depth guardrail (`workflowsExecutionEngine.eventDriven.maxChainDepth`, default `10`) by running a workflow that re-emits the same trigger until the guardrail stops scheduling. Use a **`kibana.request`** step so the execution engine attaches event-chain headers on the outbound call; a generic HTTP connector step does not add those headers and may not propagate depth correctly.
+
+Example workflow (create this in the UI or import as YAML):
+
+```yaml
+name: Example loop trigger (event-chain depth demo)
+description: >-
+  Triggered by example.loopTrigger; calls emit_loop to re-emit with the next iteration until maxChainDepth is reached.
+enabled: true
+
+triggers:
+  - type: example.loopTrigger
+
+steps:
+  - name: reemit_loop
+    type: kibana.request
+    with:
+      method: POST
+      path: /api/workflows_extensions_example/emit_loop
+      body:
+        iteration: '{{ event.iteration | default: 0 | plus: 1 }}'
+```
+
+The same workflow is checked in at [`examples/workflows_extensions_example/resources/workflow_loop_trigger_demo.yml`](../../../../../../examples/workflows_extensions_example/resources/workflow_loop_trigger_demo.yml).
 
 1. **Run Kibana with examples:** `yarn start --run-examples`.
-2. **Create an HTTP connector** that points at your Kibana URL (e.g. `http://localhost:5601`). In Stack Management → Connectors, create a connector of type **HTTP**, set the URL to your Kibana base URL, and note its name or ID. Ensure this host is allowed by the workflows execution engine (by default `workflowsExecutionEngine.http.allowedHosts` is `['*']`; see [config](../../workflows_execution_engine/server/config.ts) if you restrict hosts).
-3. **Create the loop workflow** (or import the example):
-   - Trigger: `example.loopTrigger`.
-   - One step: **HTTP** step (`type: http`) with `connector-id` set to your HTTP connector, and `with`: `method: POST`, `path`: `/api/workflows_extensions_example/emit_loop`, `body`: a JSON string that sends the next iteration (e.g. in Liquid: `'{"iteration": {{ event.iteration | default: 0 | plus: 1 }}}'`).
-   - Replace `connector-id` in the workflow with your connector's name or ID (e.g. the connector name you created).
-4. **Start the loop:**
+2. **Create the loop workflow** using the YAML above (trigger `example.loopTrigger` and the `kibana.request` step as shown).
+3. **Start the loop:**
    ```bash
    curl -X POST -u elastic:changeme -H 'Content-Type: application/json' \
      'http://localhost:5601/api/workflows_extensions_example/emit_loop' -d '{}'
    ```
-   (or `-d '{"iteration":0}'`). The workflow runs each time the trigger is emitted; the HTTP step POSTs back to `emit_loop` with the next iteration, which re-emits the trigger. After the event chain reaches the configured depth (e.g. 5), the guardrail stops scheduling further runs.
-
-An example workflow YAML is at [.cursor/workflows/workflow_example_loop_trigger.yaml](../../../../../../.cursor/workflows/workflow_example_loop_trigger.yaml) (replace `kibana-http-connector` with your HTTP connector name/ID).
+   (or `-d '{"iteration":0}'`). Each run executes the `kibana.request` step, which POSTs to `emit_loop` with the next iteration and re-emits the trigger. After the event chain reaches your configured `maxChainDepth` (default `10`), the guardrail stops scheduling further runs.

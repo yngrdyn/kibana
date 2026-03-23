@@ -106,6 +106,33 @@ describe('emitEvent', () => {
     expect(handler.mock.calls[0][0]).toHaveProperty('timestamp');
   });
 
+  it('passes eventChainContext undefined when request has no chain context (e.g. direct emit_loop)', async () => {
+    const registry = new TriggerRegistry();
+    registry.register({
+      id: 'cases.updated',
+      eventSchema,
+    } as ServerTriggerDefinition);
+    const handler = jest.fn().mockResolvedValue(undefined);
+    const deps = createDeps({
+      triggerRegistry: registry,
+      triggerEventHandler: handler,
+    });
+    const bareRequest = {} as any;
+
+    await emitEvent(
+      {
+        triggerId: 'cases.updated',
+        spaceId: 'default',
+        payload: { caseId: '123', status: 'open' },
+        request: bareRequest,
+      },
+      deps
+    );
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0][0].eventChainContext).toBeUndefined();
+  });
+
   it('passes eventChainContext from request when not provided in params', async () => {
     const registry = new TriggerRegistry();
     registry.register({
