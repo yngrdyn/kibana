@@ -11,7 +11,6 @@ import type { TypeOf } from '@kbn/config-schema';
 import { schema } from '@kbn/config-schema';
 import type { PluginConfigDescriptor } from '@kbn/core/server';
 import { DEFAULT_MAX_STEP_SIZE } from './step/errors';
-import { MAX_WORKFLOW_DEPTH } from './step/workflow_execute_step/constants';
 
 const configSchema = schema.object({
   enabled: schema.boolean({ defaultValue: true }),
@@ -34,7 +33,7 @@ const configSchema = schema.object({
   /**
    * Maximum depth of nested workflow execution (workflow calling workflow via workflow.execute step).
    */
-  maxWorkflowDepth: schema.number({ defaultValue: MAX_WORKFLOW_DEPTH, min: 1 }),
+  maxWorkflowDepth: schema.number({ defaultValue: 10, min: 1 }),
   logging: schema.object({
     console: schema.boolean({ defaultValue: false }),
   }),

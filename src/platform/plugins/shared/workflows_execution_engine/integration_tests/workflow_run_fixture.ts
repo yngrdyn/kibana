@@ -46,8 +46,10 @@ export class WorkflowRunFixture {
     getUnsecuredActionsClient: jest.fn().mockReturnValue(this.unsecuredActionsClientMock),
     getActionsClientWithRequest: jest.fn().mockResolvedValue(this.scopedActionsClientMock),
   } as unknown as ActionsPluginStartContract;
-  public readonly configMock = {
-    eventDriven: { enabled: true, logEvents: true },
+  public readonly configMock: WorkflowsExecutionEngineConfig = {
+    enabled: true,
+    eventDriven: { enabled: true, logEvents: true, maxChainDepth: 10 },
+    maxWorkflowDepth: 10,
     logging: {
       console: true,
     },
@@ -56,7 +58,7 @@ export class WorkflowRunFixture {
     },
     maxResponseSize: new ByteSizeValue(10 * 1024 * 1024), // 10mb default
     collectQueueMetrics: false,
-  } as unknown as WorkflowsExecutionEngineConfig;
+  };
   public readonly fakeKibanaRequest = {} as KibanaRequest;
   public readonly workflowExecutionRepositoryMock = new WorkflowExecutionRepositoryMock();
   public readonly stepExecutionRepositoryMock = new StepExecutionRepositoryMock();
