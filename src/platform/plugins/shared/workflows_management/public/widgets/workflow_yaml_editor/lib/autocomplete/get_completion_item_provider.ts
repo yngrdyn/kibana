@@ -124,7 +124,22 @@ export function getCompletionItemProvider(
 
       let isIncomplete = false;
 
+      // Workflow first: mapSuggestions dedupes within that batch (snippet beats plain). All YAML
+      // providers are merged into yamlAccumulator (snippet beats plain across schema). Only keys
+      // not already in the workflow map are copied over so workflow detail/label and insertions
+      // are never replaced by schema duplicates.
+      const workflowSuggestions = await getSuggestions(
+        {
+          ...autocompleteContext,
+          model,
+          position,
+        },
+        getKqlServices?.()
+      );
+      mapSuggestions(deduplicatedMap, workflowSuggestions);
+
       if (!shouldUseExclusiveSuggestions) {
+        const yamlAccumulator = new Map<string, monaco.languages.CompletionItem>();
         const allYamlProviders = getAllYamlProviders();
 
         for (const yamlProvider of allYamlProviders) {
@@ -137,7 +152,7 @@ export function getCompletionItemProvider(
                 {} as monaco.CancellationToken
               );
               if (result) {
-                mapSuggestions(deduplicatedMap, result.suggestions || []);
+                mapSuggestions(yamlAccumulator, result.suggestions || []);
                 if (result.incomplete) {
                   isIncomplete = true;
                 }
@@ -147,18 +162,13 @@ export function getCompletionItemProvider(
             }
           }
         }
-      }
 
-      // Workflow-specific suggestions (variables, connectors, workflow outputs, etc.)
-      const workflowSuggestions = await getSuggestions(
-        {
-          ...autocompleteContext,
-          model,
-          position,
-        },
-        getKqlServices?.()
-      );
-      mapSuggestions(deduplicatedMap, workflowSuggestions);
+        for (const [key, suggestion] of yamlAccumulator) {
+          if (!deduplicatedMap.has(key)) {
+            deduplicatedMap.set(key, suggestion);
+          }
+        }
+      }
 
       let suggestions = Array.from(deduplicatedMap.values());
 
