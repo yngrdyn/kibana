@@ -42,7 +42,6 @@ import { WorkflowsMeteringService } from './metering/metering_service';
 import { initializeLogsRepositoryDataStream } from './repositories/logs_repository/data_stream';
 import { StepExecutionRepository } from './repositories/step_execution_repository';
 import { WorkflowExecutionRepository } from './repositories/workflow_execution_repository';
-import { MAX_WORKFLOW_DEPTH } from './step/workflow_execute_step/constants';
 import type {
   CancelWorkflowExecution,
   ExecuteWorkflow,
@@ -914,7 +913,7 @@ export class WorkflowsExecutionEnginePlugin
   }
 
   private getMaxWorkflowDepth(): number {
-    return this.config?.maxWorkflowDepth ?? MAX_WORKFLOW_DEPTH;
+    return this.config?.maxWorkflowDepth ?? 10;
   }
 
   private async initialize(coreStart: CoreStart): Promise<void> {
