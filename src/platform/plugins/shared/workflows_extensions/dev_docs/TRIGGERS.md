@@ -233,8 +233,6 @@ steps:
         iteration: '{{ event.iteration | default: 0 | plus: 1 }}'
 ```
 
-The same workflow is checked in at [`examples/workflows_extensions_example/resources/workflow_loop_trigger_demo.yml`](../../../../../../examples/workflows_extensions_example/resources/workflow_loop_trigger_demo.yml).
-
 1. **Run Kibana with examples:** `yarn start --run-examples`.
 2. **Create the loop workflow** using the YAML above (trigger `example.loopTrigger` and the `kibana.request` step as shown).
 3. **Start the loop:**
