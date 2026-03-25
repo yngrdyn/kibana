@@ -68,7 +68,7 @@ steps:
 triggers:
   - type: {triggerId}
     on:
-      condition: event.workflow.name:"critical*"
+      condition: event.workflow.name: critical*
 \`\`\``,
           values: { triggerId: WORKFLOW_EXECUTION_FAILED_TRIGGER_ID },
         }

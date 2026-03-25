@@ -59,7 +59,7 @@ steps:
       method: GET
 `;
 
-/** Error handler that runs only when event.workflow.name matches "Scout*". */
+/** Error handler that runs only when event.workflow.name matches Scout* (wildcard). */
 const ERROR_HANDLER_NAME_FILTER_YAML = `
 name: Scout Error Trigger - Name Filter Handler
 enabled: true
@@ -67,7 +67,7 @@ description: Subscribes to workflows.executionFailed when workflow name matches 
 triggers:
   - type: workflows.executionFailed
     on:
-      condition: not event.workflow.isErrorHandler:true and event.workflow.name:"Scout*"
+      condition: not event.workflow.isErrorHandler:true and event.workflow.name: Scout*
 steps:
   - name: log_event
     type: console
