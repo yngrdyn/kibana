@@ -13,7 +13,7 @@ import type { QuerySuggestion } from '@kbn/kql/public';
 import { QuerySuggestionTypes } from '@kbn/kql/public';
 import { monaco } from '@kbn/monaco';
 import { mergeTriggerEventSchemaValueSuggestions } from './event_schema_kql_value_suggestions';
-import { createStubDataViewForTriggerEventSchema } from './event_schema_to_stub_data_view';
+import { getOrCreateStubDataViewForTriggerEventSchema } from './event_schema_to_stub_data_view';
 import type { ExtendedAutocompleteContext } from '../../context/autocomplete.types';
 import { getTriggerConditionBlockIndex } from '../../context/triggers_utils';
 import type { WorkflowKqlCompletionServices } from '../workflow_kql_completion_services';
@@ -209,7 +209,7 @@ export async function getTriggerConditionKqlSuggestions(
     rawStart
   );
 
-  const stub = createStubDataViewForTriggerEventSchema(def.eventSchema, services.fieldFormats);
+  const stub = getOrCreateStubDataViewForTriggerEventSchema(def.eventSchema, services.fieldFormats);
 
   let querySuggestions: QuerySuggestion[] = [];
   try {

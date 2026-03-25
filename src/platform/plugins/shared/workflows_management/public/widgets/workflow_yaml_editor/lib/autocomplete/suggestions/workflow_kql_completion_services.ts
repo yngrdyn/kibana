@@ -7,11 +7,11 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { FieldFormatsStartCommon } from '@kbn/field-formats-plugin/common';
+import type { FieldFormatsStart } from '@kbn/field-formats-plugin/public';
 import type { KqlPluginStart } from '@kbn/kql/public';
 
 /** Kibana services needed to run `kql.autocomplete.getQuerySuggestions` in the workflow YAML editor. */
 export interface WorkflowKqlCompletionServices {
   kql: KqlPluginStart;
-  fieldFormats: FieldFormatsStartCommon;
+  fieldFormats: FieldFormatsStart;
 }

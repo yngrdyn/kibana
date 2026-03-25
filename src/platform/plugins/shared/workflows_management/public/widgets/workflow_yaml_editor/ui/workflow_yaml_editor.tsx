@@ -79,7 +79,6 @@ import { useKibana } from '../../../hooks/use_kibana';
 import { UnsavedChangesPrompt, YamlEditor } from '../../../shared/ui';
 import { triggerSchemas } from '../../../trigger_schemas';
 import { interceptMonacoYamlProvider } from '../lib/autocomplete/intercept_monaco_yaml_provider';
-import { isCursorInKqlTriggerConditionField } from '../lib/autocomplete/is_cursor_in_kql_trigger_condition_field';
 import type { ExecutionContext } from '../lib/execution_context/build_execution_context';
 import { buildExecutionContext } from '../lib/execution_context/build_execution_context';
 import { useLazyStepExecutionFetcher } from '../lib/execution_context/use_lazy_step_execution_fetcher';
@@ -388,29 +387,6 @@ export const WorkflowYAMLEditor = ({
         return;
       }
 
-      const kqlSpaceSuggestDisposable = editor.onDidChangeModelContent((event) => {
-        const insertedSpace = event.changes.some((ch) => ch.text.includes(' '));
-        if (!insertedSpace) {
-          return;
-        }
-        queueMicrotask(() => {
-          const current = editorRef.current;
-          const currentModel = current?.getModel();
-          if (!current || currentModel !== model) {
-            return;
-          }
-          const position = current.getPosition();
-          if (!position) {
-            return;
-          }
-          const offset = model.getOffsetAt(position);
-          if (!isCursorInKqlTriggerConditionField(yamlDocumentRef.current, offset)) {
-            return;
-          }
-          current.trigger('workflowYamlEditor.kqlSpace', 'editor.action.triggerSuggest', {});
-        });
-      });
-      disposablesRef.current.push(kqlSpaceSuggestDisposable);
       // If no model, just set the mounted state
       setTimeout(() => {
         setIsEditorMounted(true);

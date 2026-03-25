@@ -8,13 +8,18 @@
  */
 
 import { DataView, type FieldSpec } from '@kbn/data-views-plugin/common';
-import type { FieldFormatsStartCommon } from '@kbn/field-formats-plugin/common';
+import type { FieldFormatsStart } from '@kbn/field-formats-plugin/public';
 import { EVENT_FIELD_PREFIX } from '@kbn/workflows-extensions/common';
 import type { z } from '@kbn/zod/v4';
 import { getEventSchemaProperties } from '../../../trigger_hover/event_schema_properties';
 
 /** Synthetic index title; no cluster index is required (allowNoIndex). */
 export const WORKFLOW_TRIGGER_EVENT_KQL_STUB_TITLE = 'workflow-trigger-event-kql-stub';
+
+/**
+ * One stub {@link DataView} per trigger `eventSchema` instance (identity).
+ */
+const stubDataViewByEventSchema = new WeakMap<z.ZodType, DataView>();
 
 function zodDisplayTypeToKbnFieldType(displayType: string): string {
   const lower = displayType.toLowerCase();
@@ -66,7 +71,7 @@ export function eventSchemaPropertiesToFieldSpecs(
  */
 export function createStubDataViewForTriggerEventSchema(
   eventSchema: z.ZodType,
-  fieldFormats: FieldFormatsStartCommon,
+  fieldFormats: FieldFormatsStart,
   fieldPrefix: string = EVENT_FIELD_PREFIX
 ): DataView {
   const fieldList = eventSchemaPropertiesToFieldSpecs(eventSchema, fieldPrefix);
@@ -84,4 +89,24 @@ export function createStubDataViewForTriggerEventSchema(
     fieldFormats,
     metaFields: ['_id', '_type', '_source'],
   });
+}
+
+/**
+ * Cached {@link createStubDataViewForTriggerEventSchema} for the same `eventSchema` reference.
+ */
+export function getOrCreateStubDataViewForTriggerEventSchema(
+  eventSchema: z.ZodType,
+  fieldFormats: FieldFormatsStart,
+  fieldPrefix: string = EVENT_FIELD_PREFIX
+): DataView {
+  if (fieldPrefix !== EVENT_FIELD_PREFIX) {
+    return createStubDataViewForTriggerEventSchema(eventSchema, fieldFormats, fieldPrefix);
+  }
+
+  let cached = stubDataViewByEventSchema.get(eventSchema);
+  if (!cached) {
+    cached = createStubDataViewForTriggerEventSchema(eventSchema, fieldFormats, fieldPrefix);
+    stubDataViewByEventSchema.set(eventSchema, cached);
+  }
+  return cached;
 }

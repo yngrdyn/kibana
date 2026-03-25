@@ -47,6 +47,27 @@ describe('evaluateKql', () => {
       expect(evaluateKql(kql, { matchesCount: 0 })).toBe(false);
     });
 
+    it('should treat array fields as multi-valued: term matches if any element matches', () => {
+      const kql = 'tags: "prod"';
+      expect(evaluateKql(kql, { tags: ['dev', 'prod'] })).toBe(true);
+      expect(evaluateKql(kql, { tags: ['dev', 'staging'] })).toBe(false);
+      expect(evaluateKql(kql, { tags: 'prod' })).toBe(true);
+    });
+
+    it('should match nested event.field when value is an array (workflow trigger context)', () => {
+      const kql = 'event.category: "alerts" and event.labels: "demo"';
+      expect(
+        evaluateKql(kql, {
+          event: { category: 'alerts', labels: ['example', 'demo'] },
+        })
+      ).toBe(true);
+      expect(
+        evaluateKql(kql, {
+          event: { category: 'alerts', labels: ['example'] },
+        })
+      ).toBe(false);
+    });
+
     it('should support array index access in property path', () => {
       const kql = 'users[0].name: "Alice"';
       expect(evaluateKql(kql, { users: [{ name: 'Alice' }, { name: 'Bob' }] })).toBe(true);
@@ -88,6 +109,13 @@ describe('evaluateKql', () => {
         expect(evaluateKql(kql, { matchesCount: 1001 })).toBe(false);
       });
 
+      it('should match range if any array element satisfies the range', () => {
+        const kql = 'scores >= 10';
+        expect(evaluateKql(kql, { scores: [1, 5, 12] })).toBe(true);
+        expect(evaluateKql(kql, { scores: [1, 5, 7] })).toBe(false);
+        expect(evaluateKql(kql, { scores: [] })).toBe(false);
+      });
+
       it('should return false when field refers to object in property', () => {
         const kql = 'user < 90';
         expect(evaluateKql(kql, { user: { name: 'Jane Doe' } })).toBe(false);
@@ -107,6 +135,12 @@ describe('evaluateKql', () => {
         const kql = 'user.name: John*';
         expect(evaluateKql(kql, { user: { name: 'John Doe' } })).toBe(true);
         expect(evaluateKql(kql, { user: { name: 'Jane Doe' } })).toBe(false);
+      });
+
+      it('should evaluate wildcards against any string element in an array field', () => {
+        const kql = 'tags: demo*';
+        expect(evaluateKql(kql, { tags: ['x', 'demo-1'] })).toBe(true);
+        expect(evaluateKql(kql, { tags: ['x', 'prod'] })).toBe(false);
       });
 
       it('should do anything', () => {

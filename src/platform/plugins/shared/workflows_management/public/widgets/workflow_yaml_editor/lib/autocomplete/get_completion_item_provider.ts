@@ -93,11 +93,11 @@ export function getCompletionItemProvider(
     // Trigger characters for completion:
     // '@' - variable references
     // '.' - property access within variables
-    // ' ' - space, used for separating tokens in Liquid / KQL
+    // ' ' - space, Liquid / KQL tokens
     // '|' - Liquid filters (e.g., {{ variable | filter }})
     // '{' - start of Liquid blocks (e.g., {{ ... }})
-    // ':' '(' '"' - KQL in trigger on.condition (colon/ops; quote opens string scalars)
-    triggerCharacters: ['@', '.', ' ', '|', '{', ':', '(', '"', "'"],
+    // ':' '(' '"' "'" — also trigger automatic quick suggest for KQL inside quoted `on.condition`.
+    triggerCharacters: ['@', '.', ' ', '"', "'", '(', ':', '|', '{'],
     provideCompletionItems: async (model, position, completionContext) => {
       const editorState = getState();
       const autocompleteContext = buildAutocompleteContext({

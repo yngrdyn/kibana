@@ -144,6 +144,36 @@ describe('extractSchemaPropertyPaths', () => {
     });
   });
 
+  describe('includeMetadata', () => {
+    it('adds description and displayType (e.g. string[] for z.array(z.string()))', () => {
+      const schema = z.object({
+        labels: z.array(z.string()).optional().describe('Multi labels'),
+        count: z.number(),
+      });
+
+      const result = extractSchemaPropertyPaths(schema, { includeMetadata: true });
+
+      const labels = result.find((r) => r.path === 'labels');
+      expect(labels?.description).toBe('Multi labels');
+      expect(labels?.displayType).toBe('string[]');
+      const count = result.find((r) => r.path === 'count');
+      expect(count?.displayType).toBe('number');
+    });
+
+    it('uses object displayType for array-of-object container paths', () => {
+      const schema = z.object({
+        items: z.array(z.object({ id: z.string() })),
+      });
+
+      const result = extractSchemaPropertyPaths(schema, { includeMetadata: true });
+
+      const items = result.find((r) => r.path === 'items');
+      expect(items?.displayType).toBe('object');
+      const id = result.find((r) => r.path === 'items.id');
+      expect(id?.displayType).toBe('string');
+    });
+  });
+
   describe('array types', () => {
     it('should extract array field and nested object paths for array-of-object', () => {
       const schema = z.object({

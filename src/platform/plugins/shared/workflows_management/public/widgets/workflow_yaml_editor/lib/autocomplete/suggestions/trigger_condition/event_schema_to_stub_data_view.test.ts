@@ -13,6 +13,7 @@ import { z } from '@kbn/zod/v4';
 import {
   createStubDataViewForTriggerEventSchema,
   eventSchemaPropertiesToFieldSpecs,
+  getOrCreateStubDataViewForTriggerEventSchema,
   WORKFLOW_TRIGGER_EVENT_KQL_STUB_TITLE,
 } from './event_schema_to_stub_data_view';
 
@@ -46,5 +47,30 @@ describe('event_schema_to_stub_data_view', () => {
     const severityField = dataView.fields.find((f) => f.name === 'event.severity');
     expect(severityField).toBeDefined();
     expect(isFilterable(severityField!)).toBe(true);
+  });
+
+  it('eventSchemaPropertiesToFieldSpecs includes array-of-object nested paths as event.* fields', () => {
+    const schema = z.object({
+      items: z.array(
+        z.object({
+          id: z.string(),
+        })
+      ),
+    });
+    const names = eventSchemaPropertiesToFieldSpecs(schema)
+      .map((s) => s.name)
+      .sort();
+    expect(names).toEqual(['event.items.id']);
+  });
+
+  it('getOrCreateStubDataViewForTriggerEventSchema returns the same DataView for the same schema reference', () => {
+    const fieldFormats = fieldFormatsServiceMock.createStartContract();
+    const first = getOrCreateStubDataViewForTriggerEventSchema(eventSchema, fieldFormats);
+    const second = getOrCreateStubDataViewForTriggerEventSchema(eventSchema, fieldFormats);
+    expect(second).toBe(first);
+
+    const otherSchema = z.object({ other: z.string() });
+    const otherView = getOrCreateStubDataViewForTriggerEventSchema(otherSchema, fieldFormats);
+    expect(otherView).not.toBe(first);
   });
 });
