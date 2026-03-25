@@ -7,6 +7,8 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import type { WellKnownWorkflowTriggerSource } from '@kbn/workflows/common/well_known_trigger_sources';
+
 /**
  * Base parameters for all workflow execution telemetry events
  */
@@ -24,9 +26,14 @@ export interface BaseWorkflowExecutionTelemetryParams {
    */
   spaceId: string;
   /**
-   * How the workflow was triggered: 'manual', 'scheduled', 'alert', or 'workflow-step' for sub-workflows.
+   * How the workflow was triggered: built-in sources, 'workflow-step' for sub-workflows, or 'event' for event-driven trigger ids.
    */
-  triggerType: 'manual' | 'scheduled' | 'alert' | 'workflow-step';
+  triggerType: WellKnownWorkflowTriggerSource | 'event';
+  /**
+   * Registered event trigger id when triggerType is 'event' (e.g. cases.caseCreated).
+   * Omitted for built-in trigger types.
+   */
+  eventTriggerId?: string;
   /**
    * Whether this is a test run
    */

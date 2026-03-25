@@ -8,6 +8,7 @@
  */
 
 import type { RootSchema } from '@kbn/core/server';
+import type { WellKnownWorkflowTriggerSource } from '@kbn/workflows/common/well_known_trigger_sources';
 import {
   type WorkflowExecutionCancelledParams,
   type WorkflowExecutionCompletedParams,
@@ -25,7 +26,8 @@ const baseWorkflowExecutionSchema: RootSchema<{
   workflowExecutionId: string;
   workflowId: string;
   spaceId: string;
-  triggerType: 'manual' | 'scheduled' | 'alert' | 'workflow-step';
+  triggerType: WellKnownWorkflowTriggerSource | 'event';
+  eventTriggerId?: string;
   isTestRun: boolean;
   ruleId?: string;
   compositionDepth?: number;
@@ -57,8 +59,16 @@ const baseWorkflowExecutionSchema: RootSchema<{
     type: 'keyword',
     _meta: {
       description:
-        'How the workflow was triggered: manual, scheduled, alert, or workflow-step for sub-workflows',
+        'How the workflow was triggered: manual, scheduled, alert, workflow-step (sub-workflow), or event (event-driven trigger)',
       optional: false,
+    },
+  },
+  eventTriggerId: {
+    type: 'keyword',
+    _meta: {
+      description:
+        'Event trigger id when triggerType is event (e.g. cases.caseCreated). Omitted for built-in triggers.',
+      optional: true,
     },
   },
   isTestRun: {

@@ -9,7 +9,7 @@
 
 import type { AnalyticsServiceSetup, AnalyticsServiceStart, Logger } from '@kbn/core/server';
 import type { EsWorkflowExecution, EsWorkflowStepExecution } from '@kbn/workflows';
-import { ExecutionStatus } from '@kbn/workflows';
+import { ExecutionStatus, isWellKnownWorkflowTriggerSource } from '@kbn/workflows';
 import {
   workflowExecutionEventNames,
   workflowExecutionEventSchemas,
@@ -27,6 +27,19 @@ import {
 } from './utils/extract_execution_metadata';
 import { extractWorkflowMetadata } from './utils/extract_workflow_metadata';
 
+function resolveExecutionTriggerTelemetry(triggeredBy: string | undefined): {
+  triggerType: 'manual' | 'scheduled' | 'alert' | 'workflow-step' | 'event';
+  eventTriggerId?: string;
+} {
+  if (isWellKnownWorkflowTriggerSource(triggeredBy)) {
+    return { triggerType: triggeredBy };
+  }
+  if (triggeredBy === undefined || triggeredBy === '') {
+    return { triggerType: 'manual' };
+  }
+  return { triggerType: 'event', eventTriggerId: triggeredBy };
+}
+
 /**
  * Shared base fields for all workflow execution telemetry events (IDs, trigger, alert rule, composition).
  */
@@ -34,13 +47,15 @@ function buildBaseExecutionTelemetryFields(
   workflowExecution: EsWorkflowExecution,
   executionMetadata: WorkflowExecutionTelemetryMetadata
 ) {
+  const { triggerType, eventTriggerId } = resolveExecutionTriggerTelemetry(
+    workflowExecution.triggeredBy
+  );
   return {
     workflowExecutionId: workflowExecution.id,
     workflowId: workflowExecution.workflowId,
     spaceId: workflowExecution.spaceId,
-    triggerType:
-      (workflowExecution.triggeredBy as 'manual' | 'scheduled' | 'alert' | 'workflow-step') ||
-      'manual',
+    triggerType,
+    ...(eventTriggerId !== undefined ? { eventTriggerId } : {}),
     isTestRun: workflowExecution.isTestRun || false,
     ...(executionMetadata.ruleId && { ruleId: executionMetadata.ruleId }),
     ...(executionMetadata.compositionDepth !== undefined && {

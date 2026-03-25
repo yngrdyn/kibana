@@ -283,6 +283,40 @@ describe('WorkflowExecutionTelemetryClient', () => {
         parentWorkflowInvocation: 'sync',
       });
     });
+
+    it('should normalize event-driven trigger id to triggerType event and eventTriggerId', () => {
+      const workflowExecution = createMockWorkflowExecution({
+        triggeredBy: 'cases.caseCreated',
+      });
+
+      client.reportWorkflowExecutionCompleted({
+        workflowExecution,
+        stepExecutions: [],
+      });
+
+      const [, eventData] = telemetry.reportEvent.mock.calls[0];
+      expect(eventData).toMatchObject({
+        triggerType: 'event',
+        eventTriggerId: 'cases.caseCreated',
+      });
+    });
+
+    it('should default to manual when triggeredBy is undefined', () => {
+      const workflowExecution = createMockWorkflowExecution({
+        triggeredBy: undefined,
+      });
+
+      client.reportWorkflowExecutionCompleted({
+        workflowExecution,
+        stepExecutions: [],
+      });
+
+      const [, eventData] = telemetry.reportEvent.mock.calls[0];
+      expect(eventData).toMatchObject({
+        triggerType: 'manual',
+      });
+      expect(eventData).not.toHaveProperty('eventTriggerId');
+    });
   });
 
   describe('reportWorkflowExecutionFailed', () => {
