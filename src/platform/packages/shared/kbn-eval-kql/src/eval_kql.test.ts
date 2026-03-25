@@ -190,6 +190,13 @@ describe('evaluateKql', () => {
         expect(evaluateKql(kql, { user: { name: 'John Doe' } })).toBe(true);
         expect(evaluateKql(kql, { user: { name: 'Jane Doe' } })).toBe(false);
       });
+
+      it('should run wildcard patterns against stringified numeric and boolean scalars', () => {
+        expect(evaluateKql('n: foo*', { n: 5 })).toBe(false);
+        expect(evaluateKql('n: foo*', { n: true })).toBe(false);
+        expect(evaluateKql('n: 23*', { n: 2339 })).toBe(true);
+        expect(evaluateKql('n: tr*', { n: true })).toBe(true);
+      });
     });
   });
 

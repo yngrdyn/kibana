@@ -82,13 +82,22 @@ function isExactIsMatch(contextValue: unknown, rightLiteral: KqlLiteralNode): bo
 
 function isWildcardIsMatch(contextValue: unknown, rightLiteral: KqlWildcardNode): boolean {
   if (typeof contextValue === 'string') {
-    return nodeTypes.wildcard.test(rightLiteral, String(contextValue));
+    return nodeTypes.wildcard.test(rightLiteral, contextValue);
   }
 
   if (Array.isArray(contextValue)) {
     return contextValue.some((element) => isWildcardIsMatch(element, rightLiteral));
   }
 
+  if (
+    typeof contextValue === 'number' ||
+    typeof contextValue === 'boolean' ||
+    typeof contextValue === 'bigint'
+  ) {
+    return nodeTypes.wildcard.test(rightLiteral, String(contextValue));
+  }
+
+  // Objects and other non-scalars: only "value present" semantics (e.g. `field:*`), not pattern match.
   return contextValue != null && contextValue !== undefined;
 }
 
