@@ -577,7 +577,7 @@ export const bulkUpdate = async (
           : undefined;
 
       clientArgs.casesEventBus?.emitCaseUpdated(clientArgs.casesEventMetadata, {
-        case: updatedCase as unknown as Record<string, unknown>,
+        case: updatedCase,
         ...(updatedFields != null && updatedFields.length > 0 ? { updatedFields } : {}),
       });
     });

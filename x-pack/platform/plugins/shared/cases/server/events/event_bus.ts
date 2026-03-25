@@ -9,6 +9,7 @@ import { EventEmitter } from 'events';
 
 import type {
   CasesEventPayload,
+  CasesDomainEventType,
   CaseCreatedEventPayload,
   CaseUpdatedEventPayload,
   CommentAddedEventPayload,
@@ -24,7 +25,9 @@ export type CasesEventName =
   | typeof CASE_UPDATED_EVENT
   | typeof COMMENT_ADDED_EVENT;
 
-export type CasesEventBusListener = (event: CasesEventPayload) => void | Promise<void>;
+export type CasesEventBusListener<TType extends CasesDomainEventType = CasesDomainEventType> = (
+  event: CasesEventPayload<TType>
+) => void | Promise<void>;
 
 /**
  * Typed internal event bus for Cases domain events.
@@ -48,27 +51,27 @@ export class CasesEventBus extends EventEmitter {
     this.emit(COMMENT_ADDED_EVENT, { type: 'commentAdded', payload, metadata });
   }
 
-  onCaseCreated(listener: CasesEventBusListener): void {
+  onCaseCreated(listener: CasesEventBusListener<'caseCreated'>): void {
     this.on(CASE_CREATED_EVENT, listener);
   }
 
-  onCaseUpdated(listener: CasesEventBusListener): void {
+  onCaseUpdated(listener: CasesEventBusListener<'caseUpdated'>): void {
     this.on(CASE_UPDATED_EVENT, listener);
   }
 
-  onCommentAdded(listener: CasesEventBusListener): void {
+  onCommentAdded(listener: CasesEventBusListener<'commentAdded'>): void {
     this.on(COMMENT_ADDED_EVENT, listener);
   }
 
-  removeCaseCreatedListener(listener: CasesEventBusListener): void {
+  removeCaseCreatedListener(listener: CasesEventBusListener<'caseCreated'>): void {
     this.off(CASE_CREATED_EVENT, listener);
   }
 
-  removeCaseUpdatedListener(listener: CasesEventBusListener): void {
+  removeCaseUpdatedListener(listener: CasesEventBusListener<'caseUpdated'>): void {
     this.off(CASE_UPDATED_EVENT, listener);
   }
 
-  removeCommentAddedListener(listener: CasesEventBusListener): void {
+  removeCommentAddedListener(listener: CasesEventBusListener<'commentAdded'>): void {
     this.off(COMMENT_ADDED_EVENT, listener);
   }
 }

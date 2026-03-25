@@ -6,7 +6,7 @@
  */
 
 import type { KibanaRequest } from '@kbn/core/server';
-import type { CaseResponseProperties } from '../../common/bundled-types.gen';
+import type { Case } from '../../common/types/domain';
 
 /**
  * Source of a Cases domain event. Used for recursion prevention in the workflow bridge.
@@ -23,17 +23,23 @@ export interface CasesEventMetadata {
 }
 
 /**
+ * Case shape shared by cases domain events.
+ * Requires an id while preserving known Case fields when present.
+ */
+export type CasesEventCase = Pick<Case, 'id'> & Partial<Omit<Case, 'id'>>;
+
+/**
  * Event: case created
  */
 export interface CaseCreatedEventPayload {
-  readonly case: Record<string, unknown>;
+  readonly case: CasesEventCase;
 }
 
 /**
  * Event: case updated
  */
 export interface CaseUpdatedEventPayload {
-  readonly case: Record<string, unknown>;
+  readonly case: CasesEventCase;
   readonly updatedFields?: string[];
 }
 
@@ -42,12 +48,19 @@ export interface CaseUpdatedEventPayload {
  */
 export interface CommentAddedEventPayload {
   readonly caseId: string;
-  readonly comments: CaseResponseProperties['comments'];
+  readonly comments: NonNullable<Case['comments']>;
 }
 
-type CasesDomainEventPayload =
-  | { type: 'caseCreated'; payload: CaseCreatedEventPayload }
-  | { type: 'caseUpdated'; payload: CaseUpdatedEventPayload }
-  | { type: 'commentAdded'; payload: CommentAddedEventPayload };
+export interface CasesDomainEventPayloadByType {
+  readonly caseCreated: CaseCreatedEventPayload;
+  readonly caseUpdated: CaseUpdatedEventPayload;
+  readonly commentAdded: CommentAddedEventPayload;
+}
 
-export type CasesEventPayload = CasesDomainEventPayload & { metadata: CasesEventMetadata };
+export type CasesDomainEventType = keyof CasesDomainEventPayloadByType;
+
+export interface CasesEventPayload<TType extends CasesDomainEventType = CasesDomainEventType> {
+  readonly type: TType;
+  readonly payload: CasesDomainEventPayloadByType[TType];
+  readonly metadata: CasesEventMetadata;
+}

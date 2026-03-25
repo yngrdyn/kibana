@@ -5,7 +5,6 @@
  * 2.0.
  */
 
-import type { CaseResponseProperties } from '../../../common/bundled-types.gen';
 import type { Case } from '../../../common/types/domain';
 import type { CasesClientArgs } from '..';
 
@@ -17,8 +16,6 @@ export function emitCommentAddedEvent(
   const idSet = new Set(newCommentIds);
   clientArgs.casesEventBus?.emitCommentAdded(clientArgs.casesEventMetadata, {
     caseId: updatedCase.id,
-    comments: (updatedCase.comments ?? []).filter((c) =>
-      idSet.has(c.id)
-    ) as unknown as CaseResponseProperties['comments'],
+    comments: (updatedCase.comments ?? []).filter((c) => idSet.has(c.id)),
   });
 }

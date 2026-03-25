@@ -148,7 +148,7 @@ export const create = async (
     const createdCase = decodeOrThrow(CaseRt)(res);
 
     clientArgs.casesEventBus?.emitCaseCreated(clientArgs.casesEventMetadata, {
-      case: createdCase as unknown as Record<string, unknown>,
+      case: createdCase,
     });
 
     return createdCase;
