@@ -232,6 +232,7 @@ export function createTriggerEventHandler({
       reportDispatchedEvent({
         ...baseTelemetry,
         earlyExit: true,
+        auditOnly: false,
         ...emptyResolutionStats(),
         ...emptyScheduleStats(),
       });
@@ -281,6 +282,7 @@ export function createTriggerEventHandler({
     reportDispatchedEvent({
       ...baseTelemetry,
       earlyExit: false,
+      auditOnly: !executionEnabled && logEventsEnabled,
       ...resolutionStats,
       ...scheduleStats,
     });

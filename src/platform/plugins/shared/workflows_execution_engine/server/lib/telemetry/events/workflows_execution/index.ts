@@ -10,6 +10,7 @@
 import type { RootSchema } from '@kbn/core/server';
 import type { WellKnownWorkflowTriggerSource } from '@kbn/workflows/common/well_known_trigger_sources';
 import {
+  type EventDrivenExecutionSuppressedParams,
   type WorkflowExecutionCancelledParams,
   type WorkflowExecutionCompletedParams,
   type WorkflowExecutionFailedParams,
@@ -20,6 +21,8 @@ export const workflowExecutionEventNames = {
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionCompleted]: 'Workflow execution completed',
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionFailed]: 'Workflow execution failed',
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionCancelled]: 'Workflow execution cancelled',
+  [WorkflowExecutionTelemetryEventTypes.EventDrivenExecutionSuppressed]:
+    'Event-driven workflow execution suppressed at runtime',
 };
 
 const baseWorkflowExecutionSchema: RootSchema<{
@@ -835,10 +838,31 @@ const workflowExecutionCancelledSchema: RootSchema<WorkflowExecutionCancelledPar
   },
 };
 
+const eventDrivenExecutionSuppressedSchema: RootSchema<EventDrivenExecutionSuppressedParams> = {
+  ...baseWorkflowExecutionSchema,
+  ...eventNameSchema,
+  logTriggerEventsEnabled: {
+    type: 'boolean',
+    _meta: {
+      description: 'Whether trigger-event audit logging is enabled when suppression ran',
+      optional: false,
+    },
+  },
+  eventChainDepth: {
+    type: 'integer',
+    _meta: {
+      description: 'Event chain depth from execution context when present',
+      optional: true,
+    },
+  },
+};
+
 export const workflowExecutionEventSchemas = {
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionCompleted]:
     workflowExecutionCompletedSchema,
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionFailed]: workflowExecutionFailedSchema,
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionCancelled]:
     workflowExecutionCancelledSchema,
+  [WorkflowExecutionTelemetryEventTypes.EventDrivenExecutionSuppressed]:
+    eventDrivenExecutionSuppressedSchema,
 };

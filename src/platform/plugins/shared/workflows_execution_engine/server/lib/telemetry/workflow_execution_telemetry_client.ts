@@ -15,6 +15,7 @@ import {
   workflowExecutionEventSchemas,
 } from './events/workflows_execution';
 import {
+  type EventDrivenExecutionSuppressedParams,
   type WorkflowExecutionCancelledParams,
   type WorkflowExecutionCompletedParams,
   type WorkflowExecutionFailedParams,
@@ -38,6 +39,18 @@ function resolveExecutionTriggerTelemetry(triggeredBy: string | undefined): {
     return { triggerType: 'manual' };
   }
   return { triggerType: 'event', eventTriggerId: triggeredBy };
+}
+
+function getEventChainDepthFromWorkflowExecution(
+  workflowExecution: EsWorkflowExecution
+): number | undefined {
+  const context = workflowExecution.context as Record<string, unknown> | undefined;
+  const event = context?.event;
+  if (event == null || typeof event !== 'object') {
+    return undefined;
+  }
+  const depth = (event as { eventChainDepth?: unknown }).eventChainDepth;
+  return typeof depth === 'number' && depth >= 0 ? depth : undefined;
 }
 
 /**
@@ -362,5 +375,51 @@ export class WorkflowExecutionTelemetryClient {
     };
 
     this.reportEvent(WorkflowExecutionTelemetryEventTypes.WorkflowExecutionCancelled, eventData);
+  }
+
+  /**
+   * Reports when an event-driven workflow task is skipped at runtime because the operator
+   * disabled event-driven execution after the run was scheduled (distinct from handler early exit).
+   */
+  reportEventDrivenExecutionSuppressed(params: {
+    workflowExecution: EsWorkflowExecution;
+    logTriggerEventsEnabled: boolean;
+  }): void {
+    const { workflowExecution, logTriggerEventsEnabled } = params;
+    const executionMetadata = extractExecutionMetadata(workflowExecution, []);
+    const { triggerType, eventTriggerId } = resolveExecutionTriggerTelemetry(
+      workflowExecution.triggeredBy
+    );
+    const eventChainDepth = getEventChainDepthFromWorkflowExecution(workflowExecution);
+
+    const eventData: EventDrivenExecutionSuppressedParams = {
+      eventName:
+        workflowExecutionEventNames[
+          WorkflowExecutionTelemetryEventTypes.EventDrivenExecutionSuppressed
+        ],
+      workflowExecutionId: workflowExecution.id,
+      workflowId: workflowExecution.workflowId,
+      spaceId: workflowExecution.spaceId,
+      triggerType,
+      ...(eventTriggerId !== undefined ? { eventTriggerId } : {}),
+      isTestRun: workflowExecution.isTestRun || false,
+      ...(executionMetadata.ruleId && { ruleId: executionMetadata.ruleId }),
+      ...(executionMetadata.compositionDepth !== undefined && {
+        compositionDepth: executionMetadata.compositionDepth,
+      }),
+      ...(executionMetadata.parentWorkflowId && {
+        parentWorkflowId: executionMetadata.parentWorkflowId,
+      }),
+      ...(executionMetadata.parentWorkflowInvocation && {
+        parentWorkflowInvocation: executionMetadata.parentWorkflowInvocation,
+      }),
+      logTriggerEventsEnabled,
+      ...(eventChainDepth !== undefined ? { eventChainDepth } : {}),
+    };
+
+    this.reportEvent(
+      WorkflowExecutionTelemetryEventTypes.EventDrivenExecutionSuppressed,
+      eventData
+    );
   }
 }

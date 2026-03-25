@@ -267,6 +267,7 @@ describe('createTriggerEventHandler', () => {
         executionEnabled: false,
         logEventsEnabled: false,
         earlyExit: true,
+        auditOnly: false,
       })
     );
   });
@@ -285,10 +286,12 @@ describe('createTriggerEventHandler', () => {
 
     const createMock = jest.fn().mockResolvedValue(undefined);
     const mockTriggerEventsClient = { create: createMock };
+    const analytics = { reportEvent: jest.fn() };
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
+      getAnalytics: () => analytics as any,
       getTriggerEventsClient: () => mockTriggerEventsClient as any,
       getWorkflowExecutionEngine: getEngineMock(false, true),
       resolveMatchingWorkflowSubscriptions,
@@ -321,6 +324,18 @@ describe('createTriggerEventHandler', () => {
       ],
     });
     expect(scheduleWorkflow).not.toHaveBeenCalled();
+    expect(analytics.reportEvent).toHaveBeenCalledWith(
+      'workflows_trigger_event_dispatched',
+      expect.objectContaining({
+        triggerId,
+        executionEnabled: false,
+        logEventsEnabled: true,
+        earlyExit: false,
+        auditOnly: true,
+        matchedCount: 1,
+        scheduledAttemptCount: 0,
+      })
+    );
   });
 
   it('should schedule but not write to data stream when execution is enabled and logEvents is disabled', async () => {
@@ -375,6 +390,7 @@ describe('createTriggerEventHandler', () => {
         executionEnabled: true,
         logEventsEnabled: false,
         earlyExit: false,
+        auditOnly: false,
         matchedCount: 1,
         scheduledAttemptCount: 1,
       })

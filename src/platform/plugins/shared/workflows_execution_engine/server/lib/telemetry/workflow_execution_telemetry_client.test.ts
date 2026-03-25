@@ -453,6 +453,37 @@ describe('WorkflowExecutionTelemetryClient', () => {
     });
   });
 
+  describe('reportEventDrivenExecutionSuppressed', () => {
+    it('should report suppression with event trigger fields and optional event chain depth', () => {
+      const workflowExecution = createMockWorkflowExecution({
+        triggeredBy: 'cases.updated',
+        status: ExecutionStatus.SKIPPED,
+        context: {
+          event: { eventChainDepth: 2, timestamp: '2025-01-01T00:00:00.000Z', spaceId: 'default' },
+        },
+      });
+
+      client.reportEventDrivenExecutionSuppressed({
+        workflowExecution,
+        logTriggerEventsEnabled: true,
+      });
+
+      expect(telemetry.reportEvent).toHaveBeenCalledTimes(1);
+      const [eventType, eventData] = telemetry.reportEvent.mock.calls[0];
+      expect(eventType).toBe(WorkflowExecutionTelemetryEventTypes.EventDrivenExecutionSuppressed);
+      expect(eventData).toMatchObject({
+        workflowExecutionId: 'test-execution-id',
+        workflowId: 'test-workflow-id',
+        spaceId: 'default',
+        triggerType: 'event',
+        eventTriggerId: 'cases.updated',
+        isTestRun: false,
+        logTriggerEventsEnabled: true,
+        eventChainDepth: 2,
+      });
+    });
+  });
+
   describe('reportWorkflowExecutionCancelled', () => {
     it('should report workflow execution cancelled event', () => {
       const workflowExecution = createMockWorkflowExecution({

@@ -75,6 +75,22 @@ export enum WorkflowExecutionTelemetryEventTypes {
    * When a workflow execution is cancelled
    */
   WorkflowExecutionCancelled = 'workflows_execution_workflow_cancelled',
+  /**
+   * When an event-driven run is marked skipped at task runtime because execution was disabled after scheduling.
+   */
+  EventDrivenExecutionSuppressed = 'workflows_event_driven_execution_suppressed',
+}
+
+/**
+ * Event-driven execution was skipped in runWorkflow after a task was already scheduled (operator kill switch flipped).
+ */
+export interface EventDrivenExecutionSuppressedParams extends BaseWorkflowExecutionTelemetryParams {
+  eventName: string;
+  logTriggerEventsEnabled: boolean;
+  /**
+   * Incoming event-chain depth from execution context when present.
+   */
+  eventChainDepth?: number;
 }
 
 /**
@@ -482,7 +498,8 @@ export interface WorkflowExecutionCancelledParams extends BaseWorkflowExecutionT
 export type WorkflowExecutionTelemetryEventParams =
   | WorkflowExecutionCompletedParams
   | WorkflowExecutionFailedParams
-  | WorkflowExecutionCancelledParams;
+  | WorkflowExecutionCancelledParams
+  | EventDrivenExecutionSuppressedParams;
 
 /**
  * Maps each workflow execution event type to its corresponding params type.
@@ -492,4 +509,5 @@ export interface WorkflowExecutionTelemetryEventsMap {
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionCompleted]: WorkflowExecutionCompletedParams;
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionFailed]: WorkflowExecutionFailedParams;
   [WorkflowExecutionTelemetryEventTypes.WorkflowExecutionCancelled]: WorkflowExecutionCancelledParams;
+  [WorkflowExecutionTelemetryEventTypes.EventDrivenExecutionSuppressed]: EventDrivenExecutionSuppressedParams;
 }
