@@ -31,7 +31,7 @@ export const workflowExecutionFailedPublicTriggerDefinition: PublicTriggerDefini
     details: i18n.translate(
       'workflowsExtensions.triggers.workflowExecutionFailed.documentation.details',
       {
-        defaultMessage: `Emitted when a workflow run fails. The event includes \`workflow\` (id, name, spaceId, isErrorHandler), \`execution\` (id, startedAt, failedAt), and \`error\` (message, stepId, stepName, stackTrace). Use KQL in \`on.condition\` to filter by workflow name, failed step, or exclude error-handler workflows to avoid infinite loops.`,
+        defaultMessage: `Emitted when a workflow run fails. The event includes \`workflow\` (id, name, spaceId, isErrorHandler), \`execution\` (id, startedAt, failedAt), and \`error\` (message, stepId, stepName, stepExecutionId). Use KQL in \`on.condition\` to filter by workflow name, failed step, or exclude error-handler workflows to avoid infinite loops.`,
       }
     ),
     examples: [

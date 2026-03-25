@@ -83,7 +83,10 @@ export class StepExecutionRuntime {
       typeof this.node.configuration === 'object' &&
       'name' in this.node.configuration
     ) {
-      return this.node.configuration.name;
+      const rawName = this.node.configuration.name;
+      if (typeof rawName === 'string') {
+        return rawName;
+      }
     }
 
     return this.node.stepId;
