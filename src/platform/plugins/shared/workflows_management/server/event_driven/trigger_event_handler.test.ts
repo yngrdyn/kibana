@@ -236,9 +236,11 @@ describe('createTriggerEventHandler', () => {
       .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
     const scheduleWorkflow = jest.fn();
 
+    const analytics = { reportEvent: jest.fn() };
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
+      getAnalytics: () => analytics as any,
       getTriggerEventsClient: () => null,
       getWorkflowExecutionEngine: getEngineMock(false, false),
       resolveMatchingWorkflowSubscriptions,
@@ -257,6 +259,15 @@ describe('createTriggerEventHandler', () => {
     expect(mockLogger.debug).toHaveBeenCalledTimes(1);
     expect(mockLogger.debug).toHaveBeenCalledWith(
       'Event-driven execution is disabled (eventDrivenExecutionEnabled: false); skipping workflow scheduling.'
+    );
+    expect(analytics.reportEvent).toHaveBeenCalledWith(
+      'workflows_trigger_event_dispatched',
+      expect.objectContaining({
+        triggerId: 'cases.updated',
+        executionEnabled: false,
+        logEventsEnabled: false,
+        earlyExit: true,
+      })
     );
   });
 
@@ -325,9 +336,11 @@ describe('createTriggerEventHandler', () => {
     const createMock = jest.fn().mockResolvedValue(undefined);
     const mockTriggerEventsClient = { create: createMock };
 
+    const analytics = { reportEvent: jest.fn() };
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
       logger: mockLogger,
+      getAnalytics: () => analytics as any,
       getTriggerEventsClient: () => mockTriggerEventsClient as any,
       getWorkflowExecutionEngine: getEngineMock(true, false),
       resolveMatchingWorkflowSubscriptions,
@@ -353,6 +366,17 @@ describe('createTriggerEventHandler', () => {
       expect.objectContaining({
         eventDispatchTimestamp: timestamp,
         eventTriggerId: triggerId,
+      })
+    );
+    expect(analytics.reportEvent).toHaveBeenCalledWith(
+      'workflows_trigger_event_dispatched',
+      expect.objectContaining({
+        triggerId,
+        executionEnabled: true,
+        logEventsEnabled: false,
+        earlyExit: false,
+        matchedCount: 1,
+        scheduledAttemptCount: 1,
       })
     );
   });

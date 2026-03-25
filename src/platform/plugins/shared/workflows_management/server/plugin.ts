@@ -8,6 +8,7 @@
  */
 
 import type {
+  AnalyticsServiceStart,
   CoreSetup,
   CoreStart,
   KibanaRequest,
@@ -34,6 +35,10 @@ import {
 import { createTriggerEventHandler } from './event_driven/trigger_event_handler';
 import { WorkflowsManagementFeatureConfig } from './features';
 import { WorkflowTaskScheduler } from './tasks/workflow_task_scheduler';
+import {
+  triggerEventDispatchedSchema,
+  WORKFLOWS_TRIGGER_EVENT_DISPATCHED,
+} from './telemetry/events';
 import {
   initializeTriggerEventsClient,
   initializeTriggerEventsDataStream,
@@ -65,6 +70,7 @@ export class WorkflowsPlugin
   private api: WorkflowsManagementApi | null = null;
   private spaces?: SpacesServiceStart | null = null;
   private triggerEventsClient: TriggerEventsDataStreamClient | null = null;
+  private analytics?: AnalyticsServiceStart;
 
   constructor(initializerContext: PluginInitializerContext) {
     this.logger = initializerContext.logger.get();
@@ -77,6 +83,10 @@ export class WorkflowsPlugin
     this.logger.debug('Workflows Management: Setup');
 
     registerUISettings(core, plugins);
+    core.analytics.registerEventType({
+      eventType: WORKFLOWS_TRIGGER_EVENT_DISPATCHED,
+      schema: triggerEventDispatchedSchema,
+    });
 
     initializeTriggerEventsDataStream(core.dataStreams);
 
@@ -182,6 +192,7 @@ export class WorkflowsPlugin
     const triggerEventHandler = createTriggerEventHandler({
       api: this.api,
       logger: this.logger,
+      getAnalytics: () => this.analytics,
       getTriggerEventsClient: () => this.triggerEventsClient,
       getWorkflowExecutionEngine,
       resolveMatchingWorkflowSubscriptions: resolveMatchingWorkflowSubscriptionsFn,
@@ -223,6 +234,7 @@ export class WorkflowsPlugin
 
   public start(core: CoreStart, plugins: WorkflowsServerPluginStartDeps) {
     this.logger.debug('Workflows Management: Start');
+    this.analytics = core.analytics;
 
     void this.initializeTriggerEventsClient(core);
 

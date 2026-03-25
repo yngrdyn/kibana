@@ -8,7 +8,7 @@
  */
 
 import pLimit from 'p-limit';
-import type { Logger } from '@kbn/core/server';
+import type { AnalyticsServiceStart, Logger } from '@kbn/core/server';
 import type { WorkflowDetailDto, WorkflowExecutionEngineModel } from '@kbn/workflows';
 import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
 import type {
@@ -18,9 +18,14 @@ import type {
 import type {
   ResolveMatchingWorkflowSubscriptionsParams,
   ResolveMatchingWorkflowSubscriptionsResult,
+  TriggerResolutionStats,
 } from './resolve_workflow_subscriptions';
 import type { WorkflowsManagementApi } from '../api/workflows_management_api';
 import { validateWorkflowForExecution } from '../connectors/workflows/validate_workflow_for_execution';
+import {
+  type TriggerEventDispatchedTelemetryEvent,
+  WORKFLOWS_TRIGGER_EVENT_DISPATCHED,
+} from '../telemetry/events';
 import { type TriggerEventsDataStreamClient, writeTriggerEvent } from '../trigger_events_log';
 
 const SCHEDULE_CONCURRENCY = 20;
@@ -89,6 +94,15 @@ const emptyScheduleStats = (): TriggerEventScheduleStats => ({
   scheduledAttemptCount: 0,
   scheduledSuccessCount: 0,
   scheduledFailureCount: 0,
+});
+
+const emptyResolutionStats = (): TriggerResolutionStats => ({
+  subscribedCount: 0,
+  disabledCount: 0,
+  noMatchingTriggerCount: 0,
+  kqlFalseCount: 0,
+  kqlErrorCount: 0,
+  matchedCount: 0,
 });
 
 async function scheduleMatchingWorkflows(
@@ -165,6 +179,7 @@ async function scheduleMatchingWorkflows(
 export interface CreateTriggerEventHandlerParams {
   api: WorkflowsManagementApi;
   logger: Logger;
+  getAnalytics?: () => AnalyticsServiceStart | undefined;
   getTriggerEventsClient: () => TriggerEventsDataStreamClient | null;
   getWorkflowExecutionEngine: () => Promise<WorkflowsExecutionEnginePluginStart>;
   resolveMatchingWorkflowSubscriptions: (
@@ -182,19 +197,44 @@ export interface CreateTriggerEventHandlerParams {
 export function createTriggerEventHandler({
   api,
   logger,
+  getAnalytics,
   getTriggerEventsClient,
   getWorkflowExecutionEngine,
   resolveMatchingWorkflowSubscriptions,
 }: CreateTriggerEventHandlerParams): (params: TriggerEventHandlerParams) => Promise<void> {
+  const reportDispatchedEvent = (event: TriggerEventDispatchedTelemetryEvent): void => {
+    try {
+      getAnalytics?.()?.reportEvent(WORKFLOWS_TRIGGER_EVENT_DISPATCHED, event);
+    } catch (error) {
+      logger.warn(
+        `Failed to report ${WORKFLOWS_TRIGGER_EVENT_DISPATCHED} telemetry: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  };
+
   return async (params: TriggerEventHandlerParams): Promise<void> => {
     const engine = await getWorkflowExecutionEngine();
     const executionEnabled = engine.isEventDrivenExecutionEnabled();
     const logEventsEnabled = engine.isLogTriggerEventsEnabled();
+    const baseTelemetry = {
+      triggerId: params.triggerId,
+      executionEnabled,
+      logEventsEnabled,
+      eventChainDepth: params.eventChainContext?.depth,
+    };
 
     if (!executionEnabled && !logEventsEnabled) {
       logger.debug(
         'Event-driven execution is disabled (eventDrivenExecutionEnabled: false); skipping workflow scheduling.'
       );
+      reportDispatchedEvent({
+        ...baseTelemetry,
+        earlyExit: true,
+        ...emptyResolutionStats(),
+        ...emptyScheduleStats(),
+      });
       return;
     }
 
@@ -220,9 +260,10 @@ export function createTriggerEventHandler({
       logger
     );
 
+    let scheduleStats = emptyScheduleStats();
     if (executionEnabled && workflows.length > 0) {
       const maxEventChainDepth = engine.getMaxEventChainDepth();
-      const scheduleStats = await scheduleMatchingWorkflows(
+      scheduleStats = await scheduleMatchingWorkflows(
         api,
         workflows,
         spaceId,
@@ -237,5 +278,11 @@ export function createTriggerEventHandler({
         )}`
       );
     }
+    reportDispatchedEvent({
+      ...baseTelemetry,
+      earlyExit: false,
+      ...resolutionStats,
+      ...scheduleStats,
+    });
   };
 }
