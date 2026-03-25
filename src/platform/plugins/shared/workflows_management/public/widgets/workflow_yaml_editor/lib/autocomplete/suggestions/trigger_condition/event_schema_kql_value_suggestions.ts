@@ -75,6 +75,34 @@ function collectRawEnumerableValues(
     return;
   }
 
+  // Zod v3 exposes `ZodNativeEnum`; v4 merges `z.nativeEnum` into `ZodEnum`. Guard ctor so `instanceof` is safe.
+  const zodStatics = z as unknown as { ZodNativeEnum?: new (...args: never[]) => unknown };
+  if (zodStatics.ZodNativeEnum !== undefined && s instanceof zodStatics.ZodNativeEnum) {
+    const entries = (s as { enum?: Record<string, string | number | boolean> }).enum;
+    if (entries && typeof entries === 'object') {
+      for (const opt of Object.values(entries)) {
+        if (typeof opt === 'string' || typeof opt === 'number' || typeof opt === 'boolean') {
+          out.add(opt);
+        }
+      }
+    }
+    return;
+  }
+
+  const enumDef = (s as { def?: { type?: unknown; entries?: Record<string, unknown> } }).def;
+  if (
+    enumDef?.type === 'enum' &&
+    enumDef.entries !== undefined &&
+    typeof enumDef.entries === 'object'
+  ) {
+    for (const opt of Object.values(enumDef.entries)) {
+      if (typeof opt === 'string' || typeof opt === 'number' || typeof opt === 'boolean') {
+        out.add(opt);
+      }
+    }
+    return;
+  }
+
   if (s instanceof z.ZodBoolean) {
     out.add(true);
     out.add(false);
