@@ -128,3 +128,38 @@ export const CASE_NOT_FOUND_MESSAGE = (caseId: string) =>
     defaultMessage: 'Case "{caseId}" was not found.',
     values: { caseId },
   });
+
+export const CASE_CREATED_TRIGGER_EVENT_SCHEMA_CASE_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.caseCreated.eventSchema.case',
+  {
+    defaultMessage: 'The created case.',
+  }
+);
+
+export const CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.caseUpdated.eventSchema.case',
+  {
+    defaultMessage: 'The updated case.',
+  }
+);
+
+export const CASE_UPDATED_TRIGGER_EVENT_SCHEMA_UPDATED_FIELDS_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.caseUpdated.eventSchema.updatedFields',
+  {
+    defaultMessage: 'A list of case fields updated by this operation.',
+  }
+);
+
+export const COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.commentAdded.eventSchema.caseId',
+  {
+    defaultMessage: 'The ID of the case the comments were added to.',
+  }
+);
+
+export const COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_COMMENTS_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.commentAdded.eventSchema.comments',
+  {
+    defaultMessage: 'The comments that were added.',
+  }
+);
