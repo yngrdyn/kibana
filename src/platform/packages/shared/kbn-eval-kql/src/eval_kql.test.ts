@@ -54,7 +54,7 @@ describe('evaluateKql', () => {
       expect(evaluateKql(kql, { tags: 'prod' })).toBe(true);
     });
 
-    it('should match nested event.field when value is an array (workflow trigger context)', () => {
+    it('should match nested fields when value is an array', () => {
       const kql = 'event.category: "alerts" and event.labels: "demo"';
       expect(
         evaluateKql(kql, {
@@ -196,6 +196,33 @@ describe('evaluateKql', () => {
         expect(evaluateKql('n: foo*', { n: true })).toBe(false);
         expect(evaluateKql('n: 23*', { n: 2339 })).toBe(true);
         expect(evaluateKql('n: tr*', { n: true })).toBe(true);
+      });
+    });
+
+    describe('array membership', () => {
+      it('should match when array contains the value', () => {
+        const kql = 'tags: "production"';
+        expect(evaluateKql(kql, { tags: ['production', 'critical'] })).toBe(true);
+      });
+
+      it('should not match when array does not contain the value', () => {
+        const kql = 'tags: "staging"';
+        expect(evaluateKql(kql, { tags: ['production', 'critical'] })).toBe(false);
+      });
+
+      it('should match wildcard against array elements', () => {
+        const kql = 'tags: prod*';
+        expect(evaluateKql(kql, { tags: ['production', 'critical'] })).toBe(true);
+      });
+
+      it('should match existence wildcard against array', () => {
+        const kql = 'tags: *';
+        expect(evaluateKql(kql, { tags: ['production', 'critical'] })).toBe(true);
+      });
+
+      it('should not match when array is empty', () => {
+        const kql = 'tags: "production"';
+        expect(evaluateKql(kql, { tags: [] })).toBe(false);
       });
     });
   });
