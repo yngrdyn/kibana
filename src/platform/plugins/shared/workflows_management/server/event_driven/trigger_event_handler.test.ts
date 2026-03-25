@@ -10,7 +10,24 @@
 import type { Logger } from '@kbn/core/server';
 import type { WorkflowDetailDto } from '@kbn/workflows';
 import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-execution-engine/server';
+import type { TriggerResolutionStats } from './resolve_workflow_subscriptions';
 import { createTriggerEventHandler } from './trigger_event_handler';
+
+function mockResolveResult(
+  workflows: WorkflowDetailDto[],
+  statsOverrides?: Partial<TriggerResolutionStats>
+) {
+  const stats: TriggerResolutionStats = {
+    subscribedCount: workflows.length,
+    disabledCount: 0,
+    noMatchingTriggerCount: 0,
+    kqlFalseCount: 0,
+    kqlErrorCount: 0,
+    matchedCount: workflows.length,
+    ...statsOverrides,
+  };
+  return { workflows, stats };
+}
 
 function getEngineMock(
   executionEnabled: boolean,
@@ -68,7 +85,7 @@ describe('createTriggerEventHandler', () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
-      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+      .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -117,7 +134,7 @@ describe('createTriggerEventHandler', () => {
     const scheduleWorkflow = jest.fn();
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
-      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+      .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -151,7 +168,7 @@ describe('createTriggerEventHandler', () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
-      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+      .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -184,7 +201,7 @@ describe('createTriggerEventHandler', () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
-      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+      .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -216,7 +233,7 @@ describe('createTriggerEventHandler', () => {
   it('should not resolve or schedule when event-driven execution is disabled and logEvents is disabled', async () => {
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
-      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+      .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
     const scheduleWorkflow = jest.fn();
 
     const handler = createTriggerEventHandler({
@@ -253,7 +270,7 @@ describe('createTriggerEventHandler', () => {
     const scheduleWorkflow = jest.fn();
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
-      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+      .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
 
     const createMock = jest.fn().mockResolvedValue(undefined);
     const mockTriggerEventsClient = { create: createMock };
@@ -303,7 +320,7 @@ describe('createTriggerEventHandler', () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
-      .mockResolvedValue([createMockWorkflow({ id: 'wf-1' })]);
+      .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
 
     const createMock = jest.fn().mockResolvedValue(undefined);
     const mockTriggerEventsClient = { create: createMock };
@@ -338,7 +355,7 @@ describe('createTriggerEventHandler', () => {
 
   it('should not call scheduleWorkflow when no workflows are subscribed', async () => {
     const scheduleWorkflow = jest.fn();
-    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue([]);
+    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue(mockResolveResult([]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -380,7 +397,9 @@ describe('createTriggerEventHandler', () => {
       return undefined;
     });
 
-    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue([wf1, wf2, wf3]);
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue(mockResolveResult([wf1, wf2, wf3]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -435,7 +454,9 @@ describe('createTriggerEventHandler', () => {
     const wf1 = createMockWorkflow({ id: 'wf-1' });
     const wf2 = createMockWorkflow({ id: 'wf-2' });
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
-    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue([wf1, wf2]);
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue(mockResolveResult([wf1, wf2]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -475,7 +496,9 @@ describe('createTriggerEventHandler', () => {
     const wf1 = createMockWorkflow({ id: 'wf-no-condition-1' });
     const wf2 = createMockWorkflow({ id: 'wf-no-condition-2' });
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
-    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue([wf1, wf2]);
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue(mockResolveResult([wf1, wf2]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -529,7 +552,7 @@ describe('createTriggerEventHandler', () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
-      .mockResolvedValue([validWf1, invalidWf, validWf2]);
+      .mockResolvedValue(mockResolveResult([validWf1, invalidWf, validWf2]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -595,7 +618,9 @@ describe('createTriggerEventHandler', () => {
       });
     });
 
-    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue(workflows);
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue(mockResolveResult(workflows));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
@@ -631,7 +656,9 @@ describe('createTriggerEventHandler', () => {
 
     const wf1 = createMockWorkflow({ id: 'wf-1' });
     const wf2 = createMockWorkflow({ id: 'wf-2' });
-    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue([wf1, wf2]);
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue(mockResolveResult([wf1, wf2]));
 
     const handler = createTriggerEventHandler({
       api: { scheduleWorkflow } as any,
