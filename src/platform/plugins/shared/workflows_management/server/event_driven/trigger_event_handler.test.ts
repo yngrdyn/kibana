@@ -349,7 +349,11 @@ describe('createTriggerEventHandler', () => {
       spaceId,
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      triggerId
+      triggerId,
+      expect.objectContaining({
+        eventDispatchTimestamp: timestamp,
+        eventTriggerId: triggerId,
+      })
     );
   });
 
@@ -423,21 +427,33 @@ describe('createTriggerEventHandler', () => {
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
     expect(scheduleWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-2' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
     expect(scheduleWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-3' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
 
     expect(mockLogger.warn).toHaveBeenCalledTimes(1);
@@ -481,14 +497,22 @@ describe('createTriggerEventHandler', () => {
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
     expect(scheduleWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-2' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
   });
 
@@ -528,7 +552,11 @@ describe('createTriggerEventHandler', () => {
         }),
       }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
     expect(scheduleWorkflow).toHaveBeenNthCalledWith(
       2,
@@ -536,7 +564,11 @@ describe('createTriggerEventHandler', () => {
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
   });
 
@@ -576,17 +608,26 @@ describe('createTriggerEventHandler', () => {
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
     expect(scheduleWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-valid-2' }),
       'default',
       expect.objectContaining({ event: expect.any(Object) }),
       mockRequest,
-      'cases.updated'
+      'cases.updated',
+      expect.objectContaining({
+        eventDispatchTimestamp: '2025-01-01T12:00:00.000Z',
+        eventTriggerId: 'cases.updated',
+      })
     );
     expect(scheduleWorkflow).not.toHaveBeenCalledWith(
       expect.objectContaining({ id: 'wf-invalid' }),
+      expect.anything(),
       expect.anything(),
       expect.anything(),
       expect.anything(),

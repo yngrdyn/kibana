@@ -129,7 +129,11 @@ async function scheduleMatchingWorkflows(
           spaceId,
           { event: eventContext },
           request,
-          eventParams.triggerId
+          eventParams.triggerId,
+          {
+            eventDispatchTimestamp: eventParams.timestamp,
+            eventTriggerId: eventParams.triggerId,
+          }
         );
         return 'success';
       } catch (reason) {

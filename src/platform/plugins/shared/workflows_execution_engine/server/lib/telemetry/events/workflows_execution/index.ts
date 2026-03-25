@@ -299,6 +299,14 @@ const workflowExecutionCompletedSchema: RootSchema<WorkflowExecutionCompletedPar
       optional: true,
     },
   },
+  emitToStartMs: {
+    type: 'long',
+    _meta: {
+      description:
+        'Time from event dispatch to workflow execution start in milliseconds. Only present for event-driven executions when dispatch metadata is available.',
+      optional: true,
+    },
+  },
   timedOut: {
     type: 'boolean',
     _meta: {
@@ -543,6 +551,14 @@ const workflowExecutionFailedSchema: RootSchema<WorkflowExecutionFailedParams> =
       optional: true,
     },
   },
+  emitToStartMs: {
+    type: 'long',
+    _meta: {
+      description:
+        'Time from event dispatch to workflow execution start in milliseconds. Only present for event-driven executions when dispatch metadata is available.',
+      optional: true,
+    },
+  },
   timedOut: {
     type: 'boolean',
     _meta: {
@@ -762,6 +778,14 @@ const workflowExecutionCancelledSchema: RootSchema<WorkflowExecutionCancelledPar
     _meta: {
       description:
         'Queue delay in milliseconds - time from when workflow was queued/scheduled to when it started executing. Only present when workflow was queued due to concurrency limits or scheduling.',
+      optional: true,
+    },
+  },
+  emitToStartMs: {
+    type: 'long',
+    _meta: {
+      description:
+        'Time from event dispatch to workflow execution start in milliseconds. Only present for event-driven executions when dispatch metadata is available.',
       optional: true,
     },
   },

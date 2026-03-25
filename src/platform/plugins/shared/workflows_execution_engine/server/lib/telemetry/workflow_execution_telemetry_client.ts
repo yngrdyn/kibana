@@ -191,6 +191,9 @@ export class WorkflowExecutionTelemetryClient {
       ...(executionMetadata.queueDelayMs !== undefined && {
         queueDelayMs: executionMetadata.queueDelayMs,
       }),
+      ...(executionMetadata.emitToStartMs !== undefined && {
+        emitToStartMs: executionMetadata.emitToStartMs,
+      }),
       timedOut: executionMetadata.timedOut,
       ...(executionMetadata.timeoutMs !== undefined && { timeoutMs: executionMetadata.timeoutMs }),
       ...(executionMetadata.timeoutExceededByMs !== undefined && {
@@ -268,6 +271,9 @@ export class WorkflowExecutionTelemetryClient {
       ...(executionMetadata.queueDelayMs !== undefined && {
         queueDelayMs: executionMetadata.queueDelayMs,
       }),
+      ...(executionMetadata.emitToStartMs !== undefined && {
+        emitToStartMs: executionMetadata.emitToStartMs,
+      }),
       timedOut: executionMetadata.timedOut,
       ...(executionMetadata.timeoutMs !== undefined && { timeoutMs: executionMetadata.timeoutMs }),
       ...(executionMetadata.timeoutExceededByMs !== undefined && {
@@ -336,6 +342,9 @@ export class WorkflowExecutionTelemetryClient {
       uniqueStepIdsExecuted: executionMetadata.uniqueStepIdsExecuted,
       ...(executionMetadata.queueDelayMs !== undefined && {
         queueDelayMs: executionMetadata.queueDelayMs,
+      }),
+      ...(executionMetadata.emitToStartMs !== undefined && {
+        emitToStartMs: executionMetadata.emitToStartMs,
       }),
       timedOut: executionMetadata.timedOut,
       ...(executionMetadata.timeoutMs !== undefined && { timeoutMs: executionMetadata.timeoutMs }),

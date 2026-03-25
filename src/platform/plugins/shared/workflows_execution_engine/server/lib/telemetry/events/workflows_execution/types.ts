@@ -172,6 +172,11 @@ export interface WorkflowExecutionCompletedParams extends BaseWorkflowExecutionT
    */
   queueDelayMs?: number | null;
   /**
+   * Time from event dispatch to workflow execution start in milliseconds.
+   * Only present for event-driven executions when dispatch metadata is available.
+   */
+  emitToStartMs?: number;
+  /**
    * Whether the workflow execution timed out
    */
   timedOut: boolean;
@@ -308,6 +313,11 @@ export interface WorkflowExecutionFailedParams extends BaseWorkflowExecutionTele
    */
   queueDelayMs?: number | null;
   /**
+   * Time from event dispatch to workflow execution start in milliseconds.
+   * Only present for event-driven executions when dispatch metadata is available.
+   */
+  emitToStartMs?: number;
+  /**
    * Whether the workflow execution timed out
    */
   timedOut: boolean;
@@ -431,6 +441,11 @@ export interface WorkflowExecutionCancelledParams extends BaseWorkflowExecutionT
    * Only present when workflow was queued due to concurrency limits or scheduling.
    */
   queueDelayMs?: number | null;
+  /**
+   * Time from event dispatch to workflow execution start in milliseconds.
+   * Only present for event-driven executions when dispatch metadata is available.
+   */
+  emitToStartMs?: number;
   /**
    * Whether the workflow execution timed out
    */

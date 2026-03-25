@@ -207,16 +207,47 @@ describe('extractExecutionMetadata', () => {
     expect(meta.stepAvgDurationsByType).toEqual({ elasticsearch_search: 200 });
   });
 
+  it('includes emitToStartMs for event-driven executions with dispatch metadata', () => {
+    const wfExec = createMockWorkflowExecution({
+      triggeredBy: 'cases.caseCreated',
+      startedAt: '2024-01-01T00:00:05.000Z',
+      context: {
+        metadata: { eventDispatchTimestamp: '2024-01-01T00:00:01.000Z' },
+      },
+    });
+
+    const meta = extractExecutionMetadata(wfExec, []);
+    expect(meta.emitToStartMs).toBe(4000);
+  });
+
   it('omits optional execution fields when there is nothing to report', () => {
     const wfExec = createMockWorkflowExecution();
     const meta = extractExecutionMetadata(wfExec, []);
     expect(meta.ruleId).toBeUndefined();
     expect(meta.queueDelayMs).toBeUndefined();
+    expect(meta.emitToStartMs).toBeUndefined();
     expect(meta.timeToFirstStep).toBeUndefined();
     expect(meta.stepDurations).toBeUndefined();
     expect(meta.stepAvgDurationsByType).toBeUndefined();
     expect(meta.timeoutMs).toBeUndefined();
     expect(meta.timeoutExceededByMs).toBeUndefined();
+  });
+
+  it('omits emitToStartMs when dispatch timestamp is invalid or after startedAt', () => {
+    const wfExecInvalid = createMockWorkflowExecution({
+      context: {
+        metadata: { eventDispatchTimestamp: 'not-a-date' },
+      },
+    });
+    const wfExecFuture = createMockWorkflowExecution({
+      startedAt: '2024-01-01T00:00:00.000Z',
+      context: {
+        metadata: { eventDispatchTimestamp: '2024-01-01T00:00:05.000Z' },
+      },
+    });
+
+    expect(extractExecutionMetadata(wfExecInvalid, []).emitToStartMs).toBeUndefined();
+    expect(extractExecutionMetadata(wfExecFuture, []).emitToStartMs).toBeUndefined();
   });
 });
 

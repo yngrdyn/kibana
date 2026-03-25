@@ -287,6 +287,12 @@ describe('WorkflowExecutionTelemetryClient', () => {
     it('should normalize event-driven trigger id to triggerType event and eventTriggerId', () => {
       const workflowExecution = createMockWorkflowExecution({
         triggeredBy: 'cases.caseCreated',
+        startedAt: '2024-01-01T00:00:01.000Z',
+        context: {
+          metadata: {
+            eventDispatchTimestamp: '2024-01-01T00:00:00.000Z',
+          },
+        },
       });
 
       client.reportWorkflowExecutionCompleted({
@@ -298,6 +304,7 @@ describe('WorkflowExecutionTelemetryClient', () => {
       expect(eventData).toMatchObject({
         triggerType: 'event',
         eventTriggerId: 'cases.caseCreated',
+        emitToStartMs: 1000,
       });
     });
 

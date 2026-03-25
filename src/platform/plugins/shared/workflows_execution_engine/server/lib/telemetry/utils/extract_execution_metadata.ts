@@ -65,6 +65,11 @@ export interface WorkflowExecutionTelemetryMetadata {
    */
   queueDelayMs?: number;
   /**
+   * Time in milliseconds from emitEvent dispatch to workflow execution start.
+   * Present for event-driven executions when dispatch timestamp metadata is available.
+   */
+  emitToStartMs?: number;
+  /**
    * Whether the workflow execution timed out
    */
   timedOut: boolean;
@@ -215,6 +220,9 @@ export function extractExecutionMetadata(
   // Extract or calculate queue delay
   const queueDelayMs = extractQueueDelayMs(workflowExecution);
 
+  // Calculate emit-to-start delay for event-driven executions, when dispatch metadata is available.
+  const emitToStartMs = extractEmitToStartMs(workflowExecution);
+
   // Calculate time to first step
   const timeToFirstStep = extractTimeToFirstStep(workflowExecution, stepExecutions);
 
@@ -241,6 +249,7 @@ export function extractExecutionMetadata(
     ...compositionContext,
     ...(timeToFirstStep !== undefined && { timeToFirstStep }),
     ...(queueDelayMs !== undefined && { queueDelayMs }),
+    ...(emitToStartMs !== undefined && { emitToStartMs }),
     timedOut: timeoutInfo.timedOut,
     ...(timeoutInfo.timeoutMs !== undefined && { timeoutMs: timeoutInfo.timeoutMs }),
     ...(timeoutInfo.timeoutExceededByMs !== undefined && {
@@ -249,6 +258,30 @@ export function extractExecutionMetadata(
     ...(stepDurations.length > 0 && { stepDurations }),
     ...(Object.keys(stepAvgDurationsByType).length > 0 && { stepAvgDurationsByType }),
   };
+}
+
+function extractEmitToStartMs(workflowExecution: EsWorkflowExecution): number | undefined {
+  const startedAtMs = Date.parse(workflowExecution.startedAt);
+  if (Number.isNaN(startedAtMs)) {
+    return undefined;
+  }
+
+  const metadata = workflowExecution.context?.metadata as Record<string, unknown> | undefined;
+  const dispatchTimestamp = metadata?.eventDispatchTimestamp;
+
+  const dispatchMs =
+    typeof dispatchTimestamp === 'string'
+      ? Date.parse(dispatchTimestamp)
+      : typeof dispatchTimestamp === 'number'
+      ? dispatchTimestamp
+      : Number.NaN;
+
+  if (Number.isNaN(dispatchMs)) {
+    return undefined;
+  }
+
+  const delayMs = startedAtMs - dispatchMs;
+  return delayMs >= 0 ? delayMs : undefined;
 }
 
 /** How the parent started this sub-workflow (persisted on child execution context by execute strategies). */
