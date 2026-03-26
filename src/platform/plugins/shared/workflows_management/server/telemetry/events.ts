@@ -15,6 +15,8 @@ export interface TriggerEventDispatchedTelemetryEvent {
   triggerId: string;
   executionEnabled: boolean;
   logEventsEnabled: boolean;
+  /** Event-chain depth at dispatch time (0 when emit is not under a prior chain hop). */
+  eventChainDepth: number;
   /** True when execution is off but trigger-event audit logging still runs. */
   auditOnly: boolean;
   /** Time spent resolving/filtering subscribed workflows before scheduling decisions (ms). */
@@ -45,6 +47,13 @@ export const triggerEventDispatchedSchema: RootSchema<TriggerEventDispatchedTele
   logEventsEnabled: {
     type: 'boolean',
     _meta: { description: 'Whether trigger event audit logging is enabled', optional: false },
+  },
+  eventChainDepth: {
+    type: 'integer',
+    _meta: {
+      description: 'Event-chain depth at this emit (from request chain context; 0 for root emits)',
+      optional: false,
+    },
   },
   auditOnly: {
     type: 'boolean',

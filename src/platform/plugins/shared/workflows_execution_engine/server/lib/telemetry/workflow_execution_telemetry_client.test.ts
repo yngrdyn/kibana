@@ -289,6 +289,7 @@ describe('WorkflowExecutionTelemetryClient', () => {
         triggeredBy: 'cases.caseCreated',
         startedAt: '2024-01-01T00:00:01.000Z',
         context: {
+          event: { eventChainDepth: 1 },
           metadata: {
             eventDispatchTimestamp: '2024-01-01T00:00:00.000Z',
           },
@@ -304,6 +305,7 @@ describe('WorkflowExecutionTelemetryClient', () => {
       expect(eventData).toMatchObject({
         triggerType: 'event',
         eventTriggerId: 'cases.caseCreated',
+        eventChainDepth: 1,
         emitToStartMs: 1000,
       });
     });
@@ -459,7 +461,11 @@ describe('WorkflowExecutionTelemetryClient', () => {
         triggeredBy: 'cases.updated',
         status: ExecutionStatus.SKIPPED,
         context: {
-          event: { timestamp: '2025-01-01T00:00:00.000Z', spaceId: 'default' },
+          event: {
+            timestamp: '2025-01-01T00:00:00.000Z',
+            spaceId: 'default',
+            eventChainDepth: 2,
+          },
         },
       });
 
@@ -477,9 +483,33 @@ describe('WorkflowExecutionTelemetryClient', () => {
         spaceId: 'default',
         triggerType: 'event',
         eventTriggerId: 'cases.updated',
+        eventChainDepth: 2,
         isTestRun: false,
         logTriggerEventsEnabled: true,
       });
+    });
+
+    it('should omit sub-workflow composition fields from event-driven suppression telemetry', () => {
+      const workflowExecution = createMockWorkflowExecution({
+        triggeredBy: 'cases.updated',
+        status: ExecutionStatus.SKIPPED,
+        context: {
+          event: { timestamp: '2025-01-01T00:00:00.000Z', spaceId: 'default' },
+          parentDepth: 0,
+          parentWorkflowId: 'parent-wf-id',
+          parentWorkflowInvocation: 'sync',
+        },
+      });
+
+      client.reportEventDrivenExecutionSuppressed({
+        workflowExecution,
+        logTriggerEventsEnabled: false,
+      });
+
+      const [, eventData] = telemetry.reportEvent.mock.calls[0];
+      expect(eventData).not.toHaveProperty('compositionDepth');
+      expect(eventData).not.toHaveProperty('parentWorkflowId');
+      expect(eventData).not.toHaveProperty('parentWorkflowInvocation');
     });
   });
 

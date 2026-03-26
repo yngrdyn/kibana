@@ -327,6 +327,7 @@ describe('createTriggerEventHandler', () => {
         triggerId,
         executionEnabled: false,
         logEventsEnabled: true,
+        eventChainDepth: 0,
         auditOnly: true,
         subscriberResolutionMs: expect.any(Number),
         matchedCount: 1,
@@ -385,10 +386,49 @@ describe('createTriggerEventHandler', () => {
         triggerId,
         executionEnabled: true,
         logEventsEnabled: false,
+        eventChainDepth: 0,
         auditOnly: false,
         subscriberResolutionMs: expect.any(Number),
         matchedCount: 1,
         scheduledAttemptCount: 1,
+      })
+    );
+  });
+
+  it('should include eventChainDepth from event chain context on dispatched telemetry', async () => {
+    const timestamp = '2025-01-01T12:00:00.000Z';
+    const triggerId = 'cases.updated';
+    const spaceId = 'default';
+    const payload = { caseId: 'case-1' };
+    const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue(mockResolveResult([createMockWorkflow({ id: 'wf-1' })]));
+
+    const telemetryClient = { reportTriggerEventDispatched: jest.fn() };
+    const handler = createTriggerEventHandler({
+      api: { scheduleWorkflow } as any,
+      logger: mockLogger,
+      telemetryClient,
+      getTriggerEventsClient: () => null,
+      getWorkflowExecutionEngine: getEngineMock(true, false),
+      resolveMatchingWorkflowSubscriptions,
+    });
+
+    await handler({
+      timestamp,
+      triggerId,
+      spaceId,
+      payload,
+      request: mockRequest,
+      eventChainContext: { depth: 3, sourceWorkflowId: 'wf-parent' },
+    });
+
+    expect(telemetryClient.reportTriggerEventDispatched).toHaveBeenCalledWith(
+      expect.objectContaining({
+        triggerId,
+        eventChainDepth: 3,
+        matchedCount: 1,
       })
     );
   });

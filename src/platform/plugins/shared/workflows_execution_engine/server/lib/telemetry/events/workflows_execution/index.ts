@@ -36,6 +36,7 @@ const baseWorkflowExecutionSchema: RootSchema<{
   compositionDepth?: number;
   parentWorkflowId?: string;
   parentWorkflowInvocation?: 'sync' | 'async';
+  eventChainDepth?: number;
 }> = {
   workflowExecutionId: {
     type: 'keyword',
@@ -113,7 +114,22 @@ const baseWorkflowExecutionSchema: RootSchema<{
       optional: true,
     },
   },
+  eventChainDepth: {
+    type: 'integer',
+    _meta: {
+      description:
+        'Event-chain depth when this run was scheduled from event-driven emits. Distinct from compositionDepth.',
+      optional: true,
+    },
+  },
 };
+
+const {
+  compositionDepth: _compositionDepth,
+  parentWorkflowId: _parentWorkflowId,
+  parentWorkflowInvocation: _parentWorkflowInvocation,
+  ...eventDrivenExecutionSuppressedBaseSchema
+} = baseWorkflowExecutionSchema;
 
 const eventNameSchema: RootSchema<{ eventName: string }> = {
   eventName: {
@@ -839,7 +855,7 @@ const workflowExecutionCancelledSchema: RootSchema<WorkflowExecutionCancelledPar
 };
 
 const eventDrivenExecutionSuppressedSchema: RootSchema<EventDrivenExecutionSuppressedParams> = {
-  ...baseWorkflowExecutionSchema,
+  ...eventDrivenExecutionSuppressedBaseSchema,
   ...eventNameSchema,
   logTriggerEventsEnabled: {
     type: 'boolean',

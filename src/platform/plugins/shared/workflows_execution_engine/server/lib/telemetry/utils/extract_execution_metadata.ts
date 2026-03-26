@@ -115,6 +115,11 @@ export interface WorkflowExecutionTelemetryMetadata {
    * Only present for sub-workflow executions when set on the execution context.
    */
   parentWorkflowInvocation?: 'sync' | 'async';
+  /**
+   * Event-chain depth when this run was scheduled by the event-driven trigger handler.
+   * Distinct from `compositionDepth` (sub-workflow nesting). Omitted when not an event-chain execution.
+   */
+  eventChainDepth?: number;
 }
 
 /**
@@ -220,6 +225,7 @@ export function extractExecutionMetadata(
   const ruleId = extractAlertRuleId(workflowExecution);
 
   const compositionContext = extractCompositionContext(workflowExecution);
+  const eventChainDepth = extractEventChainDepthFromExecution(workflowExecution);
 
   // Extract or calculate queue delay
   const queueDelayMs = extractQueueDelayMs(workflowExecution);
@@ -251,6 +257,7 @@ export function extractExecutionMetadata(
     uniqueStepIdsExecuted: uniqueStepIdsSet.size,
     ...(ruleId && { ruleId }),
     ...compositionContext,
+    ...(eventChainDepth !== undefined && { eventChainDepth }),
     ...(timeToFirstStep !== undefined && { timeToFirstStep }),
     ...(queueDelayMs !== undefined && { queueDelayMs }),
     ...(emitToStartMs !== undefined && { emitToStartMs }),
@@ -345,6 +352,25 @@ function extractEmitToStartMs(workflowExecution: EsWorkflowExecution): number | 
 
 /** How the parent started this sub-workflow (persisted on child execution context by execute strategies). */
 type ParentWorkflowInvocationMode = 'sync' | 'async';
+
+/**
+ * Reads event-chain depth from execution context (set when scheduled via the event-driven trigger handler).
+ * Same source as `run_workflow` uses for `setWorkflowEventChainContext`.
+ */
+export function extractEventChainDepthFromExecution(
+  workflowExecution: EsWorkflowExecution
+): number | undefined {
+  const context = workflowExecution.context;
+  if (context == null || typeof context !== 'object' || Array.isArray(context)) {
+    return undefined;
+  }
+  const event = (context as Record<string, unknown>).event;
+  if (event == null || typeof event !== 'object' || Array.isArray(event)) {
+    return undefined;
+  }
+  const depth = (event as Record<string, unknown>).eventChainDepth;
+  return typeof depth === 'number' && depth >= 0 ? depth : undefined;
+}
 
 /**
  * Extracts composition context for sub-workflow executions (triggered by workflow.execute / workflow.executeAsync).

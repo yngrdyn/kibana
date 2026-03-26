@@ -15,6 +15,7 @@ import { setWorkflowEventChainContext } from '@kbn/workflows-extensions/server';
 import type { WorkflowsExecutionEngineConfig } from '../config';
 
 import { ConnectorExecutor } from '../connector_executor';
+import { extractEventChainDepthFromExecution } from '../lib/telemetry/utils/extract_execution_metadata';
 import { WorkflowExecutionTelemetryClient } from '../lib/telemetry/workflow_execution_telemetry_client';
 import { StepExecutionRepository } from '../repositories/step_execution_repository';
 import { WorkflowExecutionRepository } from '../repositories/workflow_execution_repository';
@@ -31,24 +32,6 @@ import { WorkflowTaskManager } from '../workflow_task_manager/workflow_task_mana
 const defaultWorkflowSettings: WorkflowSettings = {
   timeout: '6h',
 };
-
-/**
- * Event-chain depth from execution context when this run was scheduled by the trigger
- * handler. Used only to call setWorkflowEventChainContext on the task request.
- */
-function getEventChainDepthFromExecutionContext(
-  context: EsWorkflowExecution['context'] | undefined
-): number | undefined {
-  if (context == null || typeof context !== 'object' || Array.isArray(context)) {
-    return undefined;
-  }
-  const event = (context as Record<string, unknown>).event;
-  if (event == null || typeof event !== 'object' || Array.isArray(event)) {
-    return undefined;
-  }
-  const depth = (event as Record<string, unknown>).eventChainDepth;
-  return typeof depth === 'number' && depth >= 0 ? depth : undefined;
-}
 
 export async function setupDependencies(
   workflowRunId: string,
@@ -87,7 +70,7 @@ export async function setupDependencies(
     );
   }
 
-  const eventChainDepth = getEventChainDepthFromExecutionContext(workflowExecution.context);
+  const eventChainDepth = extractEventChainDepthFromExecution(workflowExecution);
 
   if (eventChainDepth !== undefined) {
     setWorkflowEventChainContext(fakeRequest, {

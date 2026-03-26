@@ -254,6 +254,7 @@ export function createTriggerEventHandler({
     }
     reportDispatchedEvent({
       ...baseTelemetry,
+      eventChainDepth: eventChainContext?.depth ?? 0,
       auditOnly: !executionEnabled && logEventsEnabled,
       subscriberResolutionMs,
       ...resolutionStats,

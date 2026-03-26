@@ -13,6 +13,7 @@ import type { WorkflowYaml } from '@kbn/workflows/spec/schema';
 import {
   extractAlertRuleId,
   extractCompositionContext,
+  extractEventChainDepthFromExecution,
   extractExecutionMetadata,
   extractQueueDelayMs,
   extractTimeToFirstStep,
@@ -486,5 +487,36 @@ describe('extractCompositionContext', () => {
         })
       )
     ).toEqual({ compositionDepth: 1 });
+  });
+});
+
+describe('extractEventChainDepthFromExecution', () => {
+  it('returns depth from context.event.eventChainDepth', () => {
+    expect(
+      extractEventChainDepthFromExecution(
+        createMockWorkflowExecution({
+          context: { event: { eventChainDepth: 2 } },
+        })
+      )
+    ).toBe(2);
+  });
+
+  it('returns undefined when eventChainDepth is missing or invalid', () => {
+    expect(extractEventChainDepthFromExecution(createMockWorkflowExecution())).toBeUndefined();
+    expect(
+      extractEventChainDepthFromExecution(
+        createMockWorkflowExecution({ context: { event: { eventChainDepth: -1 } } })
+      )
+    ).toBeUndefined();
+  });
+
+  it('includes eventChainDepth in extractExecutionMetadata when set', () => {
+    const meta = extractExecutionMetadata(
+      createMockWorkflowExecution({
+        context: { event: { eventChainDepth: 1, timestamp: '2025-01-01T00:00:00Z', spaceId: 'd' } },
+      }),
+      []
+    );
+    expect(meta.eventChainDepth).toBe(1);
   });
 });

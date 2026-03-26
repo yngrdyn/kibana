@@ -77,6 +77,9 @@ function buildBaseExecutionTelemetryFields(
     ...(executionMetadata.parentWorkflowInvocation && {
       parentWorkflowInvocation: executionMetadata.parentWorkflowInvocation,
     }),
+    ...(executionMetadata.eventChainDepth !== undefined && {
+      eventChainDepth: executionMetadata.eventChainDepth,
+    }),
   };
 }
 
@@ -400,14 +403,8 @@ export class WorkflowExecutionTelemetryClient {
       ...(eventTriggerId !== undefined ? { eventTriggerId } : {}),
       isTestRun: workflowExecution.isTestRun || false,
       ...(executionMetadata.ruleId && { ruleId: executionMetadata.ruleId }),
-      ...(executionMetadata.compositionDepth !== undefined && {
-        compositionDepth: executionMetadata.compositionDepth,
-      }),
-      ...(executionMetadata.parentWorkflowId && {
-        parentWorkflowId: executionMetadata.parentWorkflowId,
-      }),
-      ...(executionMetadata.parentWorkflowInvocation && {
-        parentWorkflowInvocation: executionMetadata.parentWorkflowInvocation,
+      ...(executionMetadata.eventChainDepth !== undefined && {
+        eventChainDepth: executionMetadata.eventChainDepth,
       }),
       logTriggerEventsEnabled,
     };
