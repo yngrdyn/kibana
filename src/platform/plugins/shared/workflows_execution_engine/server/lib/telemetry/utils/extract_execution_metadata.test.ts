@@ -220,6 +220,30 @@ describe('extractExecutionMetadata', () => {
     expect(meta.emitToStartMs).toBe(4000);
   });
 
+  it('includes emitToStartMs when dispatch metadata is only on top-level execution.metadata', () => {
+    const wfExec = createMockWorkflowExecution({
+      triggeredBy: 'cases.caseCreated',
+      startedAt: '2024-01-01T00:00:05.000Z',
+      context: {},
+      metadata: { eventDispatchTimestamp: '2024-01-01T00:00:01.000Z' },
+    });
+
+    expect(extractExecutionMetadata(wfExec, []).emitToStartMs).toBe(4000);
+  });
+
+  it('prefers top-level metadata eventDispatchTimestamp over context.metadata when both exist', () => {
+    const wfExec = createMockWorkflowExecution({
+      triggeredBy: 'cases.caseCreated',
+      startedAt: '2024-01-01T00:00:10.000Z',
+      context: {
+        metadata: { eventDispatchTimestamp: '2024-01-01T00:00:08.000Z' },
+      },
+      metadata: { eventDispatchTimestamp: '2024-01-01T00:00:01.000Z' },
+    });
+
+    expect(extractExecutionMetadata(wfExec, []).emitToStartMs).toBe(9000);
+  });
+
   it('omits optional execution fields when there is nothing to report', () => {
     const wfExec = createMockWorkflowExecution();
     const meta = extractExecutionMetadata(wfExec, []);

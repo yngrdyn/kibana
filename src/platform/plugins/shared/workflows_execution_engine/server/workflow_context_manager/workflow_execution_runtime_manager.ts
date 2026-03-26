@@ -29,17 +29,6 @@ import { WorkflowScopeStack } from './workflow_scope_stack';
 import type { WorkflowExecutionTelemetryClient } from '../lib/telemetry/workflow_execution_telemetry_client';
 import type { IWorkflowEventLogger } from '../workflow_event_logger';
 
-function getEventChainDepthFromWorkflowContext(
-  context: EsWorkflowExecution['context'] | undefined
-): number | undefined {
-  const event = context?.event;
-  if (event == null || typeof event !== 'object') {
-    return undefined;
-  }
-  const depth = (event as { eventChainDepth?: unknown }).eventChainDepth;
-  return typeof depth === 'number' && depth >= 0 ? depth : undefined;
-}
-
 interface WorkflowExecutionRuntimeManagerInit {
   workflowExecutionState: WorkflowExecutionState;
   workflowExecution: EsWorkflowExecution;
@@ -423,17 +412,13 @@ export class WorkflowExecutionRuntimeManager {
           triggered_by: 'task_manager',
         };
 
-        const { triggeredBy, context } = this.workflowExecution;
+        const { triggeredBy } = this.workflowExecution;
         if (
           typeof triggeredBy === 'string' &&
           triggeredBy.length > 0 &&
           !isWellKnownWorkflowTriggerSource(triggeredBy)
         ) {
           taskManagerLabels.event_trigger_id = triggeredBy;
-          const eventChainDepth = getEventChainDepthFromWorkflowContext(context);
-          if (eventChainDepth !== undefined) {
-            taskManagerLabels.event_chain_depth = eventChainDepth;
-          }
         }
 
         // Add workflow-specific labels to the existing transaction (additive; keep triggered_by: task_manager)

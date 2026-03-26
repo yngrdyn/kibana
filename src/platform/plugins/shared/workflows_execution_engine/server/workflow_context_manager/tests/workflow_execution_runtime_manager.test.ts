@@ -242,7 +242,7 @@ describe('WorkflowExecutionRuntimeManager', () => {
         workflowExecution.context = {} as EsWorkflowExecution['context'];
       });
 
-      it('adds event_trigger_id and event_chain_depth when triggeredBy is an event trigger id', async () => {
+      it('adds event_trigger_id when triggeredBy is an event trigger id', async () => {
         workflowExecution.triggeredBy = 'cases.caseCreated';
         workflowExecution.context = {
           event: { eventChainDepth: 2 },
@@ -254,12 +254,12 @@ describe('WorkflowExecutionRuntimeManager', () => {
           expect.objectContaining({
             triggered_by: 'task_manager',
             event_trigger_id: 'cases.caseCreated',
-            event_chain_depth: 2,
           })
         );
+        expect(mockTransaction.addLabels.mock.calls[0][0]).not.toHaveProperty('event_chain_depth');
       });
 
-      it('adds event_trigger_id but omits event_chain_depth when not present on context.event', async () => {
+      it('adds event_trigger_id when context.event has no chain depth', async () => {
         workflowExecution.triggeredBy = 'my.custom.trigger';
         workflowExecution.context = {} as EsWorkflowExecution['context'];
 

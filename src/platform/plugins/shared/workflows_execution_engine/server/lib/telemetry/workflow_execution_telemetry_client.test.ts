@@ -454,12 +454,12 @@ describe('WorkflowExecutionTelemetryClient', () => {
   });
 
   describe('reportEventDrivenExecutionSuppressed', () => {
-    it('should report suppression with event trigger fields and optional event chain depth', () => {
+    it('should report suppression with event trigger fields', () => {
       const workflowExecution = createMockWorkflowExecution({
         triggeredBy: 'cases.updated',
         status: ExecutionStatus.SKIPPED,
         context: {
-          event: { eventChainDepth: 2, timestamp: '2025-01-01T00:00:00.000Z', spaceId: 'default' },
+          event: { timestamp: '2025-01-01T00:00:00.000Z', spaceId: 'default' },
         },
       });
 
@@ -479,7 +479,6 @@ describe('WorkflowExecutionTelemetryClient', () => {
         eventTriggerId: 'cases.updated',
         isTestRun: false,
         logTriggerEventsEnabled: true,
-        eventChainDepth: 2,
       });
     });
   });

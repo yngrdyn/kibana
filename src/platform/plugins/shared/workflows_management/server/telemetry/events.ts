@@ -18,7 +18,6 @@ export interface TriggerEventDispatchedTelemetryEvent {
   earlyExit: boolean;
   /** True when execution is off but trigger-event audit logging still runs. */
   auditOnly: boolean;
-  eventChainDepth?: number;
   subscribedCount: number;
   disabledCount: number;
   noMatchingTriggerCount: number;
@@ -57,13 +56,6 @@ export const triggerEventDispatchedSchema: RootSchema<TriggerEventDispatchedTele
       description:
         'True when event-driven execution is disabled but trigger event logging still ran (audit path)',
       optional: false,
-    },
-  },
-  eventChainDepth: {
-    type: 'integer',
-    _meta: {
-      description: 'Incoming chain depth if present on the emitting request',
-      optional: true,
     },
   },
   subscribedCount: {

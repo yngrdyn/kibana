@@ -8,7 +8,11 @@
  */
 
 import type { AnalyticsServiceSetup, AnalyticsServiceStart, Logger } from '@kbn/core/server';
-import type { EsWorkflowExecution, EsWorkflowStepExecution } from '@kbn/workflows';
+import type {
+  EsWorkflowExecution,
+  EsWorkflowStepExecution,
+  WellKnownWorkflowTriggerSource,
+} from '@kbn/workflows';
 import { ExecutionStatus, isWellKnownWorkflowTriggerSource } from '@kbn/workflows';
 import {
   workflowExecutionEventNames,
@@ -29,7 +33,7 @@ import {
 import { extractWorkflowMetadata } from './utils/extract_workflow_metadata';
 
 function resolveExecutionTriggerTelemetry(triggeredBy: string | undefined): {
-  triggerType: 'manual' | 'scheduled' | 'alert' | 'workflow-step' | 'event';
+  triggerType: WellKnownWorkflowTriggerSource | 'event';
   eventTriggerId?: string;
 } {
   if (isWellKnownWorkflowTriggerSource(triggeredBy)) {
@@ -39,18 +43,6 @@ function resolveExecutionTriggerTelemetry(triggeredBy: string | undefined): {
     return { triggerType: 'manual' };
   }
   return { triggerType: 'event', eventTriggerId: triggeredBy };
-}
-
-function getEventChainDepthFromWorkflowExecution(
-  workflowExecution: EsWorkflowExecution
-): number | undefined {
-  const context = workflowExecution.context as Record<string, unknown> | undefined;
-  const event = context?.event;
-  if (event == null || typeof event !== 'object') {
-    return undefined;
-  }
-  const depth = (event as { eventChainDepth?: unknown }).eventChainDepth;
-  return typeof depth === 'number' && depth >= 0 ? depth : undefined;
 }
 
 /**
@@ -390,7 +382,6 @@ export class WorkflowExecutionTelemetryClient {
     const { triggerType, eventTriggerId } = resolveExecutionTriggerTelemetry(
       workflowExecution.triggeredBy
     );
-    const eventChainDepth = getEventChainDepthFromWorkflowExecution(workflowExecution);
 
     const eventData: EventDrivenExecutionSuppressedParams = {
       eventName:
@@ -414,7 +405,6 @@ export class WorkflowExecutionTelemetryClient {
         parentWorkflowInvocation: executionMetadata.parentWorkflowInvocation,
       }),
       logTriggerEventsEnabled,
-      ...(eventChainDepth !== undefined ? { eventChainDepth } : {}),
     };
 
     this.reportEvent(

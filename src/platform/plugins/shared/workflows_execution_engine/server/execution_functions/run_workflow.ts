@@ -12,7 +12,6 @@ import type { KibanaRequest, Logger } from '@kbn/core/server';
 import { ExecutionStatus, isTriggerType } from '@kbn/workflows';
 import { setupDependencies } from './setup_dependencies';
 import type { WorkflowsExecutionEngineConfig } from '../config';
-import { WorkflowExecutionTelemetryClient } from '../lib/telemetry/workflow_execution_telemetry_client';
 import type { WorkflowsMeteringService } from '../metering';
 import type { WorkflowsExecutionEnginePluginStart } from '../types';
 import type { ContextDependencies } from '../workflow_context_manager/types';
@@ -53,6 +52,7 @@ export async function runWorkflow({
     workflowTaskManager,
     workflowExecutionRepository,
     esClient,
+    telemetryClient,
   } = await setupDependencies(
     workflowRunId,
     spaceId,
@@ -83,10 +83,6 @@ export async function runWorkflow({
         });
         logger.debug(
           `Event-driven execution is disabled; skipping workflow run ${workflowRunId} (triggeredBy: ${triggeredBy}).`
-        );
-        const telemetryClient = new WorkflowExecutionTelemetryClient(
-          dependencies.coreStart.analytics,
-          logger
         );
         telemetryClient.reportEventDrivenExecutionSuppressed({
           workflowExecution: execution,

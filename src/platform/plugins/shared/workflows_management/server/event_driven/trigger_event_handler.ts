@@ -222,7 +222,6 @@ export function createTriggerEventHandler({
       triggerId: params.triggerId,
       executionEnabled,
       logEventsEnabled,
-      eventChainDepth: params.eventChainContext?.depth,
     };
 
     if (!executionEnabled && !logEventsEnabled) {

@@ -8,7 +8,7 @@
  */
 
 import type { RootSchema } from '@kbn/core/server';
-import type { WellKnownWorkflowTriggerSource } from '@kbn/workflows/common/well_known_trigger_sources';
+import type { WellKnownWorkflowTriggerSource } from '@kbn/workflows';
 import {
   type EventDrivenExecutionSuppressedParams,
   type WorkflowExecutionCancelledParams,
@@ -846,13 +846,6 @@ const eventDrivenExecutionSuppressedSchema: RootSchema<EventDrivenExecutionSuppr
     _meta: {
       description: 'Whether trigger-event audit logging is enabled when suppression ran',
       optional: false,
-    },
-  },
-  eventChainDepth: {
-    type: 'integer',
-    _meta: {
-      description: 'Event chain depth from execution context when present',
-      optional: true,
     },
   },
 };

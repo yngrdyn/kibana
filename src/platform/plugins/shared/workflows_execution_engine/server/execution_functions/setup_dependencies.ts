@@ -33,19 +33,20 @@ const defaultWorkflowSettings: WorkflowSettings = {
 };
 
 /**
- * Extracts event-chain depth from workflow execution context when this run was scheduled
- * by the trigger event handler (event-driven). The handler injects eventChainDepth into
- * context.event; manual/scheduled runs do not have it. Returns undefined when not present
- * or invalid so we only set event-chain context on the request for event-driven runs.
+ * Event-chain depth from execution context when this run was scheduled by the trigger
+ * handler. Used only to call setWorkflowEventChainContext on the task request.
  */
-function getEventChainDepthFromExecutionContext(
-  context: Record<string, unknown> | undefined
+function getEventChainDepthForRequest(
+  context: EsWorkflowExecution['context'] | undefined
 ): number | undefined {
-  const event = context?.event;
-  if (event == null || typeof event !== 'object') {
+  if (context == null || typeof context !== 'object' || Array.isArray(context)) {
     return undefined;
   }
-  const depth = (event as { eventChainDepth?: unknown }).eventChainDepth;
+  const event = (context as Record<string, unknown>).event;
+  if (event == null || typeof event !== 'object' || Array.isArray(event)) {
+    return undefined;
+  }
+  const depth = (event as Record<string, unknown>).eventChainDepth;
   return typeof depth === 'number' && depth >= 0 ? depth : undefined;
 }
 
@@ -86,7 +87,7 @@ export async function setupDependencies(
     );
   }
 
-  const eventChainDepth = getEventChainDepthFromExecutionContext(workflowExecution.context);
+  const eventChainDepth = getEventChainDepthForRequest(workflowExecution.context);
 
   if (eventChainDepth !== undefined) {
     setWorkflowEventChainContext(fakeRequest, {
@@ -185,5 +186,6 @@ export async function setupDependencies(
     nodesFactory,
     workflowExecutionRepository,
     esClient,
+    telemetryClient,
   };
 }

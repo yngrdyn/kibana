@@ -8,7 +8,11 @@
  */
 
 import { ExecutionStatus } from '@kbn/workflows';
-import type { EsWorkflowExecution, EsWorkflowStepExecution } from '@kbn/workflows';
+import type {
+  EsWorkflowExecution,
+  EsWorkflowStepExecution,
+  WorkflowExecutionScheduleMetadata,
+} from '@kbn/workflows';
 import type { WorkflowYaml } from '@kbn/workflows/spec/schema';
 import { parseDuration } from '../../../utils';
 
@@ -260,14 +264,69 @@ export function extractExecutionMetadata(
   };
 }
 
+function isPlainScheduleMetadataSource(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Resolves schedule/dispatch metadata using the same precedence as buildWorkflowContext:
+ * top-level `workflowExecution.metadata` first, then `workflowExecution.context.metadata`.
+ */
+function pickScheduleDispatchTimestamp(
+  top: Record<string, unknown> | undefined,
+  nested: Record<string, unknown> | undefined
+): string | number | undefined {
+  const fromTop = top?.eventDispatchTimestamp;
+  if (typeof fromTop === 'string' || typeof fromTop === 'number') {
+    return fromTop;
+  }
+  const fromNested = nested?.eventDispatchTimestamp;
+  if (typeof fromNested === 'string' || typeof fromNested === 'number') {
+    return fromNested;
+  }
+  return undefined;
+}
+
+function pickScheduleEventTriggerId(
+  top: Record<string, unknown> | undefined,
+  nested: Record<string, unknown> | undefined
+): string | undefined {
+  if (typeof top?.eventTriggerId === 'string') {
+    return top.eventTriggerId;
+  }
+  if (typeof nested?.eventTriggerId === 'string') {
+    return nested.eventTriggerId;
+  }
+  return undefined;
+}
+
+function resolveWorkflowExecutionScheduleMetadata(
+  workflowExecution: EsWorkflowExecution
+): WorkflowExecutionScheduleMetadata {
+  const top = isPlainScheduleMetadataSource(workflowExecution.metadata)
+    ? workflowExecution.metadata
+    : undefined;
+  const nested = isPlainScheduleMetadataSource(workflowExecution.context?.metadata)
+    ? workflowExecution.context.metadata
+    : undefined;
+
+  const eventDispatchTimestamp = pickScheduleDispatchTimestamp(top, nested);
+  const eventTriggerId = pickScheduleEventTriggerId(top, nested);
+
+  return {
+    ...(eventDispatchTimestamp !== undefined ? { eventDispatchTimestamp } : {}),
+    ...(eventTriggerId !== undefined ? { eventTriggerId } : {}),
+  };
+}
+
 function extractEmitToStartMs(workflowExecution: EsWorkflowExecution): number | undefined {
   const startedAtMs = Date.parse(workflowExecution.startedAt);
   if (Number.isNaN(startedAtMs)) {
     return undefined;
   }
 
-  const metadata = workflowExecution.context?.metadata as Record<string, unknown> | undefined;
-  const dispatchTimestamp = metadata?.eventDispatchTimestamp;
+  const scheduleMeta = resolveWorkflowExecutionScheduleMetadata(workflowExecution);
+  const dispatchTimestamp = scheduleMeta.eventDispatchTimestamp;
 
   const dispatchMs =
     typeof dispatchTimestamp === 'string'

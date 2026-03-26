@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { WellKnownWorkflowTriggerSource } from '@kbn/workflows/common/well_known_trigger_sources';
+import type { WellKnownWorkflowTriggerSource } from '@kbn/workflows';
 
 /**
  * Base parameters for all workflow execution telemetry events
@@ -87,10 +87,6 @@ export enum WorkflowExecutionTelemetryEventTypes {
 export interface EventDrivenExecutionSuppressedParams extends BaseWorkflowExecutionTelemetryParams {
   eventName: string;
   logTriggerEventsEnabled: boolean;
-  /**
-   * Incoming event-chain depth from execution context when present.
-   */
-  eventChainDepth?: number;
 }
 
 /**
