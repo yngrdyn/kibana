@@ -40,7 +40,4 @@ triggers:
       }),
     ],
   },
-  snippets: {
-    condition: 'event.updated_fields: "status"',
-  },
 };

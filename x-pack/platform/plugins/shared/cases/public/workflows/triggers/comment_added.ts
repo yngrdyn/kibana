@@ -64,7 +64,4 @@ steps:
       ),
     ],
   },
-  snippets: {
-    condition: 'event.caseId: "YOUR_CASE_ID"',
-  },
 };
