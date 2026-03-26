@@ -23,7 +23,7 @@ export const caseUpdatedTriggerPublicDefinition: PublicTriggerDefinition = {
   documentation: {
     details: i18n.translate('xpack.cases.workflowTriggers.caseUpdated.documentation.details', {
       defaultMessage:
-        'Emitted after case updates. Use event.updated_fields to filter by which fields changed and event.caseId to match a specific case.',
+        'Emitted after case updates. Use event.updatedFields to filter by which fields changed and event.caseId to match a specific case.',
     }),
     examples: [
       i18n.translate('xpack.cases.workflowTriggers.caseUpdated.documentation.example', {
@@ -32,7 +32,7 @@ export const caseUpdatedTriggerPublicDefinition: PublicTriggerDefinition = {
 triggers:
   - type: {triggerId}
     on:
-      condition: 'event.updated_fields: "status"'
+      condition: 'event.updatedFields: "status"'
 \`\`\``,
         values: {
           triggerId: CaseUpdatedTriggerId,

@@ -27,7 +27,7 @@ export interface CaseCreatedEventPayload {
  */
 export interface CaseUpdatedEventPayload {
   readonly caseId: string;
-  readonly updated_fields?: string[];
+  readonly updatedFields?: string[];
 }
 
 /**

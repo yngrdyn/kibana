@@ -31,7 +31,7 @@ describe('registerCasesWorkflowEventBridge', () => {
     eventBus.emitCaseCreated({ request, spaceId: 'default' }, { caseId: 'case-1' });
     eventBus.emitCaseUpdated(
       { request, spaceId: 'default' },
-      { caseId: 'case-1', updated_fields: ['status'] }
+      { caseId: 'case-1', updatedFields: ['status'] }
     );
     eventBus.emitCommentAdded(
       { request, spaceId: 'default' },
@@ -49,7 +49,7 @@ describe('registerCasesWorkflowEventBridge', () => {
     });
     expect(workflowsExtensions.emitEvent).toHaveBeenNthCalledWith(2, {
       triggerId: CaseUpdatedTriggerId,
-      payload: { caseId: 'case-1', updated_fields: ['status'] },
+      payload: { caseId: 'case-1', updatedFields: ['status'] },
       request,
       spaceId: 'default',
     });

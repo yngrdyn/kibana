@@ -35,13 +35,13 @@ describe('CasesEventBus', () => {
     eventBus.onCaseUpdated(listener);
     eventBus.emitCaseUpdated(metadata, {
       caseId: 'case-1',
-      updated_fields: ['status'],
+      updatedFields: ['status'],
     });
 
     expect(listener).toHaveBeenCalledWith({
       type: 'caseUpdated',
       metadata,
-      payload: { caseId: 'case-1', updated_fields: ['status'] },
+      payload: { caseId: 'case-1', updatedFields: ['status'] },
     });
   });
 

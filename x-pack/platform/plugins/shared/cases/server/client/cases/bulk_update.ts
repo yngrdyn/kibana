@@ -590,7 +590,7 @@ export const bulkUpdate = async (
 
       clientArgs.casesEventBus?.emitCaseUpdated(clientArgs.casesEventMetadata, {
         caseId: updatedCase.id,
-        ...(updatedFields != null ? { updated_fields: updatedFields } : {}),
+        ...(updatedFields != null ? { updatedFields } : {}),
       });
     }
 

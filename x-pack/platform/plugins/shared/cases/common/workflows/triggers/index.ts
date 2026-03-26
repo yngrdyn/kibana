@@ -30,7 +30,7 @@ export const CaseUpdatedTriggerId = 'cases.caseUpdated' as const;
 
 const caseUpdatedEventSchema = z.object({
   caseId: z.string().meta({ description: CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION }),
-  updated_fields: z
+  updatedFields: z
     .array(z.string())
     .optional()
     .meta({ description: CASE_UPDATED_TRIGGER_EVENT_SCHEMA_UPDATED_FIELDS_DESCRIPTION }),
