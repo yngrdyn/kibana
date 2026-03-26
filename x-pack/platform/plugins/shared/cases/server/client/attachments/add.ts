@@ -18,7 +18,7 @@ import { Operations } from '../../authorization';
 import type { AddArgs } from './types';
 import { validateRegisteredAttachments } from './validators';
 import { validateMaxUserActions } from '../../common/validators';
-import { emitCommentAddedEvent } from './utils';
+import { emitCommentAddedEvent } from './trigger_utils';
 /**
  * Create an attachment to a case.
  *

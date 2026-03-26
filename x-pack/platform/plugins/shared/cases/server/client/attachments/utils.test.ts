@@ -7,7 +7,7 @@
 
 import type { Case } from '../../../common/types/domain';
 import { createCasesClientMockArgs } from '../mocks';
-import { emitCommentAddedEvent } from './utils';
+import { emitCommentAddedEvent } from './trigger_utils';
 
 const makeCase = (id: string, comments: Array<{ id: string }>): Case =>
   ({ id, comments } as unknown as Case);

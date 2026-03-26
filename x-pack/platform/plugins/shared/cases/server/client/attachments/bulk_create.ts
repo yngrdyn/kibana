@@ -22,7 +22,7 @@ import { Operations } from '../../authorization';
 import type { BulkCreateArgs } from './types';
 import { validateRegisteredAttachments } from './validators';
 import { validateMaxUserActions } from '../../common/validators';
-import { emitCommentAddedEvent } from './utils';
+import { emitCommentAddedEvent } from './trigger_utils';
 
 export const bulkCreate = async (
   args: BulkCreateArgs,
