@@ -36,7 +36,7 @@ description: Subscribes to workflows.executionFailed
 triggers:
   - type: workflows.executionFailed
     on:
-      condition: not event.workflow.isErrorHandler:true
+      condition: 'not event.workflow.isErrorHandler:true'
 steps:
   - name: log_event
     type: console
@@ -67,7 +67,7 @@ description: Subscribes to workflows.executionFailed when workflow name matches 
 triggers:
   - type: workflows.executionFailed
     on:
-      condition: not event.workflow.isErrorHandler:true and event.workflow.name: Scout*
+      condition: 'not event.workflow.isErrorHandler:true and event.workflow.name: Scout*'
 steps:
   - name: log_event
     type: console
@@ -83,7 +83,7 @@ description: Subscribes to workflows.executionFailed when failed step id is fail
 triggers:
   - type: workflows.executionFailed
     on:
-      condition: not event.workflow.isErrorHandler:true and event.error.stepId:"fail_step"
+      condition: 'not event.workflow.isErrorHandler:true and event.error.stepId:"fail_step"'
 steps:
   - name: log_event
     type: console
@@ -173,35 +173,53 @@ spaceTest.describe(
       }
     );
 
+    spaceTest('filter by workflow name: handler runs when name matches condition', async () => {
+      const { results: initialResults } = await workflowsApi.getExecutions(handlerNameFilterId);
+      const initialCount = initialResults.length;
+
+      await workflowsApi.run(failingWorkflowId, {});
+      const { results: afterMatch } = await waitForConditionOrThrow({
+        action: () => workflowsApi.getExecutions(handlerNameFilterId),
+        condition: ({ results: r }) => r.length >= initialCount + 1,
+        interval: 2000,
+        timeout: 25_000,
+        errorMessage: ({ results: r }) =>
+          `Name filter handler should have at least ${
+            initialCount + 1
+          } execution(s) after Scout workflow failed, got ${r.length}`,
+      });
+      expect(afterMatch.length).toBeGreaterThan(initialCount);
+    });
+
     spaceTest(
-      'filter by workflow name: handler runs when name matches condition, does not run when name does not match',
+      'filter by workflow name: handler does not run when name does not match',
       async () => {
-        const { results: initialResults } = await workflowsApi.getExecutions(handlerNameFilterId);
-        const initialCount = initialResults.length;
+        const { results: beforeResults } = await workflowsApi.getExecutions(handlerNameFilterId);
+        const countBefore = beforeResults.length;
 
-        // Run workflow whose name matches "Scout*" → name-filter handler should run once more
-        await workflowsApi.run(failingWorkflowId, {});
-        const { results: afterMatch } = await waitForConditionOrThrow({
-          action: () => workflowsApi.getExecutions(handlerNameFilterId),
-          condition: ({ results: r }) => r.length >= initialCount + 1,
-          interval: 2000,
-          timeout: 25_000,
-          errorMessage: ({ results: r }) =>
-            `Name filter handler should have at least ${
-              initialCount + 1
-            } execution(s) after Scout workflow failed, got ${r.length}`,
-        });
-        const countAfterMatch = afterMatch.length;
-
-        // Run workflow whose name does not match "Scout*" → name-filter handler should not run again
         const { workflowExecutionId: otherExecutionId } = await workflowsApi.run(
           failingOtherWorkflowId,
           {}
         );
         await waitForExecution(workflowsApi, otherExecutionId);
-        await new Promise((r) => setTimeout(r, 4000));
-        const { results: afterNoMatch } = await workflowsApi.getExecutions(handlerNameFilterId);
-        expect(afterNoMatch).toHaveLength(countAfterMatch);
+        const quietAfterMs = Date.now() + 5000;
+
+        const { results: finalResults } = await waitForConditionOrThrow({
+          action: () => workflowsApi.getExecutions(handlerNameFilterId),
+          condition: ({ results: r }) => {
+            if (r.length !== countBefore) {
+              throw new Error(
+                `Name filter handler should stay at ${countBefore} execution(s) after non-Scout workflow failed, got ${r.length}`
+              );
+            }
+            return Date.now() >= quietAfterMs;
+          },
+          interval: 1000,
+          timeout: 25_000,
+          errorMessage: ({ results: r }) =>
+            `Name filter handler count should remain ${countBefore} after quiet window, last count: ${r.length}`,
+        });
+        expect(finalResults).toHaveLength(countBefore);
       }
     );
 
