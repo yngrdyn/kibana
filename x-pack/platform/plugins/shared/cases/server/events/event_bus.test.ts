@@ -19,12 +19,12 @@ describe('CasesEventBus', () => {
     const listener = jest.fn();
 
     eventBus.onCaseCreated(listener);
-    eventBus.emitCaseCreated(metadata, { caseId: 'case-1' });
+    eventBus.emitCaseCreated(metadata, { caseId: 'case-1', owner: 'securitySolution' });
 
     expect(listener).toHaveBeenCalledWith({
       type: 'caseCreated',
       metadata,
-      payload: { caseId: 'case-1' },
+      payload: { caseId: 'case-1', owner: 'securitySolution' },
     });
   });
 
@@ -35,13 +35,14 @@ describe('CasesEventBus', () => {
     eventBus.onCaseUpdated(listener);
     eventBus.emitCaseUpdated(metadata, {
       caseId: 'case-1',
+      owner: 'securitySolution',
       updatedFields: ['status'],
     });
 
     expect(listener).toHaveBeenCalledWith({
       type: 'caseUpdated',
       metadata,
-      payload: { caseId: 'case-1', updatedFields: ['status'] },
+      payload: { caseId: 'case-1', owner: 'securitySolution', updatedFields: ['status'] },
     });
   });
 
@@ -51,7 +52,11 @@ describe('CasesEventBus', () => {
 
     eventBus.onCommentAdded(listener);
     eventBus.removeCommentAddedListener(listener);
-    eventBus.emitCommentAdded(metadata, { caseId: 'case-1', caseCommentIds: [] });
+    eventBus.emitCommentAdded(metadata, {
+      caseId: 'case-1',
+      caseCommentIds: [],
+      owner: 'securitySolution',
+    });
 
     expect(listener).not.toHaveBeenCalled();
   });

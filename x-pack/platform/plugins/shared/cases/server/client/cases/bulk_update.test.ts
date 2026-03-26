@@ -80,6 +80,7 @@ describe('update', () => {
         clientArgs.casesEventMetadata,
         {
           caseId: mockCases[0].id,
+          owner: mockCases[0].attributes.owner,
           updatedFields: ['assignees'],
         }
       );

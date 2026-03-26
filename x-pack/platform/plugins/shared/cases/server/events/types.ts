@@ -6,6 +6,7 @@
  */
 
 import type { KibanaRequest } from '@kbn/core/server';
+import type { Owner } from '../../common/constants/types';
 
 /**
  * Base metadata carried with every Cases domain event for routing.
@@ -18,14 +19,18 @@ export interface CasesEventMetadata {
 /**
  * Event: case created
  */
-export interface CaseCreatedEventPayload {
+interface BaseCaseEventPayload {
+  readonly owner: Owner;
+}
+
+export interface CaseCreatedEventPayload extends BaseCaseEventPayload {
   readonly caseId: string;
 }
 
 /**
  * Event: case updated
  */
-export interface CaseUpdatedEventPayload {
+export interface CaseUpdatedEventPayload extends BaseCaseEventPayload {
   readonly caseId: string;
   readonly updatedFields?: string[];
 }
@@ -33,7 +38,7 @@ export interface CaseUpdatedEventPayload {
 /**
  * Event: comment added
  */
-export interface CommentAddedEventPayload {
+export interface CommentAddedEventPayload extends BaseCaseEventPayload {
   readonly caseId: string;
   readonly caseCommentIds: string[];
 }

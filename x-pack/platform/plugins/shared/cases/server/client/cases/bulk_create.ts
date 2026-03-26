@@ -161,6 +161,7 @@ export const bulkCreate = async (
     createdCasesResponse.cases.forEach((createdCase) => {
       clientArgs.casesEventBus?.emitCaseCreated(clientArgs.casesEventMetadata, {
         caseId: createdCase.id,
+        owner: createdCase.owner,
       });
     });
 

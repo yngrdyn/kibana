@@ -23,16 +23,16 @@ export const caseUpdatedTriggerPublicDefinition: PublicTriggerDefinition = {
   documentation: {
     details: i18n.translate('xpack.cases.workflowTriggers.caseUpdated.documentation.details', {
       defaultMessage:
-        'Emitted after case updates. Use event.updatedFields to filter by which fields changed and event.caseId to match a specific case.',
+        'Emitted after case updates. Use event.updatedFields to filter by which fields changed, event.caseId to match a specific case, and event.owner to scope by case owner.',
     }),
     examples: [
       i18n.translate('xpack.cases.workflowTriggers.caseUpdated.documentation.example', {
-        defaultMessage: `## Run when case status changes
+        defaultMessage: `## Run when Security case status changes
 \`\`\`yaml
 triggers:
   - type: {triggerId}
     on:
-      condition: 'event.updatedFields: "status"'
+      condition: 'event.owner: "securitySolution" and event.updatedFields: "status"'
 \`\`\``,
         values: {
           triggerId: CaseUpdatedTriggerId,

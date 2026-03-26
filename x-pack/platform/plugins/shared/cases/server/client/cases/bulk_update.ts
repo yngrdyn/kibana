@@ -39,6 +39,7 @@ import {
   isCommentRequestTypeAlert,
 } from '../../common/utils';
 import { arraysDifference, getCaseToUpdate } from '../utils';
+import { isValidOwner } from '../../../common/utils/owner';
 import {
   dedupAssignees,
   fillMissingCustomFields,
@@ -587,11 +588,13 @@ export const bulkUpdate = async (
 
     for (const updatedCase of updatedCasesResponse) {
       const updatedFields = updatedFieldsByCaseId.get(updatedCase.id);
-
-      clientArgs.casesEventBus?.emitCaseUpdated(clientArgs.casesEventMetadata, {
-        caseId: updatedCase.id,
-        ...(updatedFields != null ? { updatedFields } : {}),
-      });
+      if (isValidOwner(updatedCase.owner)) {
+        clientArgs.casesEventBus?.emitCaseUpdated(clientArgs.casesEventMetadata, {
+          caseId: updatedCase.id,
+          owner: updatedCase.owner,
+          ...(updatedFields != null ? { updatedFields } : {}),
+        });
+      }
     }
 
     return updatedCasesResponse;

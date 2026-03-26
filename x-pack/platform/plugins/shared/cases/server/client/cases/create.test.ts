@@ -56,6 +56,7 @@ describe('create', () => {
         clientArgs.casesEventMetadata,
         {
           caseId: caseSO.id,
+          owner: caseSO.attributes.owner,
         }
       );
     });

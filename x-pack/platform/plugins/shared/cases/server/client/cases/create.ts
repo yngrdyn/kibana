@@ -149,6 +149,7 @@ export const create = async (
 
     clientArgs.casesEventBus?.emitCaseCreated(clientArgs.casesEventMetadata, {
       caseId: createdCase.id,
+      owner: createdCase.owner,
     });
 
     return createdCase;

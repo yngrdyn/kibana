@@ -28,14 +28,17 @@ describe('registerCasesWorkflowEventBridge', () => {
 
     registerCasesWorkflowEventBridge(eventBus, workflowsExtensions, logger);
 
-    eventBus.emitCaseCreated({ request, spaceId: 'default' }, { caseId: 'case-1' });
+    eventBus.emitCaseCreated(
+      { request, spaceId: 'default' },
+      { caseId: 'case-1', owner: 'securitySolution' }
+    );
     eventBus.emitCaseUpdated(
       { request, spaceId: 'default' },
-      { caseId: 'case-1', updatedFields: ['status'] }
+      { caseId: 'case-1', owner: 'securitySolution', updatedFields: ['status'] }
     );
     eventBus.emitCommentAdded(
       { request, spaceId: 'default' },
-      { caseId: 'case-1', caseCommentIds: [] }
+      { caseId: 'case-1', caseCommentIds: [], owner: 'securitySolution' }
     );
 
     await flushMicrotasks();
@@ -43,19 +46,19 @@ describe('registerCasesWorkflowEventBridge', () => {
     expect(workflowsExtensions.emitEvent).toHaveBeenCalledTimes(3);
     expect(workflowsExtensions.emitEvent).toHaveBeenNthCalledWith(1, {
       triggerId: CaseCreatedTriggerId,
-      payload: { caseId: 'case-1' },
+      payload: { caseId: 'case-1', owner: 'securitySolution' },
       request,
       spaceId: 'default',
     });
     expect(workflowsExtensions.emitEvent).toHaveBeenNthCalledWith(2, {
       triggerId: CaseUpdatedTriggerId,
-      payload: { caseId: 'case-1', updatedFields: ['status'] },
+      payload: { caseId: 'case-1', owner: 'securitySolution', updatedFields: ['status'] },
       request,
       spaceId: 'default',
     });
     expect(workflowsExtensions.emitEvent).toHaveBeenNthCalledWith(3, {
       triggerId: CommentAddedTriggerId,
-      payload: { caseId: 'case-1', caseCommentIds: [] },
+      payload: { caseId: 'case-1', caseCommentIds: [], owner: 'securitySolution' },
       request,
       spaceId: 'default',
     });
@@ -70,7 +73,10 @@ describe('registerCasesWorkflowEventBridge', () => {
     workflowsExtensions.emitEvent.mockRejectedValue(new Error('boom'));
     registerCasesWorkflowEventBridge(eventBus, workflowsExtensions, logger);
 
-    eventBus.emitCaseCreated({ request, spaceId: 'default' }, { caseId: 'case-1' });
+    eventBus.emitCaseCreated(
+      { request, spaceId: 'default' },
+      { caseId: 'case-1', owner: 'securitySolution' }
+    );
 
     await flushMicrotasks();
 

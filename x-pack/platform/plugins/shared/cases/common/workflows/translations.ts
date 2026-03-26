@@ -136,6 +136,13 @@ export const CASE_CREATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION = i18n.transl
   }
 );
 
+export const CASE_TRIGGER_EVENT_SCHEMA_OWNER_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.case.eventSchema.owner',
+  {
+    defaultMessage: 'The owner of the case.',
+  }
+);
+
 export const CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION = i18n.translate(
   'xpack.cases.workflowTriggers.caseUpdated.eventSchema.caseId',
   {

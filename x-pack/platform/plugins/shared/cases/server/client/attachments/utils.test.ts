@@ -10,7 +10,7 @@ import { createCasesClientMockArgs } from '../mocks';
 import { emitCommentAddedEvent } from './trigger_utils';
 
 const makeCase = (id: string, comments: Array<{ id: string }>): Case =>
-  ({ id, comments } as unknown as Case);
+  ({ id, comments, owner: 'securitySolution' } as unknown as Case);
 
 describe('emitCommentAddedEvent', () => {
   it('emits commentAdded with the matching comment ids', () => {
@@ -23,7 +23,7 @@ describe('emitCommentAddedEvent', () => {
 
     expect(clientArgs.casesEventBus.emitCommentAdded).toHaveBeenCalledWith(
       clientArgs.casesEventMetadata,
-      { caseId: 'case-1', caseCommentIds: ['comment-1'] }
+      { caseId: 'case-1', caseCommentIds: ['comment-1'], owner: 'securitySolution' }
     );
   });
 

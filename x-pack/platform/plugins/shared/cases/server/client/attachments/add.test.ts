@@ -153,6 +153,7 @@ describe('addComment', () => {
       expect.objectContaining({
         caseId,
         caseCommentIds: expect.any(Array),
+        owner: SECURITY_SOLUTION_OWNER,
       })
     );
   });

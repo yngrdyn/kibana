@@ -16,5 +16,6 @@ export function emitCommentAddedEvent(
   clientArgs.casesEventBus?.emitCommentAdded(clientArgs.casesEventMetadata, {
     caseId: updatedCase.id,
     caseCommentIds: newCommentIds,
+    owner: updatedCase.owner,
   });
 }
