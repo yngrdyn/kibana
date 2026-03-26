@@ -550,8 +550,9 @@ export const bulkUpdate = async (
 
     const builtUserActions =
       userActionsDict != null
-        ? Object.keys(userActionsDict).reduce<UserActionEvent[]>((acc, key) => {
-            return [...acc, ...userActionsDict[key]];
+        ? Object.values(userActionsDict).reduce<UserActionEvent[]>((acc, userActions) => {
+            acc.push(...userActions);
+            return acc;
           }, [])
         : [];
 
@@ -568,21 +569,30 @@ export const bulkUpdate = async (
     await notificationService.bulkNotifyAssignees(casesAndAssigneesToNotifyForAssignment);
 
     const updatedCasesResponse = decodeOrThrow(CasesRt)(returnUpdatedCase);
+    const updatedFieldsByCaseId = query.cases.reduce<Map<string, string[]>>((acc, updateCase) => {
+      // Keep first occurrence for duplicate ids handling.
+      if (acc.has(updateCase.id)) {
+        return acc;
+      }
 
-    updatedCasesResponse.forEach((updatedCase) => {
-      const matchingUpdate = query.cases.find((theCase) => theCase.id === updatedCase.id);
-      const updatedFields =
-        matchingUpdate != null
-          ? Object.keys(matchingUpdate).filter((key) => key !== 'id' && key !== 'version')
-          : undefined;
+      const updatedFields = Object.keys(updateCase).filter(
+        (key) => key !== 'id' && key !== 'version'
+      );
+      if (updatedFields.length > 0) {
+        acc.set(updateCase.id, updatedFields);
+      }
+
+      return acc;
+    }, new Map());
+
+    for (const updatedCase of updatedCasesResponse) {
+      const updatedFields = updatedFieldsByCaseId.get(updatedCase.id);
 
       clientArgs.casesEventBus?.emitCaseUpdated(clientArgs.casesEventMetadata, {
         caseId: updatedCase.id,
-        ...(updatedFields != null && updatedFields.length > 0
-          ? { updated_fields: updatedFields }
-          : {}),
+        ...(updatedFields != null ? { updated_fields: updatedFields } : {}),
       });
-    });
+    }
 
     return updatedCasesResponse;
   } catch (error) {
