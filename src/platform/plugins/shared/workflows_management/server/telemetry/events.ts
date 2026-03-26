@@ -15,7 +15,6 @@ export interface TriggerEventDispatchedTelemetryEvent {
   triggerId: string;
   executionEnabled: boolean;
   logEventsEnabled: boolean;
-  earlyExit: boolean;
   /** True when execution is off but trigger-event audit logging still runs. */
   auditOnly: boolean;
   /** Time spent resolving/filtering subscribed workflows before scheduling decisions (ms). */
@@ -46,10 +45,6 @@ export const triggerEventDispatchedSchema: RootSchema<TriggerEventDispatchedTele
   logEventsEnabled: {
     type: 'boolean',
     _meta: { description: 'Whether trigger event audit logging is enabled', optional: false },
-  },
-  earlyExit: {
-    type: 'boolean',
-    _meta: { description: 'True when handler exits before resolution/scheduling', optional: false },
   },
   auditOnly: {
     type: 'boolean',

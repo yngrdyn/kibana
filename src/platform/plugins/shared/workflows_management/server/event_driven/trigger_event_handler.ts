@@ -20,7 +20,6 @@ import type {
   ResolveMatchingWorkflowSubscriptionsResult,
 } from './resolve_workflow_subscriptions';
 import {
-  createEmptyTriggerResolutionStats,
   createEmptyTriggerScheduleStats,
   type TriggerEventScheduleStats,
 } from './trigger_event_stats';
@@ -208,13 +207,6 @@ export function createTriggerEventHandler({
       logger.debug(
         'Event-driven execution is disabled (eventDrivenExecutionEnabled: false); skipping workflow scheduling.'
       );
-      reportDispatchedEvent({
-        ...baseTelemetry,
-        earlyExit: true,
-        auditOnly: false,
-        ...createEmptyTriggerResolutionStats(),
-        ...createEmptyTriggerScheduleStats(),
-      });
       return;
     }
 
@@ -262,7 +254,6 @@ export function createTriggerEventHandler({
     }
     reportDispatchedEvent({
       ...baseTelemetry,
-      earlyExit: false,
       auditOnly: !executionEnabled && logEventsEnabled,
       subscriberResolutionMs,
       ...resolutionStats,

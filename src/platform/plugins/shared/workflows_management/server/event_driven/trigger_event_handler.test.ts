@@ -267,15 +267,7 @@ describe('createTriggerEventHandler', () => {
     expect(mockLogger.debug).toHaveBeenCalledWith(
       'Event-driven execution is disabled (eventDrivenExecutionEnabled: false); skipping workflow scheduling.'
     );
-    expect(telemetryClient.reportTriggerEventDispatched).toHaveBeenCalledWith(
-      expect.objectContaining({
-        triggerId: 'cases.updated',
-        executionEnabled: false,
-        logEventsEnabled: false,
-        earlyExit: true,
-        auditOnly: false,
-      })
-    );
+    expect(telemetryClient.reportTriggerEventDispatched).not.toHaveBeenCalled();
   });
 
   it('should resolve and write trigger event but not schedule when execution is disabled and logEvents is enabled', async () => {
@@ -335,7 +327,6 @@ describe('createTriggerEventHandler', () => {
         triggerId,
         executionEnabled: false,
         logEventsEnabled: true,
-        earlyExit: false,
         auditOnly: true,
         subscriberResolutionMs: expect.any(Number),
         matchedCount: 1,
@@ -394,7 +385,6 @@ describe('createTriggerEventHandler', () => {
         triggerId,
         executionEnabled: true,
         logEventsEnabled: false,
-        earlyExit: false,
         auditOnly: false,
         subscriberResolutionMs: expect.any(Number),
         matchedCount: 1,
