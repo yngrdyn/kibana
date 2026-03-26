@@ -75,11 +75,13 @@ describe('update', () => {
     it('emits caseUpdated events for updated cases', async () => {
       await bulkUpdate(cases, clientArgs, casesClientMock);
 
+      expect(clientArgs.casesEventBus.emitCaseUpdated).toHaveBeenCalledTimes(1);
       expect(clientArgs.casesEventBus.emitCaseUpdated).toHaveBeenCalledWith(
         clientArgs.casesEventMetadata,
-        expect.objectContaining({
+        {
           caseId: mockCases[0].id,
-        })
+          updated_fields: ['assignees'],
+        }
       );
     });
 
