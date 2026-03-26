@@ -29,14 +29,14 @@
 export const APPROVED_TRIGGER_DEFINITIONS: Array<{ id: string; schemaHash: string }> = [
   {
     id: 'cases.caseCreated',
-    schemaHash: '93307750c1c97f052ac7b32622b537fac4bd90c06ccd013e61e06a8431ac8d7c',
+    schemaHash: 'a1cb488a107224d6e2dd82526b142105f825e02021d451f1464384ea048657d9',
   },
   {
     id: 'cases.caseUpdated',
-    schemaHash: '50371cd51ca4cc1134a931a79d0afd7d07a2864f1373cae317c41f151fbb6864',
+    schemaHash: 'fd2bd8fbd9abdd9ee35c9706775e1aca1ceb8734ff975c357cd5c5312ded86be',
   },
   {
     id: 'cases.commentAdded',
-    schemaHash: '7df948ac64d551ac6c2319b59fcc8bd08afee46ed40cf8fe6f63a80835d63eeb',
+    schemaHash: '4f3fd27ec765e3cee8492dca2f775c88c6e913ef208e84b0ba749db644f94bf3',
   },
 ];
