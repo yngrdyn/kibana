@@ -156,7 +156,15 @@ export const bulkCreate = async (
       })
     );
 
-    return decodeOrThrow(BulkCreateCasesResponseRt)({ cases: res });
+    const createdCasesResponse = decodeOrThrow(BulkCreateCasesResponseRt)({ cases: res });
+
+    createdCasesResponse.cases.forEach((createdCase) => {
+      clientArgs.casesEventBus?.emitCaseCreated(clientArgs.casesEventMetadata, {
+        caseId: createdCase.id,
+      });
+    });
+
+    return createdCasesResponse;
   } catch (error) {
     throw createCaseError({ message: `Failed to bulk create cases: ${error}`, error, logger });
   }
