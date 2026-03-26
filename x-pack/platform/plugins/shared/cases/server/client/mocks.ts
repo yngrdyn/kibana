@@ -275,7 +275,6 @@ export const createCasesClientMockArgs = () => {
     casesEventMetadata: {
       request: httpServerMock.createKibanaRequest(),
       spaceId: 'default',
-      source: 'api' as const,
     },
   };
 };

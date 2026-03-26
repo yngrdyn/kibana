@@ -9,17 +9,11 @@ import type { KibanaRequest } from '@kbn/core/server';
 import type { Case } from '../../common/types/domain';
 
 /**
- * Source of a Cases domain event. Used for recursion prevention in the workflow bridge.
- */
-export type CasesEventSource = 'api' | 'workflowStep' | 'connector' | 'system';
-
-/**
- * Base metadata carried with every Cases domain event for routing and recursion control.
+ * Base metadata carried with every Cases domain event for routing.
  */
 export interface CasesEventMetadata {
   readonly request: KibanaRequest;
   readonly spaceId: string;
-  readonly source: CasesEventSource;
 }
 
 /**

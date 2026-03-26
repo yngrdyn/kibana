@@ -58,7 +58,6 @@ import type { CasesServices } from './types';
 import { LicensingService } from '../services/licensing';
 import { EmailNotificationService } from '../services/notifications/email_notification_service';
 import type { ConfigType } from '../config';
-import type { CasesEventSource } from '../events/types';
 import type { CasesEventBus } from '../events/event_bus';
 import { getSavedObjectsTypes } from '../../common';
 
@@ -113,18 +112,15 @@ export class CasesClientFactory {
   /**
    * Creates a cases client for the current request. This request will be used to authorize the operations done through
    * the client.
-   * @param source - Event source for workflow trigger recursion prevention. Defaults to 'api'.
    */
   public async create({
     request,
     scopedClusterClient,
     savedObjectsService,
-    source = 'api',
   }: {
     request: KibanaRequest;
     savedObjectsService: SavedObjectsServiceStart;
     scopedClusterClient: ElasticsearchClient;
-    source?: CasesEventSource;
   }): Promise<CasesClient> {
     this.validateInitialization();
 
@@ -166,7 +162,6 @@ export class CasesClientFactory {
     const casesEventMetadata = {
       request,
       spaceId,
-      source,
     };
 
     return createCasesClient({

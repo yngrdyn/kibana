@@ -12,7 +12,6 @@ describe('CasesEventBus', () => {
   const metadata = {
     request: httpServerMock.createKibanaRequest(),
     spaceId: 'default',
-    source: 'api' as const,
   };
 
   it('emits case created events', () => {

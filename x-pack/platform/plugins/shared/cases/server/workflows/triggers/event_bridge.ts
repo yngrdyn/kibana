@@ -7,7 +7,6 @@
 
 import type { KibanaRequest, Logger } from '@kbn/core/server';
 import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
-import type { CasesEventSource } from '../../events/types';
 import type { CasesEventBus } from '../../events/event_bus';
 import {
   CaseCreatedTriggerId,
@@ -17,7 +16,6 @@ import {
 
 /**
  * Registers bridge listeners that forward Cases domain events to workflows_extensions.
- * Skips forwarding when event source is 'workflowStep' to prevent recursion.
  */
 export function registerCasesWorkflowEventBridge(
   casesEventBus: CasesEventBus,
@@ -31,12 +29,8 @@ export function registerCasesWorkflowEventBridge(
   const forward = async (
     eventType: string,
     payload: unknown,
-    metadata: { request: KibanaRequest; spaceId: string; source: CasesEventSource }
+    metadata: { request: KibanaRequest; spaceId: string }
   ) => {
-    if (metadata.source === 'workflowStep') {
-      return;
-    }
-
     try {
       await workflowsExtensions.emitEvent({
         triggerId: eventType,

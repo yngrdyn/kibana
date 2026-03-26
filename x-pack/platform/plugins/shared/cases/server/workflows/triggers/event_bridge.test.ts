@@ -28,18 +28,12 @@ describe('registerCasesWorkflowEventBridge', () => {
 
     registerCasesWorkflowEventBridge(eventBus, workflowsExtensions, logger);
 
-    eventBus.emitCaseCreated(
-      { request, spaceId: 'default', source: 'api' },
-      { case: { id: 'case-1' } }
-    );
+    eventBus.emitCaseCreated({ request, spaceId: 'default' }, { case: { id: 'case-1' } });
     eventBus.emitCaseUpdated(
-      { request, spaceId: 'default', source: 'api' },
+      { request, spaceId: 'default' },
       { case: { id: 'case-1' }, updatedFields: ['status'] }
     );
-    eventBus.emitCommentAdded(
-      { request, spaceId: 'default', source: 'api' },
-      { caseId: 'case-1', comments: [] }
-    );
+    eventBus.emitCommentAdded({ request, spaceId: 'default' }, { caseId: 'case-1', comments: [] });
 
     await flushMicrotasks();
 
@@ -64,24 +58,6 @@ describe('registerCasesWorkflowEventBridge', () => {
     });
   });
 
-  it('does not forward events emitted from workflow steps', async () => {
-    const eventBus = new CasesEventBus();
-    const workflowsExtensions = workflowsExtensionsMock.createStart();
-    const logger = loggingSystemMock.createLogger();
-    const request = httpServerMock.createKibanaRequest();
-
-    registerCasesWorkflowEventBridge(eventBus, workflowsExtensions, logger);
-
-    eventBus.emitCaseCreated(
-      { request, spaceId: 'default', source: 'workflowStep' },
-      { case: { id: 'case-1' } }
-    );
-
-    await flushMicrotasks();
-
-    expect(workflowsExtensions.emitEvent).not.toHaveBeenCalled();
-  });
-
   it('logs warning when forwarding fails', async () => {
     const eventBus = new CasesEventBus();
     const workflowsExtensions = workflowsExtensionsMock.createStart();
@@ -91,10 +67,7 @@ describe('registerCasesWorkflowEventBridge', () => {
     workflowsExtensions.emitEvent.mockRejectedValue(new Error('boom'));
     registerCasesWorkflowEventBridge(eventBus, workflowsExtensions, logger);
 
-    eventBus.emitCaseCreated(
-      { request, spaceId: 'default', source: 'api' },
-      { case: { id: 'case-1' } }
-    );
+    eventBus.emitCaseCreated({ request, spaceId: 'default' }, { case: { id: 'case-1' } });
 
     await flushMicrotasks();
 

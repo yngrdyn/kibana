@@ -55,7 +55,6 @@ import type { ServerlessProjectType } from '../common/constants/types';
 import { IncrementalIdTaskManager } from './tasks/incremental_id/incremental_id_task_manager';
 import { createCasesAnalyticsIndexes, registerCasesAnalyticsIndexesTasks } from './cases_analytics';
 import { scheduleCAISchedulerTask } from './cases_analytics/tasks/scheduler_task';
-import type { CasesEventSource } from './events/types';
 import { CasesEventBus } from './events/event_bus';
 import { registerCaseWorkflowSteps } from './workflows';
 import { registerCaseWorkflowTriggers } from './workflows/triggers';
@@ -194,11 +193,6 @@ export class CasePlugin
       return this.getCasesClientWithRequest(coreStart)(request);
     };
 
-    const getCasesClientForWorkflowSteps = async (request: KibanaRequest): Promise<CasesClient> => {
-      const [coreStart] = await core.getStartServices();
-      return this.getCasesClientWithRequest(coreStart)(request, 'workflowStep');
-    };
-
     const getSpaceId = (request?: KibanaRequest) => {
       if (!request) {
         return DEFAULT_SPACE_ID;
@@ -222,7 +216,7 @@ export class CasePlugin
       isCasesAttachmentsEnabled: this.caseConfig.attachments?.enabled === true,
     });
 
-    registerCaseWorkflowSteps(plugins.workflowsExtensions, getCasesClientForWorkflowSteps);
+    registerCaseWorkflowSteps(plugins.workflowsExtensions, getCasesClient);
     registerCaseWorkflowTriggers(plugins.workflowsExtensions);
 
     return {
@@ -349,14 +343,13 @@ export class CasePlugin
 
   private getCasesClientWithRequest =
     (core: CoreStart) =>
-    async (request: KibanaRequest, source: CasesEventSource = 'api'): Promise<CasesClient> => {
+    async (request: KibanaRequest): Promise<CasesClient> => {
       const client = core.elasticsearch.client;
 
       return this.clientFactory.create({
         request,
         scopedClusterClient: client.asScoped(request).asCurrentUser,
         savedObjectsService: core.savedObjects,
-        source,
       });
     };
 }
