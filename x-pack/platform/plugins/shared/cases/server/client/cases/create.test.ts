@@ -55,7 +55,7 @@ describe('create', () => {
       expect(clientArgs.casesEventBus.emitCaseCreated).toHaveBeenCalledWith(
         clientArgs.casesEventMetadata,
         {
-          case: expect.objectContaining({ id: caseSO.id }),
+          caseId: caseSO.id,
         }
       );
     });

@@ -24,31 +24,9 @@ export const commentAddedTriggerPublicDefinition: PublicTriggerDefinition = {
   documentation: {
     details: i18n.translate('xpack.cases.workflowTriggers.commentAdded.documentation.details', {
       defaultMessage:
-        'Emitted after new comments are attached to a case. The payload includes event.caseId and event.comments (only the comments added in that operation). Use KQL on event.* for trigger conditions. In steps, use context.event (for example context.event.comments) with the data.map step to iterate each added comment.',
+        'Emitted after new comments are attached to a case. The payload includes event.caseId and event.caseCommentIds (only IDs added in that operation). Use KQL on event.* for trigger conditions.',
     }),
     examples: [
-      i18n.translate('xpack.cases.workflowTriggers.commentAdded.documentation.exampleMapComments', {
-        defaultMessage: `## Map each added comment
-Use {mapStepType} to walk \`context.event.comments\`. User comments (\`item.type\` is \`user\`) include \`item.comment\` text; alert comments use fields such as \`item.rule\` and \`item.alertId\` instead.
-
-\`\`\`yaml
-triggers:
-  - type: {triggerId}
-steps:
-  - name: each_added_comment
-    type: {mapStepType}
-    items: "\${{ context.event.comments }}"
-    with:
-      fields:
-        comment_id: "\${{ item.id }}"
-        comment_type: "\${{ item.type }}"
-        comment_text: "\${{ item.comment }}"
-\`\`\``,
-        values: {
-          triggerId: CommentAddedTriggerId,
-          mapStepType: DataMapStepTypeId,
-        },
-      }),
       i18n.translate('xpack.cases.workflowTriggers.commentAdded.documentation.exampleCaseFilter', {
         defaultMessage: `## Run only for a specific case
 \`\`\`yaml
@@ -61,6 +39,29 @@ triggers:
           triggerId: CommentAddedTriggerId,
         },
       }),
+      i18n.translate(
+        'xpack.cases.workflowTriggers.commentAdded.documentation.exampleMapCommentIds',
+        {
+          defaultMessage: `## Map each added comment ID
+Use {mapStepType} to walk \`context.event.caseCommentIds\`.
+
+\`\`\`yaml
+triggers:
+  - type: {triggerId}
+steps:
+  - name: each_added_comment_id
+    type: {mapStepType}
+    items: "\${{ context.event.caseCommentIds }}"
+    with:
+      fields:
+        comment_id: "\${{ item }}"
+\`\`\``,
+          values: {
+            triggerId: CommentAddedTriggerId,
+            mapStepType: DataMapStepTypeId,
+          },
+        }
+      ),
     ],
   },
   snippets: {

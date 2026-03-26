@@ -13,7 +13,7 @@ const makeCase = (id: string, comments: Array<{ id: string }>): Case =>
   ({ id, comments } as unknown as Case);
 
 describe('emitCommentAddedEvent', () => {
-  it('emits commentAdded with the matching comments filtered by id', () => {
+  it('emits commentAdded with the matching comment ids', () => {
     const clientArgs = createCasesClientMockArgs();
     const comment1 = { id: 'comment-1' };
     const comment2 = { id: 'comment-2' };
@@ -23,46 +23,7 @@ describe('emitCommentAddedEvent', () => {
 
     expect(clientArgs.casesEventBus.emitCommentAdded).toHaveBeenCalledWith(
       clientArgs.casesEventMetadata,
-      { caseId: 'case-1', comments: [comment1] }
-    );
-  });
-
-  it('emits all comments whose ids are in newCommentIds', () => {
-    const clientArgs = createCasesClientMockArgs();
-    const comment1 = { id: 'comment-1' };
-    const comment2 = { id: 'comment-2' };
-    const comment3 = { id: 'comment-3' };
-    const updatedCase = makeCase('case-1', [comment1, comment2, comment3]);
-
-    emitCommentAddedEvent(clientArgs, updatedCase, ['comment-1', 'comment-3']);
-
-    expect(clientArgs.casesEventBus.emitCommentAdded).toHaveBeenCalledWith(
-      clientArgs.casesEventMetadata,
-      { caseId: 'case-1', comments: [comment1, comment3] }
-    );
-  });
-
-  it('emits empty comments array when no ids match', () => {
-    const clientArgs = createCasesClientMockArgs();
-    const updatedCase = makeCase('case-1', [{ id: 'comment-1' }]);
-
-    emitCommentAddedEvent(clientArgs, updatedCase, ['comment-99']);
-
-    expect(clientArgs.casesEventBus.emitCommentAdded).toHaveBeenCalledWith(
-      clientArgs.casesEventMetadata,
-      { caseId: 'case-1', comments: [] }
-    );
-  });
-
-  it('emits empty comments array when updatedCase.comments is undefined', () => {
-    const clientArgs = createCasesClientMockArgs();
-    const updatedCase = makeCase('case-1', undefined as unknown as []);
-
-    emitCommentAddedEvent(clientArgs, updatedCase, ['comment-1']);
-
-    expect(clientArgs.casesEventBus.emitCommentAdded).toHaveBeenCalledWith(
-      clientArgs.casesEventMetadata,
-      { caseId: 'case-1', comments: [] }
+      { caseId: 'case-1', caseCommentIds: ['comment-1'] }
     );
   });
 

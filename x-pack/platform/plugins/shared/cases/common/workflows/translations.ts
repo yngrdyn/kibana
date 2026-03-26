@@ -129,17 +129,17 @@ export const CASE_NOT_FOUND_MESSAGE = (caseId: string) =>
     values: { caseId },
   });
 
-export const CASE_CREATED_TRIGGER_EVENT_SCHEMA_CASE_DESCRIPTION = i18n.translate(
-  'xpack.cases.workflowTriggers.caseCreated.eventSchema.case',
+export const CASE_CREATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.caseCreated.eventSchema.caseId',
   {
-    defaultMessage: 'The created case.',
+    defaultMessage: 'The ID of the created case.',
   }
 );
 
-export const CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_DESCRIPTION = i18n.translate(
-  'xpack.cases.workflowTriggers.caseUpdated.eventSchema.case',
+export const CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.caseUpdated.eventSchema.caseId',
   {
-    defaultMessage: 'The updated case.',
+    defaultMessage: 'The ID of the updated case.',
   }
 );
 
@@ -157,9 +157,9 @@ export const COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION = i18n.trans
   }
 );
 
-export const COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_COMMENTS_DESCRIPTION = i18n.translate(
-  'xpack.cases.workflowTriggers.commentAdded.eventSchema.comments',
+export const COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_COMMENT_IDS_DESCRIPTION = i18n.translate(
+  'xpack.cases.workflowTriggers.commentAdded.eventSchema.caseCommentIds',
   {
-    defaultMessage: 'The comments that were added.',
+    defaultMessage: 'The IDs of comments that were added.',
   }
 );

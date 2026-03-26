@@ -28,31 +28,34 @@ describe('registerCasesWorkflowEventBridge', () => {
 
     registerCasesWorkflowEventBridge(eventBus, workflowsExtensions, logger);
 
-    eventBus.emitCaseCreated({ request, spaceId: 'default' }, { case: { id: 'case-1' } });
+    eventBus.emitCaseCreated({ request, spaceId: 'default' }, { caseId: 'case-1' });
     eventBus.emitCaseUpdated(
       { request, spaceId: 'default' },
-      { case: { id: 'case-1' }, updatedFields: ['status'] }
+      { caseId: 'case-1', updated_fields: ['status'] }
     );
-    eventBus.emitCommentAdded({ request, spaceId: 'default' }, { caseId: 'case-1', comments: [] });
+    eventBus.emitCommentAdded(
+      { request, spaceId: 'default' },
+      { caseId: 'case-1', caseCommentIds: [] }
+    );
 
     await flushMicrotasks();
 
     expect(workflowsExtensions.emitEvent).toHaveBeenCalledTimes(3);
     expect(workflowsExtensions.emitEvent).toHaveBeenNthCalledWith(1, {
       triggerId: CaseCreatedTriggerId,
-      payload: { case: { id: 'case-1' } },
+      payload: { caseId: 'case-1' },
       request,
       spaceId: 'default',
     });
     expect(workflowsExtensions.emitEvent).toHaveBeenNthCalledWith(2, {
       triggerId: CaseUpdatedTriggerId,
-      payload: { case: { id: 'case-1' }, updatedFields: ['status'] },
+      payload: { caseId: 'case-1', updated_fields: ['status'] },
       request,
       spaceId: 'default',
     });
     expect(workflowsExtensions.emitEvent).toHaveBeenNthCalledWith(3, {
       triggerId: CommentAddedTriggerId,
-      payload: { caseId: 'case-1', comments: [] },
+      payload: { caseId: 'case-1', caseCommentIds: [] },
       request,
       spaceId: 'default',
     });
@@ -67,7 +70,7 @@ describe('registerCasesWorkflowEventBridge', () => {
     workflowsExtensions.emitEvent.mockRejectedValue(new Error('boom'));
     registerCasesWorkflowEventBridge(eventBus, workflowsExtensions, logger);
 
-    eventBus.emitCaseCreated({ request, spaceId: 'default' }, { case: { id: 'case-1' } });
+    eventBus.emitCaseCreated({ request, spaceId: 'default' }, { caseId: 'case-1' });
 
     await flushMicrotasks();
 

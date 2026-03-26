@@ -78,7 +78,7 @@ describe('update', () => {
       expect(clientArgs.casesEventBus.emitCaseUpdated).toHaveBeenCalledWith(
         clientArgs.casesEventMetadata,
         expect.objectContaining({
-          case: expect.objectContaining({ id: mockCases[0].id }),
+          caseId: mockCases[0].id,
         })
       );
     });

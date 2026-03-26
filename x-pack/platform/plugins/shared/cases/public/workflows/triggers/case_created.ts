@@ -23,16 +23,16 @@ export const caseCreatedTriggerPublicDefinition: PublicTriggerDefinition = {
   documentation: {
     details: i18n.translate('xpack.cases.workflowTriggers.caseCreated.documentation.details', {
       defaultMessage:
-        'Emitted after a case is created. Use event.case fields in trigger conditions (for example event.case.owner or event.case.severity).',
+        'Emitted after a case is created. The payload includes event.caseId, which you can use in trigger conditions.',
     }),
     examples: [
       i18n.translate('xpack.cases.workflowTriggers.caseCreated.documentation.example', {
-        defaultMessage: `## Run for Security Solution cases
+        defaultMessage: `## Run for a specific case
 \`\`\`yaml
 triggers:
   - type: {triggerId}
     on:
-      condition: 'event.case.owner: "securitySolution"'
+      condition: 'event.caseId: "YOUR_CASE_ID"'
 \`\`\``,
         values: {
           triggerId: CaseCreatedTriggerId,
@@ -41,6 +41,6 @@ triggers:
     ],
   },
   snippets: {
-    condition: 'event.case.owner: "securitySolution"',
+    condition: 'event.caseId: "YOUR_CASE_ID"',
   },
 };

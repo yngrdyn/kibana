@@ -6,7 +6,6 @@
  */
 
 import type { KibanaRequest } from '@kbn/core/server';
-import type { Case } from '../../common/types/domain';
 
 /**
  * Base metadata carried with every Cases domain event for routing.
@@ -17,24 +16,18 @@ export interface CasesEventMetadata {
 }
 
 /**
- * Case shape shared by cases domain events.
- * Requires an id while preserving known Case fields when present.
- */
-export type CasesEventCase = Pick<Case, 'id'> & Partial<Omit<Case, 'id'>>;
-
-/**
  * Event: case created
  */
 export interface CaseCreatedEventPayload {
-  readonly case: CasesEventCase;
+  readonly caseId: string;
 }
 
 /**
  * Event: case updated
  */
 export interface CaseUpdatedEventPayload {
-  readonly case: CasesEventCase;
-  readonly updatedFields?: string[];
+  readonly caseId: string;
+  readonly updated_fields?: string[];
 }
 
 /**
@@ -42,7 +35,7 @@ export interface CaseUpdatedEventPayload {
  */
 export interface CommentAddedEventPayload {
   readonly caseId: string;
-  readonly comments: NonNullable<Case['comments']>;
+  readonly caseCommentIds: string[];
 }
 
 export interface CasesDomainEventPayloadByType {

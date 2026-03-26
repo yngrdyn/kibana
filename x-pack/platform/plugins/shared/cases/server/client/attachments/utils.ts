@@ -13,9 +13,8 @@ export function emitCommentAddedEvent(
   updatedCase: Case,
   newCommentIds: string[]
 ): void {
-  const idSet = new Set(newCommentIds);
   clientArgs.casesEventBus?.emitCommentAdded(clientArgs.casesEventMetadata, {
     caseId: updatedCase.id,
-    comments: (updatedCase.comments ?? []).filter((c) => idSet.has(c.id)),
+    caseCommentIds: newCommentIds,
   });
 }

@@ -152,7 +152,7 @@ describe('addComment', () => {
       clientArgs.casesEventMetadata,
       expect.objectContaining({
         caseId,
-        comments: expect.any(Array),
+        caseCommentIds: expect.any(Array),
       })
     );
   });
