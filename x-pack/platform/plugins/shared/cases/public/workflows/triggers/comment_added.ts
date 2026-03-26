@@ -5,6 +5,7 @@
  * 2.0.
  */
 
+import React from 'react';
 import { i18n } from '@kbn/i18n';
 import { DataMapStepTypeId } from '@kbn/workflows-extensions/common';
 import type { PublicTriggerDefinition } from '@kbn/workflows-extensions/public';
@@ -15,6 +16,11 @@ import {
 
 export const commentAddedTriggerPublicDefinition: PublicTriggerDefinition = {
   ...commentAddedTriggerCommonDefinition,
+  icon: React.lazy(() =>
+    import('@elastic/eui/es/components/icon/assets/app_cases').then(({ icon }) => ({
+      default: icon,
+    }))
+  ),
   title: i18n.translate('xpack.cases.workflowTriggers.commentAdded.title', {
     defaultMessage: 'Cases - Comment added',
   }),
