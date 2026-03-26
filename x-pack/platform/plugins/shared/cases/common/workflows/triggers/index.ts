@@ -18,7 +18,7 @@ import {
 export const CaseCreatedTriggerId = 'cases.caseCreated' as const;
 
 const caseCreatedEventSchema = z.object({
-  caseId: z.string().describe(CASE_CREATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION),
+  caseId: z.string().meta({ description: CASE_CREATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION }),
 });
 
 export const caseCreatedTriggerCommonDefinition: CommonTriggerDefinition = {
@@ -29,11 +29,11 @@ export const caseCreatedTriggerCommonDefinition: CommonTriggerDefinition = {
 export const CaseUpdatedTriggerId = 'cases.caseUpdated' as const;
 
 const caseUpdatedEventSchema = z.object({
-  caseId: z.string().describe(CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION),
+  caseId: z.string().meta({ description: CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION }),
   updated_fields: z
     .array(z.string())
     .optional()
-    .describe(CASE_UPDATED_TRIGGER_EVENT_SCHEMA_UPDATED_FIELDS_DESCRIPTION),
+    .meta({ description: CASE_UPDATED_TRIGGER_EVENT_SCHEMA_UPDATED_FIELDS_DESCRIPTION }),
 });
 
 export const caseUpdatedTriggerCommonDefinition: CommonTriggerDefinition = {
@@ -44,10 +44,10 @@ export const caseUpdatedTriggerCommonDefinition: CommonTriggerDefinition = {
 export const CommentAddedTriggerId = 'cases.commentAdded' as const;
 
 const commentAddedEventSchema = z.object({
-  caseId: z.string().describe(COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION),
+  caseId: z.string().meta({ description: COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION }),
   caseCommentIds: z
     .array(z.string())
-    .describe(COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_COMMENT_IDS_DESCRIPTION),
+    .meta({ description: COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_COMMENT_IDS_DESCRIPTION }),
 });
 
 export const commentAddedTriggerCommonDefinition: CommonTriggerDefinition = {
