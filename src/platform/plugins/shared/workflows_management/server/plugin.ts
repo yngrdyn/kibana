@@ -6,7 +6,6 @@
  * your election, the "Elastic License 2.0", the "GNU Affero General Public
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
-
 import type {
   AnalyticsServiceStart,
   CoreSetup,
@@ -39,6 +38,7 @@ import {
   triggerEventDispatchedSchema,
   WORKFLOWS_TRIGGER_EVENT_DISPATCHED,
 } from './telemetry/events';
+import { WorkflowsAiTelemetryClient } from './telemetry/workflows_ai_telemetry_client';
 import { WorkflowsManagementTelemetryClient } from './telemetry/workflows_management_telemetry_client';
 import {
   initializeTriggerEventsClient,
@@ -72,6 +72,7 @@ export class WorkflowsPlugin
   private spaces?: SpacesServiceStart | null = null;
   private triggerEventsClient: TriggerEventsDataStreamClient | null = null;
   private analytics?: AnalyticsServiceStart;
+  private aiTelemetryClient: WorkflowsAiTelemetryClient | null = null;
 
   constructor(initializerContext: PluginInitializerContext) {
     this.logger = initializerContext.logger.get();
@@ -82,6 +83,8 @@ export class WorkflowsPlugin
     plugins: WorkflowsServerPluginSetupDeps
   ) {
     this.logger.debug('Workflows Management: Setup');
+
+    this.aiTelemetryClient = new WorkflowsAiTelemetryClient(core.analytics, this.logger);
 
     registerUISettings(core, plugins);
     core.analytics.registerEventType({
@@ -211,26 +214,7 @@ export class WorkflowsPlugin
     // Register server side APIs
     defineRoutes(router, this.api, this.logger, this.spaces, getWorkflowExecutionEngine);
 
-    void core.plugins
-      .onSetup<{ agentBuilder: AgentBuilderPluginSetupContract }>('agentBuilder')
-      .then(({ agentBuilder }) => {
-        if (agentBuilder.found) {
-          this.logger.debug(
-            'Workflows Management: Agent Builder found, registering AI integration'
-          );
-          registerWorkflowAgentBuilderIntegration({
-            agentBuilder: agentBuilder.contract,
-            logger: this.logger,
-            api,
-          });
-        }
-      })
-      .catch((err) => {
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(
-          `Workflows Management: Failed to register AI integration with Agent Builder: ${message}`
-        );
-      });
+    this.setupAiIntegration(core, api, this.aiTelemetryClient);
 
     return {
       management: api,
@@ -262,6 +246,34 @@ export class WorkflowsPlugin
     this.logger.debug('Workflows Management: Started');
 
     return {};
+  }
+
+  private setupAiIntegration(
+    core: CoreSetup<WorkflowsServerPluginStartDeps>,
+    api: WorkflowsManagementApi,
+    aiTelemetryClient: WorkflowsAiTelemetryClient
+  ): void {
+    void core.plugins
+      .onSetup<{ agentBuilder: AgentBuilderPluginSetupContract }>('agentBuilder')
+      .then(({ agentBuilder }) => {
+        if (agentBuilder.found) {
+          this.logger.debug(
+            'Workflows Management: Agent Builder found, registering AI integration'
+          );
+          registerWorkflowAgentBuilderIntegration({
+            agentBuilder: agentBuilder.contract,
+            logger: this.logger,
+            api,
+            aiTelemetryClient,
+          });
+        }
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(
+          `Workflows Management: Failed to register AI integration with Agent Builder: ${message}`
+        );
+      });
   }
 
   private async initializeTriggerEventsClient(core: CoreStart): Promise<void> {
