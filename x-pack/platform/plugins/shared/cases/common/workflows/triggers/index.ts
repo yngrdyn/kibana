@@ -9,11 +9,9 @@ import { z } from '@kbn/zod/v4';
 import type { CommonTriggerDefinition } from '@kbn/workflows-extensions/common';
 import { Owner as OwnerSchema } from '../../bundled-types.gen';
 import {
-  CASE_CREATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION,
+  CASE_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION,
   CASE_TRIGGER_EVENT_SCHEMA_OWNER_DESCRIPTION,
-  CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION,
   CASE_UPDATED_TRIGGER_EVENT_SCHEMA_UPDATED_FIELDS_DESCRIPTION,
-  COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION,
   COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_COMMENT_IDS_DESCRIPTION,
 } from '../translations';
 
@@ -21,21 +19,17 @@ export const CaseCreatedTriggerId = 'cases.caseCreated' as const;
 
 const baseCaseEventSchema = z.object({
   owner: OwnerSchema.meta({ description: CASE_TRIGGER_EVENT_SCHEMA_OWNER_DESCRIPTION }),
-});
-
-const caseCreatedEventSchema = baseCaseEventSchema.extend({
-  caseId: z.string().meta({ description: CASE_CREATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION }),
+  caseId: z.string().meta({ description: CASE_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION }),
 });
 
 export const caseCreatedTriggerCommonDefinition: CommonTriggerDefinition = {
   id: CaseCreatedTriggerId,
-  eventSchema: caseCreatedEventSchema,
+  eventSchema: baseCaseEventSchema,
 };
 
 export const CaseUpdatedTriggerId = 'cases.caseUpdated' as const;
 
 const caseUpdatedEventSchema = baseCaseEventSchema.extend({
-  caseId: z.string().meta({ description: CASE_UPDATED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION }),
   updatedFields: z
     .array(z.string())
     .optional()
@@ -50,7 +44,6 @@ export const caseUpdatedTriggerCommonDefinition: CommonTriggerDefinition = {
 export const CommentAddedTriggerId = 'cases.commentAdded' as const;
 
 const commentAddedEventSchema = baseCaseEventSchema.extend({
-  caseId: z.string().meta({ description: COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION }),
   caseCommentIds: z
     .array(z.string())
     .meta({ description: COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_COMMENT_IDS_DESCRIPTION }),
