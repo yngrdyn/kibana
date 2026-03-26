@@ -20,7 +20,6 @@ export interface TriggerEventDispatchedTelemetryEvent {
   auditOnly: boolean;
   subscribedCount: number;
   disabledCount: number;
-  noMatchingTriggerCount: number;
   kqlFalseCount: number;
   kqlErrorCount: number;
   matchedCount: number;
@@ -66,13 +65,6 @@ export const triggerEventDispatchedSchema: RootSchema<TriggerEventDispatchedTele
     type: 'integer',
     _meta: {
       description: 'Number of subscribed workflows skipped because disabled',
-      optional: false,
-    },
-  },
-  noMatchingTriggerCount: {
-    type: 'integer',
-    _meta: {
-      description: 'Number of workflows with no matching trigger block for this triggerId',
       optional: false,
     },
   },

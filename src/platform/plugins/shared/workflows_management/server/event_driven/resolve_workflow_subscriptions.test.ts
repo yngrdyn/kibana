@@ -75,7 +75,6 @@ describe('resolveMatchingWorkflowSubscriptions', () => {
     expect(result.stats).toEqual({
       subscribedCount: 2,
       disabledCount: 0,
-      noMatchingTriggerCount: 0,
       kqlFalseCount: 1,
       kqlErrorCount: 0,
       matchedCount: 1,
@@ -99,7 +98,6 @@ describe('resolveMatchingWorkflowSubscriptions', () => {
     expect(result.stats).toEqual({
       subscribedCount: 0,
       disabledCount: 0,
-      noMatchingTriggerCount: 0,
       kqlFalseCount: 0,
       kqlErrorCount: 0,
       matchedCount: 0,
@@ -186,7 +184,6 @@ describe('resolveMatchingWorkflowSubscriptions', () => {
     expect(result.stats).toEqual({
       subscribedCount: 2,
       disabledCount: 1,
-      noMatchingTriggerCount: 0,
       kqlFalseCount: 0,
       kqlErrorCount: 0,
       matchedCount: 1,

@@ -31,8 +31,6 @@ export interface TriggerResolutionStats {
   subscribedCount: number;
   /** Subscribed but workflow.disabled */
   disabledCount: number;
-  /** Enabled but no trigger block / wrong trigger id in definition */
-  noMatchingTriggerCount: number;
   /** Enabled, KQL present, evaluation is false */
   kqlFalseCount: number;
   /** Enabled, KQL threw during evaluation */
@@ -49,7 +47,6 @@ export interface ResolveMatchingWorkflowSubscriptionsResult {
 const emptyStats = (): TriggerResolutionStats => ({
   subscribedCount: 0,
   disabledCount: 0,
-  noMatchingTriggerCount: 0,
   kqlFalseCount: 0,
   kqlErrorCount: 0,
   matchedCount: 0,
@@ -76,9 +73,6 @@ export async function resolveMatchingWorkflowSubscriptions(
     switch (outcome) {
       case 'disabled':
         stats.disabledCount += 1;
-        break;
-      case 'no_matching_trigger':
-        stats.noMatchingTriggerCount += 1;
         break;
       case 'kql_false':
         stats.kqlFalseCount += 1;

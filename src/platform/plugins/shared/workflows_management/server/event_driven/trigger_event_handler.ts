@@ -99,7 +99,6 @@ const emptyScheduleStats = (): TriggerEventScheduleStats => ({
 const emptyResolutionStats = (): TriggerResolutionStats => ({
   subscribedCount: 0,
   disabledCount: 0,
-  noMatchingTriggerCount: 0,
   kqlFalseCount: 0,
   kqlErrorCount: 0,
   matchedCount: 0,

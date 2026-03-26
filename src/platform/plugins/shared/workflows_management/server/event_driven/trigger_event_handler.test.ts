@@ -20,7 +20,6 @@ function mockResolveResult(
   const stats: TriggerResolutionStats = {
     subscribedCount: workflows.length,
     disabledCount: 0,
-    noMatchingTriggerCount: 0,
     kqlFalseCount: 0,
     kqlErrorCount: 0,
     matchedCount: workflows.length,

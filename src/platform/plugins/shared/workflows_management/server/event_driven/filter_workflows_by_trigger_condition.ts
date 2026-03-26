@@ -14,12 +14,7 @@ import type { WorkflowDetailDto } from '@kbn/workflows';
 /**
  * Why a subscribed workflow did or did not match an emitted trigger event (for funnel telemetry).
  */
-export type WorkflowTriggerMatchOutcome =
-  | 'matched'
-  | 'disabled'
-  | 'no_matching_trigger'
-  | 'kql_false'
-  | 'kql_error';
+export type WorkflowTriggerMatchOutcome = 'matched' | 'disabled' | 'kql_false' | 'kql_error';
 
 /**
  * Classifies a workflow for a given trigger id and event payload (enabled gate, trigger block, KQL).
@@ -36,12 +31,12 @@ export function classifyWorkflowTriggerMatch(
 
   const triggers = workflow.definition?.triggers;
   if (!triggers || triggers.length === 0) {
-    return 'no_matching_trigger';
+    return 'kql_false';
   }
 
   const matchingTrigger = triggers.find((t) => t && t.type === triggerId);
   if (!matchingTrigger) {
-    return 'no_matching_trigger';
+    return 'kql_false';
   }
 
   const onBlock = matchingTrigger && 'on' in matchingTrigger ? matchingTrigger.on : undefined;
