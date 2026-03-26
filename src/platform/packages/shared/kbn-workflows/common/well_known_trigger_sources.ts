@@ -29,3 +29,14 @@ export const isWellKnownWorkflowTriggerSource = (
   triggeredBy: string | undefined
 ): triggeredBy is WellKnownWorkflowTriggerSource =>
   typeof triggeredBy === 'string' && triggeredBy.length > 0 && WELL_KNOWN_SET.has(triggeredBy);
+
+/**
+ * Returns true when `triggeredBy` is a custom event trigger id (non-empty and not well-known).
+ * This helper is the single source of truth for event-driven trigger-id classification.
+ */
+export const isEventDrivenWorkflowTriggerSource = (
+  triggeredBy: string | undefined
+): triggeredBy is string =>
+  typeof triggeredBy === 'string' &&
+  triggeredBy.length > 0 &&
+  !isWellKnownWorkflowTriggerSource(triggeredBy);

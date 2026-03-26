@@ -10,6 +10,7 @@
 import type { Logger } from '@kbn/core/server';
 import type { WorkflowDetailDto } from '@kbn/workflows';
 import { classifyWorkflowTriggerMatch } from './filter_workflows_by_trigger_condition';
+import { createEmptyTriggerResolutionStats } from './trigger_event_stats';
 import type { WorkflowsManagementApi } from '../api/workflows_management_api';
 
 export interface ResolveMatchingWorkflowSubscriptionsParams {
@@ -44,14 +45,6 @@ export interface ResolveMatchingWorkflowSubscriptionsResult {
   stats: TriggerResolutionStats;
 }
 
-const emptyStats = (): TriggerResolutionStats => ({
-  subscribedCount: 0,
-  disabledCount: 0,
-  kqlFalseCount: 0,
-  kqlErrorCount: 0,
-  matchedCount: 0,
-});
-
 /**
  * Resolves workflows that are subscribed to the given trigger and whose trigger
  * condition matches the event context. Also returns funnel statistics.
@@ -63,7 +56,7 @@ export async function resolveMatchingWorkflowSubscriptions(
   const { triggerId, spaceId, eventContext } = params;
   const allWorkflows = await deps.api.getWorkflowsSubscribedToTrigger(triggerId, spaceId);
 
-  const stats = emptyStats();
+  const stats = createEmptyTriggerResolutionStats();
   stats.subscribedCount = allWorkflows.length;
 
   const workflows: WorkflowDetailDto[] = [];

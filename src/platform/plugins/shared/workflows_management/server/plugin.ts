@@ -39,6 +39,7 @@ import {
   triggerEventDispatchedSchema,
   WORKFLOWS_TRIGGER_EVENT_DISPATCHED,
 } from './telemetry/events';
+import { WorkflowsManagementTelemetryClient } from './telemetry/workflows_management_telemetry_client';
 import {
   initializeTriggerEventsClient,
   initializeTriggerEventsDataStream,
@@ -188,11 +189,15 @@ export class WorkflowsPlugin
     const resolveMatchingWorkflowSubscriptionsFn = (
       params: ResolveMatchingWorkflowSubscriptionsParams
     ) => resolveMatchingWorkflowSubscriptions(params, { api, logger: this.logger });
+    const telemetryClient = new WorkflowsManagementTelemetryClient({
+      logger: this.logger,
+      getAnalytics: () => this.analytics,
+    });
 
     const triggerEventHandler = createTriggerEventHandler({
       api: this.api,
       logger: this.logger,
-      getAnalytics: () => this.analytics,
+      telemetryClient,
       getTriggerEventsClient: () => this.triggerEventsClient,
       getWorkflowExecutionEngine,
       resolveMatchingWorkflowSubscriptions: resolveMatchingWorkflowSubscriptionsFn,

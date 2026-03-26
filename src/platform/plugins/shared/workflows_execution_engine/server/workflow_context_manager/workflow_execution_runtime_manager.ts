@@ -15,8 +15,8 @@ import type { CoreStart } from '@kbn/core/server';
 import type { EsWorkflowExecution, StackFrame } from '@kbn/workflows';
 import {
   ExecutionStatus,
+  isEventDrivenWorkflowTriggerSource,
   isTerminalStatus,
-  isWellKnownWorkflowTriggerSource,
 } from '@kbn/workflows';
 import type { GraphNodeUnion, WorkflowGraph } from '@kbn/workflows/graph';
 import { ExecutionError } from '@kbn/workflows/server';
@@ -413,11 +413,7 @@ export class WorkflowExecutionRuntimeManager {
         };
 
         const { triggeredBy } = this.workflowExecution;
-        if (
-          typeof triggeredBy === 'string' &&
-          triggeredBy.length > 0 &&
-          !isWellKnownWorkflowTriggerSource(triggeredBy)
-        ) {
+        if (isEventDrivenWorkflowTriggerSource(triggeredBy)) {
           taskManagerLabels.event_trigger_id = triggeredBy;
         }
 

@@ -11,7 +11,7 @@ import { ExecutionStatus } from '@kbn/workflows';
 import type {
   EsWorkflowExecution,
   EsWorkflowStepExecution,
-  WorkflowExecutionScheduleMetadata,
+  WorkflowExecutionEventDispatchMetadata,
 } from '@kbn/workflows';
 import type { WorkflowYaml } from '@kbn/workflows/spec/schema';
 import { parseDuration } from '../../../utils';
@@ -302,7 +302,7 @@ function pickScheduleEventTriggerId(
 
 function resolveWorkflowExecutionScheduleMetadata(
   workflowExecution: EsWorkflowExecution
-): WorkflowExecutionScheduleMetadata {
+): WorkflowExecutionEventDispatchMetadata {
   const top = isPlainScheduleMetadataSource(workflowExecution.metadata)
     ? workflowExecution.metadata
     : undefined;

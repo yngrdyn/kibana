@@ -36,7 +36,7 @@ const defaultWorkflowSettings: WorkflowSettings = {
  * Event-chain depth from execution context when this run was scheduled by the trigger
  * handler. Used only to call setWorkflowEventChainContext on the task request.
  */
-function getEventChainDepthForRequest(
+function getEventChainDepthFromExecutionContext(
   context: EsWorkflowExecution['context'] | undefined
 ): number | undefined {
   if (context == null || typeof context !== 'object' || Array.isArray(context)) {
@@ -87,7 +87,7 @@ export async function setupDependencies(
     );
   }
 
-  const eventChainDepth = getEventChainDepthForRequest(workflowExecution.context);
+  const eventChainDepth = getEventChainDepthFromExecutionContext(workflowExecution.context);
 
   if (eventChainDepth !== undefined) {
     setWorkflowEventChainContext(fakeRequest, {

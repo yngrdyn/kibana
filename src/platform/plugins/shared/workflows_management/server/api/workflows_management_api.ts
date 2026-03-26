@@ -22,6 +22,7 @@ import type {
   WorkflowDetailDto,
   WorkflowExecutionDto,
   WorkflowExecutionEngineModel,
+  WorkflowExecutionEventDispatchMetadata,
   WorkflowExecutionListDto,
   WorkflowListDto,
   WorkflowYaml,
@@ -257,7 +258,7 @@ export class WorkflowsManagementApi {
     inputs: Record<string, any>,
     request: KibanaRequest,
     triggeredBy: string,
-    metadata?: Record<string, unknown>
+    metadata?: WorkflowExecutionEventDispatchMetadata
   ): Promise<string> {
     const { event, ...manualInputs } = inputs;
     const context: Record<string, unknown> = {

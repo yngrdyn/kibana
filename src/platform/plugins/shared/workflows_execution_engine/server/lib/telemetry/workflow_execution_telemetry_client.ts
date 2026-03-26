@@ -13,7 +13,11 @@ import type {
   EsWorkflowStepExecution,
   WellKnownWorkflowTriggerSource,
 } from '@kbn/workflows';
-import { ExecutionStatus, isWellKnownWorkflowTriggerSource } from '@kbn/workflows';
+import {
+  ExecutionStatus,
+  isEventDrivenWorkflowTriggerSource,
+  isWellKnownWorkflowTriggerSource,
+} from '@kbn/workflows';
 import {
   workflowExecutionEventNames,
   workflowExecutionEventSchemas,
@@ -39,10 +43,11 @@ function resolveExecutionTriggerTelemetry(triggeredBy: string | undefined): {
   if (isWellKnownWorkflowTriggerSource(triggeredBy)) {
     return { triggerType: triggeredBy };
   }
-  if (triggeredBy === undefined || triggeredBy === '') {
-    return { triggerType: 'manual' };
+  if (isEventDrivenWorkflowTriggerSource(triggeredBy)) {
+    return { triggerType: 'event', eventTriggerId: triggeredBy };
   }
-  return { triggerType: 'event', eventTriggerId: triggeredBy };
+
+  return { triggerType: 'manual' };
 }
 
 /**
