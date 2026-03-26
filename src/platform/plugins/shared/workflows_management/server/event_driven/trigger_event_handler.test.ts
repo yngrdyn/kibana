@@ -331,6 +331,7 @@ describe('createTriggerEventHandler', () => {
         logEventsEnabled: true,
         earlyExit: false,
         auditOnly: true,
+        subscriberResolutionMs: expect.any(Number),
         matchedCount: 1,
         scheduledAttemptCount: 0,
       })
@@ -390,6 +391,7 @@ describe('createTriggerEventHandler', () => {
         logEventsEnabled: false,
         earlyExit: false,
         auditOnly: false,
+        subscriberResolutionMs: expect.any(Number),
         matchedCount: 1,
         scheduledAttemptCount: 1,
       })

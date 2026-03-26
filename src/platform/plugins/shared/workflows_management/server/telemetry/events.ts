@@ -18,6 +18,8 @@ export interface TriggerEventDispatchedTelemetryEvent {
   earlyExit: boolean;
   /** True when execution is off but trigger-event audit logging still runs. */
   auditOnly: boolean;
+  /** Time spent resolving/filtering subscribed workflows before scheduling decisions (ms). */
+  subscriberResolutionMs?: number;
   subscribedCount: number;
   disabledCount: number;
   kqlFalseCount: number;
@@ -55,6 +57,14 @@ export const triggerEventDispatchedSchema: RootSchema<TriggerEventDispatchedTele
       description:
         'True when event-driven execution is disabled but trigger event logging still ran (audit path)',
       optional: false,
+    },
+  },
+  subscriberResolutionMs: {
+    type: 'long',
+    _meta: {
+      description:
+        'Elapsed milliseconds spent resolving/filtering subscribed workflows for this trigger dispatch',
+      optional: true,
     },
   },
   subscribedCount: {

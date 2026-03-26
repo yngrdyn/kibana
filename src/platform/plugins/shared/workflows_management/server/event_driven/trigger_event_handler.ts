@@ -240,11 +240,13 @@ export function createTriggerEventHandler({
     const { timestamp, triggerId, payload, request, spaceId, eventChainContext } = params;
 
     const eventContextForResolution = { ...payload, timestamp, spaceId, eventChainDepth: 0 };
+    const resolutionStartMs = Date.now();
     const { workflows, stats: resolutionStats } = await resolveMatchingWorkflowSubscriptions({
       triggerId,
       spaceId,
       eventContext: eventContextForResolution,
     });
+    const subscriberResolutionMs = Math.max(0, Date.now() - resolutionStartMs);
     logger.trace(
       `Workflows trigger resolution funnel: triggerId=${triggerId} ${JSON.stringify(
         resolutionStats
@@ -281,6 +283,7 @@ export function createTriggerEventHandler({
       ...baseTelemetry,
       earlyExit: false,
       auditOnly: !executionEnabled && logEventsEnabled,
+      subscriberResolutionMs,
       ...resolutionStats,
       ...scheduleStats,
     });
