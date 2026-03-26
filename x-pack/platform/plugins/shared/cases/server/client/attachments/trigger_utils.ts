@@ -6,6 +6,7 @@
  */
 
 import type { Case } from '../../../common/types/domain';
+import type { Owner } from '../../../common/constants/types';
 import type { CasesClientArgs } from '..';
 
 export function emitCommentAddedEvent(
@@ -16,6 +17,6 @@ export function emitCommentAddedEvent(
   clientArgs.casesEventBus?.emitCommentAdded(clientArgs.casesEventMetadata, {
     caseId: updatedCase.id,
     caseCommentIds: newCommentIds,
-    owner: updatedCase.owner,
+    owner: updatedCase.owner as Owner,
   });
 }

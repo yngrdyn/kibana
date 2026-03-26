@@ -31,6 +31,7 @@ import {
   CASE_SAVED_OBJECT,
   MAX_USER_ACTIONS_PER_CASE,
 } from '../../../common/constants';
+import type { Owner } from '../../../common/constants/types';
 import { Operations } from '../../authorization';
 import { createCaseError, isSOError } from '../../common/error';
 import {
@@ -39,7 +40,6 @@ import {
   isCommentRequestTypeAlert,
 } from '../../common/utils';
 import { arraysDifference, getCaseToUpdate } from '../utils';
-import { isValidOwner } from '../../../common/utils/owner';
 import {
   dedupAssignees,
   fillMissingCustomFields,
@@ -588,13 +588,11 @@ export const bulkUpdate = async (
 
     for (const updatedCase of updatedCasesResponse) {
       const updatedFields = updatedFieldsByCaseId.get(updatedCase.id);
-      if (isValidOwner(updatedCase.owner)) {
-        clientArgs.casesEventBus?.emitCaseUpdated(clientArgs.casesEventMetadata, {
-          caseId: updatedCase.id,
-          owner: updatedCase.owner,
-          ...(updatedFields != null ? { updatedFields } : {}),
-        });
-      }
+      clientArgs.casesEventBus?.emitCaseUpdated(clientArgs.casesEventMetadata, {
+        caseId: updatedCase.id,
+        owner: updatedCase.owner as Owner,
+        ...(updatedFields != null ? { updatedFields } : {}),
+      });
     }
 
     return updatedCasesResponse;
