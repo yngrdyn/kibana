@@ -14,10 +14,10 @@ import { i18n } from '@kbn/i18n';
 import { I18nProvider } from '@kbn/i18n-react';
 import { Route, Router, Routes } from '@kbn/shared-ux-router';
 import { useWorkflowsCapabilities } from '@kbn/workflows-ui';
+import { AccessDenied } from './components/access_denied/access_denied';
 import { WorkflowDetailStoreProvider } from './entities/workflows/store/provider';
 import { WorkflowDetailPage } from './pages/workflow_detail';
 import { WorkflowsPage } from './pages/workflows';
-import { AccessDenied } from '../common/components/access_denied';
 
 const ReadWorkflowPermissionText = i18n.translate(
   'platform.plugins.shared.workflows_management.readWorkflowPermissionText',
