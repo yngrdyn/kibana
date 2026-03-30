@@ -9,6 +9,7 @@
 
 import { act, render, waitFor } from '@testing-library/react';
 import React from 'react';
+import { useWorkflowsCapabilities } from '@kbn/workflows-ui';
 import { WorkflowDetailTestStepModal } from './workflow_detail_test_step_modal';
 import { createMockStore } from '../../../entities/workflows/store/__mocks__/store.mock';
 import {
@@ -19,6 +20,7 @@ import {
   setWorkflow,
   setYamlString,
 } from '../../../entities/workflows/store/workflow_detail/slice';
+import { mockWorkflowsManagementCapabilities } from '../../../hooks/__mocks__/use_workflows_capabilities';
 import { TestWrapper } from '../../../shared/test_utils';
 
 // Mock hooks
@@ -92,6 +94,15 @@ jest.mock('../../../features/run_workflow/ui/step_execute_modal', () => ({
   StepExecuteModal: StepExecuteModalMock,
 }));
 
+jest.mock('@kbn/workflows-ui', () => ({
+  ...jest.requireActual('@kbn/workflows-ui'),
+  useWorkflowsCapabilities: jest.fn(),
+}));
+
+const mockUseWorkflowsCapabilities = useWorkflowsCapabilities as jest.MockedFunction<
+  typeof useWorkflowsCapabilities
+>;
+
 describe('WorkflowDetailTestStepModal', () => {
   const mockContextOverride = {
     stepContext: { inputs: { key: 'value' } },
@@ -104,6 +115,8 @@ describe('WorkflowDetailTestStepModal', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockUseWorkflowsCapabilities.mockReturnValue(mockWorkflowsManagementCapabilities);
 
     mockUseKibana.mockReturnValue({
       services: {
@@ -239,6 +252,22 @@ describe('WorkflowDetailTestStepModal', () => {
       expect(getByTestId('step-execute-modal-initial-step-execution-id')).toHaveTextContent(
         'replay-exec-1'
       );
+    });
+
+    it('does not render when executeWorkflow is not granted', () => {
+      mockUseWorkflowsCapabilities.mockReturnValue({
+        ...mockWorkflowsManagementCapabilities,
+        canExecuteWorkflow: false,
+      });
+
+      const { queryByTestId } = renderModal({
+        testStepModalOpenStepId: 'test-step-id',
+        workflowId: 'workflow-1',
+        editorYaml: 'name: Test Workflow\nsteps: []',
+        workflowGraph: mockWorkflowGraph,
+      });
+
+      expect(queryByTestId('step-execute-modal')).not.toBeInTheDocument();
     });
   });
 

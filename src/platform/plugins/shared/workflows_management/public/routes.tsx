@@ -25,7 +25,9 @@ const ReadWorkflowPermissionText = i18n.translate(
 );
 
 /** Wrapper component to check if the user has the required permissions to access the workflows management page */
-const WorkflowsReadPermissionsWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
+export const WorkflowsReadPermissionsWrapper: React.FC<React.PropsWithChildren> = ({
+  children,
+}) => {
   const capabilities = useWorkflowsCapabilities();
   if (!capabilities.canReadWorkflow) {
     return <AccessDenied requirements={[ReadWorkflowPermissionText]} />;

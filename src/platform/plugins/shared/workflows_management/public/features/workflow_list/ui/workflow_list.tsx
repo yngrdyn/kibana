@@ -39,7 +39,7 @@ import { WorkflowsEmptyState } from '../../../components';
 import { useWorkflowActions } from '../../../entities/workflows/model/use_workflow_actions';
 import { useKibana } from '../../../hooks/use_kibana';
 import { useTelemetry } from '../../../hooks/use_telemetry';
-import { getRunTooltipContent, StatusBadge, WorkflowStatus } from '../../../shared/ui';
+import { StatusBadge, WorkflowStatus } from '../../../shared/ui';
 import { NextExecutionTime } from '../../../shared/ui/next_execution_time';
 import { shouldShowWorkflowsEmptyState } from '../../../shared/utils/workflow_utils';
 import { WorkflowsTriggersList } from '../../../widgets/worflows_triggers_list/worflows_triggers_list';
@@ -378,15 +378,9 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
             }),
             'data-test-subj': 'runWorkflowAction',
             icon: 'play',
-            description: (item: WorkflowListItemDto) =>
-              getRunTooltipContent({
-                isValid: item.valid,
-                canRunWorkflow: !!canExecuteWorkflow,
-                isEnabled: item.enabled,
-              }) ??
-              i18n.translate('workflows.workflowList.run', {
-                defaultMessage: 'Run',
-              }),
+            description: i18n.translate('workflows.workflowList.run', {
+              defaultMessage: 'Run workflow',
+            }),
             onClick: (item: WorkflowListItemDto) => {
               setExecuteWorkflow(item);
             },
