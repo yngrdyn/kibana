@@ -67,6 +67,25 @@ const renderPage = () =>
     </TestWrapper>
   );
 
+function mockCapabilities(createWorkflow: boolean, updateWorkflow: boolean): void {
+  mockUseKibana.mockReturnValue({
+    services: {
+      application: {
+        capabilities: {
+          workflowsManagement: {
+            createWorkflow,
+            updateWorkflow,
+          },
+        },
+        navigateToApp: jest.fn(),
+      },
+      featureFlags: {
+        getBooleanValue: () => false,
+      },
+    },
+  });
+}
+
 describe('WorkflowsPage authorization', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -75,41 +94,49 @@ describe('WorkflowsPage authorization', () => {
 
   it.each([
     {
-      label: 'editor-style (create on)',
+      label: 'editor (create + update)',
       createWorkflow: true,
+      updateWorkflow: true,
       expectCreate: true,
+      expectImport: true,
     },
     {
-      label: 'read-only (create off)',
+      label: 'create only (import hidden — needs update too)',
+      createWorkflow: true,
+      updateWorkflow: false,
+      expectCreate: true,
+      expectImport: false,
+    },
+    {
+      label: 'update only',
       createWorkflow: false,
+      updateWorkflow: true,
       expectCreate: false,
+      expectImport: false,
+    },
+    {
+      label: 'read-only',
+      createWorkflow: false,
+      updateWorkflow: false,
+      expectCreate: false,
+      expectImport: false,
     },
   ])(
-    'Create + Import in header when createWorkflow=$createWorkflow ($label)',
-    ({ createWorkflow, expectCreate }) => {
-      mockUseKibana.mockReturnValue({
-        services: {
-          application: {
-            capabilities: {
-              workflowsManagement: {
-                createWorkflow,
-              },
-            },
-            navigateToApp: jest.fn(),
-          },
-          featureFlags: {
-            getBooleanValue: () => false,
-          },
-        },
-      });
+    'header: $label — Create=$expectCreate, Import=$expectImport',
+    ({ createWorkflow, updateWorkflow, expectCreate, expectImport }) => {
+      mockCapabilities(createWorkflow, updateWorkflow);
 
       renderPage();
 
       if (expectCreate) {
         expect(screen.getByTestId('createWorkflowButton')).toBeInTheDocument();
-        expect(screen.getByTestId('importWorkflowsButton')).toBeInTheDocument();
       } else {
         expect(screen.queryByTestId('createWorkflowButton')).not.toBeInTheDocument();
+      }
+
+      if (expectImport) {
+        expect(screen.getByTestId('importWorkflowsButton')).toBeInTheDocument();
+      } else {
         expect(screen.queryByTestId('importWorkflowsButton')).not.toBeInTheDocument();
       }
     }

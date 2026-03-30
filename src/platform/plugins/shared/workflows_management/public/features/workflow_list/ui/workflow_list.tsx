@@ -30,7 +30,7 @@ import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
 import type { WorkflowListItemDto, WorkflowsSearchParams } from '@kbn/workflows';
 import { isTriggerType } from '@kbn/workflows';
-import { useWorkflows } from '@kbn/workflows-ui';
+import { useWorkflows, useWorkflowsCapabilities } from '@kbn/workflows-ui';
 import { ExportReferencesModal } from './export_references_modal';
 import { useEventDrivenExecutionStatus } from './use_event_driven_execution_status';
 import { useExportWithReferences } from './use_export_with_references';
@@ -122,10 +122,8 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
     [workflows?.results]
   );
 
-  const canCreateWorkflow = application.capabilities.workflowsManagement.createWorkflow;
-  const canExecuteWorkflow = application.capabilities.workflowsManagement.executeWorkflow;
-  const canUpdateWorkflow = application.capabilities.workflowsManagement.updateWorkflow;
-  const canDeleteWorkflow = application.capabilities.workflowsManagement.deleteWorkflow;
+  const { canCreateWorkflow, canExecuteWorkflow, canUpdateWorkflow, canDeleteWorkflow } =
+    useWorkflowsCapabilities();
 
   const deselectWorkflows = useCallback(() => {
     setSelectedItems([]);
