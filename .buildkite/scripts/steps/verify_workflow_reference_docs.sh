@@ -15,6 +15,15 @@ TRIGGER_DOCS_FILE="docs/reference/workflows/_snippets/trigger-definitions-list.m
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
+# Match @kbn/es defaults (scripts/es.js) so health checks and Kibana can authenticate.
+export KIBANA_USERNAME="${KIBANA_USERNAME:-elastic}"
+export KIBANA_PASSWORD="${KIBANA_PASSWORD:-changeme}"
+export KIBANA_AUTH="${KIBANA_AUTH:-${KIBANA_USERNAME}:${KIBANA_PASSWORD}}"
+
+# ES is started with network.bind_host=127.0.0.1 below. Use IPv4 for waits/curl so we do not
+# hit ::1 when "localhost" resolves to IPv6 first (then the port appears closed even though ES is up).
+LOCAL_IPV4="${LOCAL_IPV4:-127.0.0.1}"
+
 report_step "Bootstrap Kibana"
 .buildkite/scripts/bootstrap.sh
 
@@ -29,11 +38,13 @@ node scripts/es snapshot \
 ES_PID=$!
 
 echo "Waiting for Elasticsearch to be ready..."
-MAX_WAIT_ES=300
+# Snapshot download/install on cold agents can exceed 5m; ES may not bind 9200 until then.
+MAX_WAIT_ES=900
 ELAPSED_ES=0
 while [ "$ELAPSED_ES" -lt "$MAX_WAIT_ES" ]; do
-  if timeout 1 bash -c "echo > /dev/tcp/localhost/9200" 2>/dev/null; then
-    if curl -s http://localhost:9200/_cluster/health | grep -q '"status":"green"\|"status":"yellow"'; then
+  if timeout 1 bash -c "echo > /dev/tcp/${LOCAL_IPV4}/9200" 2>/dev/null; then
+    if curl -s -u "$KIBANA_USERNAME:$KIBANA_PASSWORD" \
+      "http://${LOCAL_IPV4}:9200/_cluster/health" | grep -qE '"status"[[:space:]]*:[[:space:]]*"(green|yellow)"'; then
       echo "Elasticsearch is ready"
       break
     fi
@@ -47,11 +58,8 @@ if [ "$ELAPSED_ES" -ge "$MAX_WAIT_ES" ]; then
   exit 1
 fi
 
-report_step "Starting Kibana (--no-dev-config avoids loading local kibana.dev.yml)"
-# Load default kibana.yml plus CI-only overrides (workflows UI flag) without merging kibana.dev.yml.
-node scripts/kibana --dev --no-base-path --no-dev-config \
-  --config "$REPO_ROOT/config/kibana.yml" \
-  --config "$REPO_ROOT/config/kibana.workflow_docs_verify.yml" &
+report_step "Starting Kibana"
+node scripts/kibana --dev --no-base-path &
 KIBANA_PID=$!
 
 cleanup() {
@@ -62,11 +70,11 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Waiting for Kibana to be ready..."
-MAX_WAIT=300
+MAX_WAIT=900
 ELAPSED=0
 while [ "$ELAPSED" -lt "$MAX_WAIT" ]; do
-  if timeout 1 bash -c "echo > /dev/tcp/localhost/5601" 2>/dev/null; then
-    if curl -s http://localhost:5601/api/status | grep -q '"state":"green"'; then
+  if timeout 1 bash -c "echo > /dev/tcp/${LOCAL_IPV4}/5601" 2>/dev/null; then
+    if curl -s "http://${LOCAL_IPV4}:5601/api/status" | grep -qE '"state"[[:space:]]*:[[:space:]]*"green"'; then
       echo "Kibana is ready"
       break
     fi
@@ -80,10 +88,7 @@ if [ "$ELAPSED" -ge "$MAX_WAIT" ]; then
   exit 1
 fi
 
-export KIBANA_URL="${KIBANA_URL:-http://localhost:5601}"
-export KIBANA_USERNAME="${KIBANA_USERNAME:-elastic}"
-export KIBANA_PASSWORD="${KIBANA_PASSWORD:-changeme}"
-export KIBANA_AUTH="${KIBANA_AUTH:-${KIBANA_USERNAME}:${KIBANA_PASSWORD}}"
+export KIBANA_URL="${KIBANA_URL:-http://${LOCAL_IPV4}:5601}"
 
 report_step "Load Workflows UI (pushes step/trigger doc metadata for generators)"
 node scripts/warm_workflow_extension_doc_metadata.js

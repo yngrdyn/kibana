@@ -1,5 +1,6 @@
 steps:
   - command: .buildkite/scripts/steps/verify_workflow_reference_docs.sh
+    key: workflow_reference_docs_verify
     label: Workflow reference docs verify
     timeout_in_minutes: 45
     agents:
