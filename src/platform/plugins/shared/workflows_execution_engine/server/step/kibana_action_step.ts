@@ -242,7 +242,11 @@ export class KibanaActionStepImpl extends BaseAtomicNodeImplementation<BaseStep>
     // with no Symbol. Inject these headers so the server can restore context (depth + sourceWorkflowId)
     // and enforce the event-chain depth cap when that handler calls emitEvent.
     const fakeRequest = this.stepExecutionRuntime.contextManager.getFakeRequest();
-    const outboundHeaders = { ...headers, ...getOutboundEventChainHeaders(fakeRequest) };
+    const workflowRunId = this.stepExecutionRuntime.workflowExecution?.id;
+    const outboundHeaders = {
+      ...headers,
+      ...getOutboundEventChainHeaders(fakeRequest, workflowRunId),
+    };
 
     // Build full URL with query parameters
     let fullUrl = `${kibanaUrl}${path}`;

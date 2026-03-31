@@ -15,7 +15,10 @@ import { setWorkflowEventChainContext } from '@kbn/workflows-extensions/server';
 import type { WorkflowsExecutionEngineConfig } from '../config';
 
 import { ConnectorExecutor } from '../connector_executor';
-import { extractEventChainDepthFromExecution } from '../lib/telemetry/utils/extract_execution_metadata';
+import {
+  extractEventChainDepthFromExecution,
+  extractEventChainVisitedWorkflowIdsFromExecution,
+} from '../lib/telemetry/utils/extract_execution_metadata';
 import { WorkflowExecutionTelemetryClient } from '../lib/telemetry/workflow_execution_telemetry_client';
 import { StepExecutionRepository } from '../repositories/step_execution_repository';
 import { WorkflowExecutionRepository } from '../repositories/workflow_execution_repository';
@@ -70,14 +73,16 @@ export async function setupDependencies(
     );
   }
 
-  const eventChainDepth = extractEventChainDepthFromExecution(workflowExecution);
-
-  if (eventChainDepth !== undefined) {
-    setWorkflowEventChainContext(fakeRequest, {
-      depth: eventChainDepth,
-      sourceWorkflowId: workflowExecution.workflowId,
-    });
-  }
+  const eventChainDepth = extractEventChainDepthFromExecution(workflowExecution) ?? -1;
+  const visitedWorkflowIds = extractEventChainVisitedWorkflowIdsFromExecution(
+    workflowExecution,
+    config.eventDriven.maxChainDepth
+  );
+  setWorkflowEventChainContext(fakeRequest, {
+    depth: eventChainDepth,
+    sourceWorkflowId: workflowExecution.workflowId,
+    visitedWorkflowIds,
+  });
 
   let workflowExecutionGraph = WorkflowGraph.fromWorkflowDefinition(
     workflowExecution.workflowDefinition,

@@ -127,6 +127,7 @@ describe('createTriggerEventHandler', () => {
     expect(event.caseId).toBe('case-123');
     expect(event.status).toBe('open');
     expect(event.eventChainDepth).toBe(0);
+    expect(event.eventChainVisitedWorkflowIds).toEqual([]);
   });
 
   it('should skip scheduling workflow and log when event chain depth exceeds max', async () => {
@@ -200,9 +201,10 @@ describe('createTriggerEventHandler', () => {
     expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
     const event = (scheduleWorkflow.mock.calls[0][2] as { event: Record<string, unknown> }).event;
     expect(event.eventChainDepth).toBe(3);
+    expect(event.eventChainVisitedWorkflowIds).toEqual(['wf-other']);
   });
 
-  it('should pass incremented eventChainDepth when same workflow re-triggers (self-loop)', async () => {
+  it('should skip scheduling when target workflow is already in the event chain (self-loop)', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const resolveMatchingWorkflowSubscriptions = jest
       .fn()
@@ -232,9 +234,83 @@ describe('createTriggerEventHandler', () => {
         eventContext: expect.objectContaining({ eventChainDepth: 0 }),
       })
     );
+    expect(scheduleWorkflow).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Event chain cycle guard skipped scheduling workflow wf-1')
+    );
+  });
+
+  it('should skip scheduling when target was already visited (A to B to A cycle)', async () => {
+    const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
+    const wfA = createMockWorkflow({ id: 'wf-a' });
+    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue(mockResolveResult([wfA]));
+    const telemetryClient = { reportTriggerEventDispatched: jest.fn() };
+
+    const handler = createTriggerEventHandler({
+      api: { scheduleWorkflow } as any,
+      logger: mockLogger,
+      telemetryClient,
+      getTriggerEventsClient: () => null,
+      getWorkflowExecutionEngine: getEngineMock(true),
+      resolveMatchingWorkflowSubscriptions,
+    });
+
+    await handler({
+      timestamp: '2025-01-01T12:00:00.000Z',
+      triggerId: 'cases.updated',
+      spaceId: 'default',
+      payload: {},
+      request: mockRequest,
+      eventChainContext: {
+        depth: 1,
+        sourceWorkflowId: 'wf-b',
+        visitedWorkflowIds: ['wf-a'],
+      },
+    });
+
+    expect(scheduleWorkflow).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Event chain cycle guard skipped scheduling workflow wf-a')
+    );
+  });
+
+  it('should schedule when on.reentry is true even if target is in the chain', async () => {
+    const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
+    const wfA = createMockWorkflow({
+      id: 'wf-a',
+      definition: {
+        triggers: [{ type: 'cases.updated', on: { reentry: true } }],
+        steps: [],
+      },
+    });
+    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue(mockResolveResult([wfA]));
+    const telemetryClient = { reportTriggerEventDispatched: jest.fn() };
+
+    const handler = createTriggerEventHandler({
+      api: { scheduleWorkflow } as any,
+      logger: mockLogger,
+      telemetryClient,
+      getTriggerEventsClient: () => null,
+      getWorkflowExecutionEngine: getEngineMock(true),
+      resolveMatchingWorkflowSubscriptions,
+    });
+
+    await handler({
+      timestamp: '2025-01-01T12:00:00.000Z',
+      triggerId: 'cases.updated',
+      spaceId: 'default',
+      payload: {},
+      request: mockRequest,
+      eventChainContext: {
+        depth: 1,
+        sourceWorkflowId: 'wf-b',
+        visitedWorkflowIds: ['wf-a'],
+      },
+    });
+
     expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
     const event = (scheduleWorkflow.mock.calls[0][2] as { event: Record<string, unknown> }).event;
-    expect(event.eventChainDepth).toBe(3);
+    expect(event.eventChainVisitedWorkflowIds).toEqual(['wf-a', 'wf-b']);
   });
 
   it('should not resolve or schedule when event-driven execution is disabled and logEvents is disabled', async () => {

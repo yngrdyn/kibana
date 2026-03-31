@@ -10,7 +10,9 @@
 import type { KibanaRequest } from '@kbn/core/server';
 import {
   EVENT_CHAIN_DEPTH_HEADER,
+  EVENT_CHAIN_EMITTER_EXECUTION_ID_HEADER,
   EVENT_CHAIN_SOURCE_WORKFLOW_HEADER,
+  EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER,
   getEventChainContext,
   getOutboundEventChainHeaders,
   setWorkflowEventChainContext,
@@ -99,11 +101,32 @@ describe('event_chain_context', () => {
     expect(getEventChainContext(request)).toBeUndefined();
   });
 
-  it('returns undefined when header value is negative', () => {
+  it('returns depth -1 from header when sentinel', () => {
     const request = {
       headers: { [EVENT_CHAIN_DEPTH_HEADER]: '-1' },
     } as unknown as KibanaRequest;
+    expect(getEventChainContext(request)).toEqual({ depth: -1 });
+  });
+
+  it('returns undefined when header depth is less than -1', () => {
+    const request = {
+      headers: { [EVENT_CHAIN_DEPTH_HEADER]: '-2' },
+    } as unknown as KibanaRequest;
     expect(getEventChainContext(request)).toBeUndefined();
+  });
+
+  it('returns visitedWorkflowIds from header (base64url JSON)', () => {
+    const encoded = Buffer.from(JSON.stringify(['wf-a', 'wf-b']), 'utf8').toString('base64url');
+    const request = {
+      headers: {
+        [EVENT_CHAIN_DEPTH_HEADER]: '1',
+        [EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER]: encoded,
+      },
+    } as unknown as KibanaRequest;
+    expect(getEventChainContext(request)).toEqual({
+      depth: 1,
+      visitedWorkflowIds: ['wf-a', 'wf-b'],
+    });
   });
 
   describe('getOutboundEventChainHeaders', () => {
@@ -137,6 +160,24 @@ describe('event_chain_context', () => {
       expect(getOutboundEventChainHeaders(request)).toEqual({
         [EVENT_CHAIN_DEPTH_HEADER]: '1',
         [EVENT_CHAIN_SOURCE_WORKFLOW_HEADER]: 'wf-emit-loop',
+      });
+    });
+
+    it('includes visited header and emitter execution id when provided', () => {
+      const request = {} as KibanaRequest;
+      setWorkflowEventChainContext(request, {
+        depth: 2,
+        sourceWorkflowId: 'wf-src',
+        visitedWorkflowIds: ['wf-a'],
+      });
+      expect(getOutboundEventChainHeaders(request, 'exec-uuid')).toEqual({
+        [EVENT_CHAIN_DEPTH_HEADER]: '2',
+        [EVENT_CHAIN_SOURCE_WORKFLOW_HEADER]: 'wf-src',
+        [EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER]: Buffer.from(
+          JSON.stringify(['wf-a']),
+          'utf8'
+        ).toString('base64url'),
+        [EVENT_CHAIN_EMITTER_EXECUTION_ID_HEADER]: 'exec-uuid',
       });
     });
   });

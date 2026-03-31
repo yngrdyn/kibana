@@ -12,6 +12,9 @@ import { schema } from '@kbn/config-schema';
 import type { PluginConfigDescriptor } from '@kbn/core/server';
 import { DEFAULT_MAX_STEP_SIZE } from './step/errors';
 
+/** Default for `eventDriven.maxChainDepth`; keep in sync with visits-array caps in telemetry / persistence. */
+export const DEFAULT_MAX_EVENT_CHAIN_DEPTH = 10;
+
 const configSchema = schema.object({
   enabled: schema.boolean({ defaultValue: true }),
   eventDriven: schema.object({
@@ -28,7 +31,7 @@ const configSchema = schema.object({
      * Maximum depth for event-triggered chains (any workflow in the chain).
      * Scheduling is skipped when depth exceeds this value.
      */
-    maxChainDepth: schema.number({ defaultValue: 10, min: 1 }),
+    maxChainDepth: schema.number({ defaultValue: DEFAULT_MAX_EVENT_CHAIN_DEPTH, min: 1 }),
   }),
   /**
    * Maximum depth of nested workflow execution (workflow calling workflow via workflow.execute step).

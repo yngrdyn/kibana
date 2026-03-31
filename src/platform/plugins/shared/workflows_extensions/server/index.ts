@@ -34,7 +34,10 @@ export type {
 
 export {
   EVENT_CHAIN_DEPTH_HEADER,
+  EVENT_CHAIN_EMITTER_EXECUTION_ID_HEADER,
   EVENT_CHAIN_SOURCE_WORKFLOW_HEADER,
+  EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER,
+  getEmitterWorkflowExecutionIdFromRequest,
   getEventChainContext,
   getOutboundEventChainHeaders,
   setWorkflowEventChainContext,

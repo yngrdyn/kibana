@@ -36,6 +36,7 @@ import {
 import { cancelWaitingWorkflow } from './lib/cancel_waiting_workflow';
 import { checkLicense } from './lib/check_license';
 import { getAuthenticatedUser } from './lib/get_user';
+import { normalizeEventChainVisitedWorkflowIds } from './lib/telemetry/utils/extract_execution_metadata';
 import { WorkflowExecutionTelemetryClient } from './lib/telemetry/workflow_execution_telemetry_client';
 import { validateWorkflowInputs } from './lib/validate_workflow_inputs';
 import { WorkflowsMeteringService } from './metering/metering_service';
@@ -540,6 +541,23 @@ export class WorkflowsExecutionEnginePlugin
       );
       const spaceId = (context.spaceId as string | undefined) || 'default';
       const metadata = context.metadata as Record<string, unknown> | undefined;
+      const eventPayload = context.event as Record<string, unknown> | undefined;
+      let rootEventChainDepth: number | undefined;
+      if (eventPayload) {
+        const rawDepth = eventPayload.eventChainDepth;
+        if (typeof rawDepth === 'number' && !Number.isNaN(rawDepth) && rawDepth >= 0) {
+          rootEventChainDepth = rawDepth;
+        } else if (typeof rawDepth === 'string' && rawDepth.trim() !== '') {
+          const parsed = parseInt(rawDepth, 10);
+          if (!Number.isNaN(parsed) && parsed >= 0) {
+            rootEventChainDepth = parsed;
+          }
+        }
+      }
+      const rootVisited = normalizeEventChainVisitedWorkflowIds(
+        eventPayload?.eventChainVisitedWorkflowIds,
+        this.getMaxEventChainDepth()
+      );
       const workflowExecution: Partial<EsWorkflowExecution> = {
         id: generateUuid(),
         spaceId,
@@ -553,6 +571,8 @@ export class WorkflowsExecutionEnginePlugin
         executedBy,
         triggeredBy,
         ...(metadata ? { metadata } : {}),
+        ...(rootEventChainDepth !== undefined ? { eventChainDepth: rootEventChainDepth } : {}),
+        ...(rootVisited.length > 0 ? { eventChainVisitedWorkflowIds: rootVisited } : {}),
       };
 
       const concurrencyGroupKey = this.getConcurrencyGroupKey(

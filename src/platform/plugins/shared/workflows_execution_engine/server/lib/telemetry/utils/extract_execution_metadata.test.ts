@@ -14,6 +14,7 @@ import {
   extractAlertRuleId,
   extractCompositionContext,
   extractEventChainDepthFromExecution,
+  extractEventChainVisitedWorkflowIdsFromExecution,
   extractExecutionMetadata,
   extractQueueDelayMs,
   extractTimeToFirstStep,
@@ -510,6 +511,17 @@ describe('extractEventChainDepthFromExecution', () => {
     ).toBeUndefined();
   });
 
+  it('prefers root eventChainDepth over context.event', () => {
+    expect(
+      extractEventChainDepthFromExecution(
+        createMockWorkflowExecution({
+          eventChainDepth: 5,
+          context: { event: { eventChainDepth: 2 } },
+        })
+      )
+    ).toBe(5);
+  });
+
   it('includes eventChainDepth in extractExecutionMetadata when set', () => {
     const meta = extractExecutionMetadata(
       createMockWorkflowExecution({
@@ -518,5 +530,45 @@ describe('extractEventChainDepthFromExecution', () => {
       []
     );
     expect(meta.eventChainDepth).toBe(1);
+  });
+});
+
+describe('extractEventChainVisitedWorkflowIdsFromExecution', () => {
+  it('returns ids from context.event.eventChainVisitedWorkflowIds', () => {
+    expect(
+      extractEventChainVisitedWorkflowIdsFromExecution(
+        createMockWorkflowExecution({
+          context: { event: { eventChainVisitedWorkflowIds: ['wf-a', 'wf-b'] } },
+        })
+      )
+    ).toEqual(['wf-a', 'wf-b']);
+  });
+
+  it('prefers root eventChainVisitedWorkflowIds over context.event', () => {
+    expect(
+      extractEventChainVisitedWorkflowIdsFromExecution(
+        createMockWorkflowExecution({
+          eventChainVisitedWorkflowIds: ['root-a'],
+          context: { event: { eventChainVisitedWorkflowIds: ['ctx-b'] } },
+        })
+      )
+    ).toEqual(['root-a']);
+  });
+
+  it('returns empty array when missing', () => {
+    expect(extractEventChainVisitedWorkflowIdsFromExecution(createMockWorkflowExecution())).toEqual(
+      []
+    );
+  });
+
+  it('truncates visited ids to maxCount (matches maxEventChainDepth cap)', () => {
+    expect(
+      extractEventChainVisitedWorkflowIdsFromExecution(
+        createMockWorkflowExecution({
+          eventChainVisitedWorkflowIds: ['wf-a', 'wf-b', 'wf-c', 'wf-d'],
+        }),
+        2
+      )
+    ).toEqual(['wf-a', 'wf-b']);
   });
 });
