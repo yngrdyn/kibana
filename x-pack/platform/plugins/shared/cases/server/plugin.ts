@@ -55,7 +55,10 @@ import type { ServerlessProjectType } from '../common/constants/types';
 import { IncrementalIdTaskManager } from './tasks/incremental_id/incremental_id_task_manager';
 import { createCasesAnalyticsIndexes, registerCasesAnalyticsIndexesTasks } from './cases_analytics';
 import { scheduleCAISchedulerTask } from './cases_analytics/tasks/scheduler_task';
+import { CasesEventBus } from './events/event_bus';
 import { registerCaseWorkflowSteps } from './workflows';
+import { registerCaseWorkflowTriggers } from './workflows/triggers';
+import { registerCasesWorkflowEventBridge } from './workflows/triggers/event_bridge';
 
 export class CasePlugin
   implements
@@ -79,6 +82,7 @@ export class CasePlugin
   private incrementalIdTaskManager?: IncrementalIdTaskManager;
   private usageCounter?: IUsageCounter;
   private readonly isServerless: boolean;
+  private casesEventBus?: CasesEventBus;
 
   constructor(private readonly initializerContext: PluginInitializerContext) {
     this.caseConfig = initializerContext.config.get<ConfigType>();
@@ -127,6 +131,8 @@ export class CasePlugin
       plugins.features.registerKibanaFeature(casesFeatures.v2);
       plugins.features.registerKibanaFeature(casesFeatures.v3);
     }
+
+    this.casesEventBus = new CasesEventBus();
 
     registerSavedObjects({
       core,
@@ -211,6 +217,7 @@ export class CasePlugin
     });
 
     registerCaseWorkflowSteps(plugins.workflowsExtensions, getCasesClient);
+    registerCaseWorkflowTriggers(plugins.workflowsExtensions);
 
     return {
       attachmentFramework: {
@@ -265,6 +272,10 @@ export class CasePlugin
       licensingPluginStart: plugins.licensing,
     });
 
+    // this.casesEventBus will be set to a defined value in the setup() function
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    registerCasesWorkflowEventBridge(this.casesEventBus!, plugins.workflowsExtensions, this.logger);
+
     this.clientFactory.initialize({
       // securityPluginSetup will be set to a defined value in the setup() function
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -292,6 +303,7 @@ export class CasePlugin
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       usageCounter: this.usageCounter!,
       config: this.caseConfig,
+      casesEventBus: this.casesEventBus,
     });
 
     return {

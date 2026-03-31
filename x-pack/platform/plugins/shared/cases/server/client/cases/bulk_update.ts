@@ -31,6 +31,7 @@ import {
   CASE_SAVED_OBJECT,
   MAX_USER_ACTIONS_PER_CASE,
 } from '../../../common/constants';
+import type { Owner } from '../../../common/constants/types';
 import { Operations } from '../../authorization';
 import { createCaseError, isSOError } from '../../common/error';
 import {
@@ -64,7 +65,6 @@ import { CasesPatchRequestRt } from '../../../common/types/api';
 import { CasesRt, CaseStatuses, AttachmentType } from '../../../common/types/domain';
 import { validateCustomFields } from './validators';
 import { emptyCasesAssigneesSanitizer } from './sanitizers';
-
 /**
  * Throws an error if any of the requests attempt to update the owner of a case.
  */
@@ -551,8 +551,9 @@ export const bulkUpdate = async (
 
     const builtUserActions =
       userActionsDict != null
-        ? Object.keys(userActionsDict).reduce<UserActionEvent[]>((acc, key) => {
-            return [...acc, ...userActionsDict[key]];
+        ? Object.values(userActionsDict).reduce<UserActionEvent[]>((acc, userActions) => {
+            acc.push(...userActions);
+            return acc;
           }, [])
         : [];
 
@@ -568,7 +569,33 @@ export const bulkUpdate = async (
 
     await notificationService.bulkNotifyAssignees(casesAndAssigneesToNotifyForAssignment);
 
-    return decodeOrThrow(CasesRt)(returnUpdatedCase);
+    const updatedCasesResponse = decodeOrThrow(CasesRt)(returnUpdatedCase);
+    const updatedFieldsByCaseId = query.cases.reduce<Map<string, string[]>>((acc, updateCase) => {
+      // Keep first occurrence for duplicate ids handling.
+      if (acc.has(updateCase.id)) {
+        return acc;
+      }
+
+      const updatedFields = Object.keys(updateCase).filter(
+        (key) => key !== 'id' && key !== 'version'
+      );
+      if (updatedFields.length > 0) {
+        acc.set(updateCase.id, updatedFields);
+      }
+
+      return acc;
+    }, new Map());
+
+    for (const updatedCase of updatedCasesResponse) {
+      const updatedFields = updatedFieldsByCaseId.get(updatedCase.id);
+      clientArgs.casesEventBus?.emitCaseUpdated(clientArgs.casesEventMetadata, {
+        caseId: updatedCase.id,
+        owner: updatedCase.owner as Owner,
+        ...(updatedFields != null ? { updatedFields } : {}),
+      });
+    }
+
+    return updatedCasesResponse;
   } catch (error) {
     const idVersions = cases.cases.map((caseInfo) => ({
       id: caseInfo.id,
