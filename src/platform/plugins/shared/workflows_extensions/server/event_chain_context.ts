@@ -143,7 +143,9 @@ function parseSourceWorkflowIdFromHeaders(headers: KibanaRequest['headers']): st
 }
 
 /** Workflow execution id for chain context recovery on HTTP emit paths. */
-export function getEmitterWorkflowExecutionIdFromRequest(request: KibanaRequest): string | undefined {
+export function getEmitterWorkflowExecutionIdFromRequest(
+  request: KibanaRequest
+): string | undefined {
   return getHeaderValue(request.headers, EVENT_CHAIN_EMITTER_EXECUTION_ID_HEADER);
 }
 

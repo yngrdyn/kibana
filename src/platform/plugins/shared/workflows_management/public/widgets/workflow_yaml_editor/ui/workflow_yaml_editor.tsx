@@ -31,9 +31,9 @@ import { ActionsMenuButton } from './actions_menu_button';
 import {
   useAlertTriggerDecorations,
   useConnectorTypeDecorations,
-  useRecursiveSkipOverlapDecorations,
   useFocusedStepDecoration,
   useLineDifferencesDecorations,
+  useRecursiveSkipOverlapDecorations,
   useStepDecorationsInExecution,
   useTriggerTypeDecorations,
   useWorkflowIdDecorations,
