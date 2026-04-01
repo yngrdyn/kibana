@@ -34,6 +34,11 @@ const CustomTriggerOnSchema = z
      * When true, allow scheduling this workflow again when recursive/cyclic trigger paths loop back (opt-in).
      */
     allowRecursiveTriggers: z.boolean().optional(),
+    /**
+     * When true, do not schedule this workflow when the trigger event was emitted from an active workflow
+     * execution (workflow-attributed emit path). External/domain emits still run the workflow.
+     */
+    skipWorkflowEmits: z.boolean().optional(),
   })
   .optional();
 

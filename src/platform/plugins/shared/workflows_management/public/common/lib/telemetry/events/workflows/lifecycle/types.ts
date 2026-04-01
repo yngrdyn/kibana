@@ -123,6 +123,14 @@ export interface ReportWorkflowCreatedActionParams
    * Only presence is tracked; condition contents are never reported.
    */
   hasTriggerConditions: boolean;
+  /**
+   * Whether any trigger sets `on.allowRecursiveTriggers: true`.
+   */
+  hasTriggerAllowRecursiveTriggers: boolean;
+  /**
+   * Whether any trigger sets `on.skipWorkflowEmits: true`.
+   */
+  hasTriggerSkipWorkflowEmits: boolean;
 }
 
 /**

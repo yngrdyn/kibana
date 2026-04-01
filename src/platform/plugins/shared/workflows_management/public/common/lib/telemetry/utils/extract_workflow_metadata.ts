@@ -27,6 +27,40 @@ function isConnectorStep(step: unknown): boolean {
 
 const ON_FAILURE_KEYS = ['on-failure', 'iteration-on-failure'] as const;
 
+/**
+ * Reads `on.allowRecursiveTriggers` / `on.skipWorkflowEmits` from triggers (custom/event-driven shape).
+ * Only strict `=== true` counts, matching runtime scheduling semantics.
+ */
+function extractTriggerOnChainTelemetry(triggers: unknown[]): {
+  hasTriggerAllowRecursiveTriggers: boolean;
+  hasTriggerSkipWorkflowEmits: boolean;
+} {
+  let hasTriggerAllowRecursiveTriggers = false;
+  let hasTriggerSkipWorkflowEmits = false;
+
+  for (const trigger of triggers) {
+    if (trigger && typeof trigger === 'object' && 'on' in trigger) {
+      const on = (trigger as { on?: unknown }).on;
+      if (on && typeof on === 'object') {
+        const rec = on as Record<string, unknown>;
+        const allowRecursive = rec.allowRecursiveTriggers === true;
+        const skipWorkflowEmits = rec.skipWorkflowEmits === true;
+        if (allowRecursive) {
+          hasTriggerAllowRecursiveTriggers = true;
+        }
+        if (skipWorkflowEmits) {
+          hasTriggerSkipWorkflowEmits = true;
+        }
+      }
+    }
+  }
+
+  return {
+    hasTriggerAllowRecursiveTriggers,
+    hasTriggerSkipWorkflowEmits,
+  };
+}
+
 function getFallbackSteps(step: Record<string, unknown>): Array<WorkflowYaml['steps']> {
   const result: Array<WorkflowYaml['steps']> = [];
   for (const key of ON_FAILURE_KEYS) {
@@ -89,6 +123,14 @@ export interface WorkflowTelemetryMetadata {
    */
   hasTriggerConditions: boolean;
   /**
+   * Whether any trigger has `on.allowRecursiveTriggers: true`.
+   */
+  hasTriggerAllowRecursiveTriggers: boolean;
+  /**
+   * Whether any trigger has `on.skipWorkflowEmits: true`.
+   */
+  hasTriggerSkipWorkflowEmits: boolean;
+  /**
    * Maximum concurrent runs if concurrency is configured
    */
   concurrencyMax?: number;
@@ -142,6 +184,8 @@ export function extractWorkflowMetadata(
     constCount: 0,
     triggerCount: 0,
     hasTriggerConditions: false,
+    hasTriggerAllowRecursiveTriggers: false,
+    hasTriggerSkipWorkflowEmits: false,
     settingsUsed: [],
     hasDescription: false,
     tagCount: 0,
@@ -217,6 +261,9 @@ export function extractWorkflowMetadata(
     return typeof condition === 'string' && condition.trim().length > 0;
   });
 
+  const { hasTriggerAllowRecursiveTriggers, hasTriggerSkipWorkflowEmits } =
+    extractTriggerOnChainTelemetry(triggers);
+
   // Count inputs
   const inputCount = Array.isArray(workflow.inputs) ? workflow.inputs.length : 0;
 
@@ -249,6 +296,8 @@ export function extractWorkflowMetadata(
     constCount,
     triggerCount: triggers.length,
     hasTriggerConditions,
+    hasTriggerAllowRecursiveTriggers,
+    hasTriggerSkipWorkflowEmits,
     ...(concurrencyMax !== undefined && { concurrencyMax }),
     ...(concurrencyStrategy && { concurrencyStrategy }),
     settingsUsed,

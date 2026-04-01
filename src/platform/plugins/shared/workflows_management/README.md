@@ -680,6 +680,15 @@ workflows_management/
 3. Start Kibana: `yarn start`
 4. Navigate to `/app/workflows`
 
+### Event-driven custom trigger `on` options
+
+Registered (non-built-in) triggers may set optional flags under `triggers[].on` in YAML:
+
+- **`allowRecursiveTriggers: true`** — Allow this workflow to run again when recursive trigger paths loop back to the same workflow (opts out of the event-chain cycle guard for that trigger).
+- **`skipWorkflowEmits: true`** — Do not schedule when the event was emitted from an active workflow execution (workflow-attributed `emitEvent`). Domain events that are not attributed to a workflow run still schedule the workflow. Relies on event-chain context; if attribution is missing, the emit may be treated as non-workflow.
+
+These interact with **`maxEventChainDepth`** from the execution engine config. `skipWorkflowEmits` is evaluated before depth and cycle checks when scheduling.
+
 ### Testing
 
 ```bash

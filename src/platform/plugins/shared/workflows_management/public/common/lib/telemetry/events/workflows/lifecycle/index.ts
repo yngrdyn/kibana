@@ -201,6 +201,20 @@ const workflowCreatedSchema: RootSchema<ReportWorkflowCreatedActionParams> = {
       optional: false,
     },
   },
+  hasTriggerAllowRecursiveTriggers: {
+    type: 'boolean',
+    _meta: {
+      description: 'Whether any trigger sets on.allowRecursiveTriggers: true',
+      optional: false,
+    },
+  },
+  hasTriggerSkipWorkflowEmits: {
+    type: 'boolean',
+    _meta: {
+      description: 'Whether any trigger sets on.skipWorkflowEmits: true',
+      optional: false,
+    },
+  },
 };
 
 const workflowUpdatedSchema: RootSchema<ReportWorkflowUpdatedActionParams> = {

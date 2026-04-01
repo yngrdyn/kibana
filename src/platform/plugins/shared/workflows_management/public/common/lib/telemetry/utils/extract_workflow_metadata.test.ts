@@ -70,6 +70,8 @@ describe('extractWorkflowMetadata', () => {
     constCount: 0,
     triggerCount: 0,
     hasTriggerConditions: false,
+    hasTriggerAllowRecursiveTriggers: false,
+    hasTriggerSkipWorkflowEmits: false,
     settingsUsed: [],
     hasDescription: false,
     tagCount: 0,
@@ -88,6 +90,8 @@ describe('extractWorkflowMetadata', () => {
         constCount: 0,
         triggerCount: 0,
         hasTriggerConditions: false,
+        hasTriggerAllowRecursiveTriggers: false,
+        hasTriggerSkipWorkflowEmits: false,
         settingsUsed: [],
         hasDescription: false,
         tagCount: 0,
@@ -285,6 +289,52 @@ describe('extractWorkflowMetadata', () => {
 
       expect(withCondition.hasTriggerConditions).toBe(true);
       expect(withoutCondition.hasTriggerConditions).toBe(false);
+    });
+
+    it('tracks on.allowRecursiveTriggers and on.skipWorkflowEmits when strictly true', () => {
+      const recursiveOnly = metadata(
+        baseWorkflow({
+          triggers: asRuntimeTriggers([
+            { type: 'cases.updated', on: { allowRecursiveTriggers: true } },
+          ]),
+        })
+      );
+      expect(recursiveOnly.hasTriggerAllowRecursiveTriggers).toBe(true);
+      expect(recursiveOnly.hasTriggerSkipWorkflowEmits).toBe(false);
+
+      const skipOnly = metadata(
+        baseWorkflow({
+          triggers: asRuntimeTriggers([{ type: 'cases.updated', on: { skipWorkflowEmits: true } }]),
+        })
+      );
+      expect(skipOnly.hasTriggerAllowRecursiveTriggers).toBe(false);
+      expect(skipOnly.hasTriggerSkipWorkflowEmits).toBe(true);
+
+      const bothOnSameTrigger = metadata(
+        baseWorkflow({
+          triggers: asRuntimeTriggers([
+            {
+              type: 'cases.updated',
+              on: { allowRecursiveTriggers: true, skipWorkflowEmits: true },
+            },
+          ]),
+        })
+      );
+      expect(bothOnSameTrigger.hasTriggerAllowRecursiveTriggers).toBe(true);
+      expect(bothOnSameTrigger.hasTriggerSkipWorkflowEmits).toBe(true);
+    });
+
+    it('ignores string or non-true on-chain trigger flags', () => {
+      const result = metadata(
+        baseWorkflow({
+          triggers: asRuntimeTriggers([
+            { type: 'cases.updated', on: { allowRecursiveTriggers: 'true' as unknown as boolean } },
+            { type: 'cases.other', on: { skipWorkflowEmits: false } },
+          ]),
+        })
+      );
+      expect(result.hasTriggerAllowRecursiveTriggers).toBe(false);
+      expect(result.hasTriggerSkipWorkflowEmits).toBe(false);
     });
 
     it('reflects root field: inputs (array length)', () => {

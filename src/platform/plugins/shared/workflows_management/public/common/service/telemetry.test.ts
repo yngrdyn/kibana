@@ -129,6 +129,9 @@ describe('WorkflowsBaseTelemetry', () => {
           hasDescription: false,
           tagCount: 0,
           constCount: 0,
+          hasTriggerConditions: false,
+          hasTriggerAllowRecursiveTriggers: false,
+          hasTriggerSkipWorkflowEmits: false,
         })
       );
     });
@@ -207,6 +210,8 @@ describe('WorkflowsBaseTelemetry', () => {
         constCount: 0,
         triggerCount: 0,
         hasTriggerConditions: false,
+        hasTriggerAllowRecursiveTriggers: false,
+        hasTriggerSkipWorkflowEmits: false,
         settingsUsed: ['concurrency'],
         hasDescription: false,
         tagCount: 0,

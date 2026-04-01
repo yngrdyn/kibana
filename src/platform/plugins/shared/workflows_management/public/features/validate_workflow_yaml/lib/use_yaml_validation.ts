@@ -13,8 +13,6 @@ import { monaco } from '@kbn/monaco';
 import { collectAllConnectorIds } from './collect_all_connector_ids';
 import { collectAllCustomPropertyItems } from './collect_all_custom_property_items';
 import { collectAllVariables } from './collect_all_variables';
-import { collectAllowRecursiveTriggersItems } from './collect_allow_recursive_triggers_items';
-import { validateAllowRecursiveTriggers } from './validate_allow_recursive_triggers';
 import { validateConnectorIds } from './validate_connector_ids';
 import { validateCustomProperties } from './validate_custom_properties';
 import { validateIfConditions } from './validate_if_conditions';
@@ -127,9 +125,6 @@ export function useYamlValidation(
         ...validateStepNameUniqueness(yamlDocument),
         ...validateLiquidTemplate(model.getValue(), yamlDocument),
         ...validateConnectorIds(connectorIdItems, dynamicConnectorTypes, connectorsManagementUrl),
-        ...collectAllowRecursiveTriggersItems(yamlDocument, lineCounter).flatMap(
-          validateAllowRecursiveTriggers
-        ),
         ...validateWorkflowOutputsInYaml(yamlDocument, model, workflowDefinition?.outputs),
         ...(customPropertyItems ? await validateCustomProperties(customPropertyItems) : []),
         ...(workflowLookup && lineCounter
