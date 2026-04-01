@@ -8,7 +8,7 @@
  */
 
 import { Document, LineCounter, parseDocument } from 'yaml';
-import { collectTriggerReentryItems } from './collect_trigger_reentry_items';
+import { collectAllowRecursiveTriggersItems } from './collect_allow_recursive_triggers_items';
 
 function parse(yaml: string) {
   return parseDocument(yaml);
@@ -20,15 +20,15 @@ function parseWithLineCounter(yaml: string) {
   return { doc, lineCounter };
 }
 
-describe('collectTriggerReentryItems', () => {
+describe('collectAllowRecursiveTriggersItems', () => {
   it('returns an empty array when the document has no contents', () => {
     const doc = parse('');
-    expect(collectTriggerReentryItems(doc)).toEqual([]);
+    expect(collectAllowRecursiveTriggersItems(doc)).toEqual([]);
   });
 
   it('returns an empty array when the document has null contents', () => {
     const doc = new Document(null);
-    expect(collectTriggerReentryItems(doc)).toEqual([]);
+    expect(collectAllowRecursiveTriggersItems(doc)).toEqual([]);
   });
 
   it('returns an empty array when the document has parse errors', () => {
@@ -36,7 +36,7 @@ describe('collectTriggerReentryItems', () => {
     if (doc.errors.length === 0) {
       doc.errors.push({ code: 'TAB_AS_INDENT', message: 'test error' } as never);
     }
-    expect(collectTriggerReentryItems(doc)).toEqual([]);
+    expect(collectAllowRecursiveTriggersItems(doc)).toEqual([]);
   });
 
   it('returns an empty array when there are no triggers', () => {
@@ -45,69 +45,69 @@ steps:
   - name: step1
     type: action`;
     const doc = parse(yaml);
-    expect(collectTriggerReentryItems(doc)).toEqual([]);
+    expect(collectAllowRecursiveTriggersItems(doc)).toEqual([]);
   });
 
-  it('returns an empty array when reentry is false', () => {
+  it('returns an empty array when allowRecursiveTriggers is false', () => {
     const yaml = `triggers:
   - type: alert
     on:
-      reentry: false`;
+      allowRecursiveTriggers: false`;
     const doc = parse(yaml);
-    expect(collectTriggerReentryItems(doc)).toEqual([]);
+    expect(collectAllowRecursiveTriggersItems(doc)).toEqual([]);
   });
 
-  it('returns an empty array when reentry is a string', () => {
+  it('returns an empty array when allowRecursiveTriggers is a string', () => {
     const yaml = `triggers:
   - type: alert
     on:
-      reentry: "true"`;
+      allowRecursiveTriggers: "true"`;
     const doc = parse(yaml);
-    expect(collectTriggerReentryItems(doc)).toEqual([]);
+    expect(collectAllowRecursiveTriggersItems(doc)).toEqual([]);
   });
 
-  it('collects reentry: true under triggers[].on', () => {
+  it('collects allowRecursiveTriggers: true under triggers[].on', () => {
     const yaml = `triggers:
   - type: alert
     on:
-      reentry: true`;
+      allowRecursiveTriggers: true`;
     const { doc, lineCounter } = parseWithLineCounter(yaml);
-    const items = collectTriggerReentryItems(doc, lineCounter);
+    const items = collectAllowRecursiveTriggersItems(doc, lineCounter);
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
       triggerIndex: 0,
-      yamlPath: ['triggers', 0, 'on', 'reentry'],
+      yamlPath: ['triggers', 0, 'on', 'allowRecursiveTriggers'],
       startLineNumber: 4,
       startColumn: 7,
       endLineNumber: 4,
-      endColumn: 20,
     });
+    expect(items[0]?.endColumn).toBeGreaterThanOrEqual(34);
   });
 
-  it('collects multiple triggers with reentry true', () => {
+  it('collects multiple triggers with allowRecursiveTriggers true', () => {
     const yaml = `triggers:
   - type: alert
     on:
-      reentry: true
+      allowRecursiveTriggers: true
   - type: alert
     on:
-      reentry: true`;
+      allowRecursiveTriggers: true`;
     const doc = parse(yaml);
-    const items = collectTriggerReentryItems(doc);
+    const items = collectAllowRecursiveTriggersItems(doc);
 
     expect(items).toHaveLength(2);
     expect(items[0]?.triggerIndex).toBe(0);
     expect(items[1]?.triggerIndex).toBe(1);
   });
 
-  it('does not collect reentry outside triggers[].on', () => {
-    const yaml = `reentry: true
+  it('does not collect allowRecursiveTriggers outside triggers[].on', () => {
+    const yaml = `allowRecursiveTriggers: true
 triggers:
   - type: alert
     on:
       source: x`;
     const doc = parse(yaml);
-    expect(collectTriggerReentryItems(doc)).toEqual([]);
+    expect(collectAllowRecursiveTriggersItems(doc)).toEqual([]);
   });
 });

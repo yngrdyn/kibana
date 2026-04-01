@@ -28,6 +28,11 @@ function mockResolveResult(
   return { workflows, stats };
 }
 
+/** Lets tests use custom trigger ids (e.g. `cases.updated`) not in the static `WorkflowYaml` trigger union. */
+type MockWorkflowDetailOverrides = Partial<Omit<WorkflowDetailDto, 'definition'>> & {
+  definition?: WorkflowDetailDto['definition'] | Record<string, unknown> | null;
+};
+
 function getEngineMock(
   executionEnabled: boolean,
   logEventsEnabled: boolean = true,
@@ -42,7 +47,7 @@ function getEngineMock(
     } as WorkflowsExecutionEnginePluginStart);
 }
 
-const createMockWorkflow = (overrides: Partial<WorkflowDetailDto> = {}): WorkflowDetailDto =>
+const createMockWorkflow = (overrides: MockWorkflowDetailOverrides = {}): WorkflowDetailDto =>
   ({
     id: 'wf-1',
     name: 'Test Workflow',
@@ -243,7 +248,9 @@ describe('createTriggerEventHandler', () => {
   it('should skip scheduling when target was already visited (A to B to A cycle)', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const wfA = createMockWorkflow({ id: 'wf-a' });
-    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue(mockResolveResult([wfA]));
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue(mockResolveResult([wfA]));
     const telemetryClient = { reportTriggerEventDispatched: jest.fn() };
 
     const handler = createTriggerEventHandler({
@@ -274,16 +281,18 @@ describe('createTriggerEventHandler', () => {
     );
   });
 
-  it('should schedule when on.reentry is true even if target is in the chain', async () => {
+  it('should schedule when on.allowRecursiveTriggers is true even if target is in the chain', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const wfA = createMockWorkflow({
       id: 'wf-a',
       definition: {
-        triggers: [{ type: 'cases.updated', on: { reentry: true } }],
+        triggers: [{ type: 'cases.updated', on: { allowRecursiveTriggers: true } }],
         steps: [],
       },
     });
-    const resolveMatchingWorkflowSubscriptions = jest.fn().mockResolvedValue(mockResolveResult([wfA]));
+    const resolveMatchingWorkflowSubscriptions = jest
+      .fn()
+      .mockResolvedValue(mockResolveResult([wfA]));
     const telemetryClient = { reportTriggerEventDispatched: jest.fn() };
 
     const handler = createTriggerEventHandler({
@@ -738,7 +747,7 @@ describe('createTriggerEventHandler', () => {
       id: 'wf-invalid',
       definition: null,
       valid: false,
-    } as Partial<WorkflowDetailDto>);
+    });
     const validWf2 = createMockWorkflow({ id: 'wf-valid-2' });
 
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);

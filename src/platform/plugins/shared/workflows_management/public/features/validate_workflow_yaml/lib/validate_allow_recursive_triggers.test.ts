@@ -7,28 +7,28 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { validateTriggerReentry } from './validate_trigger_reentry';
+import { validateAllowRecursiveTriggers } from './validate_allow_recursive_triggers';
 
-describe('validateTriggerReentry', () => {
+describe('validateAllowRecursiveTriggers', () => {
   it('returns a warning with expected owner and severity', () => {
-    const [result] = validateTriggerReentry({
+    const [result] = validateAllowRecursiveTriggers({
       triggerIndex: 0,
       startLineNumber: 4,
       startColumn: 7,
       endLineNumber: 4,
-      endColumn: 20,
-      yamlPath: ['triggers', 0, 'on', 'reentry'],
+      endColumn: 35,
+      yamlPath: ['triggers', 0, 'on', 'allowRecursiveTriggers'],
     });
 
     expect(result).toMatchObject({
-      owner: 'trigger-reentry-validation',
+      owner: 'trigger-allow-recursive-triggers-validation',
       severity: 'warning',
       startLineNumber: 4,
       startColumn: 7,
       endLineNumber: 4,
-      endColumn: 20,
+      endColumn: 35,
     });
-    expect(result?.message).toContain('cycle guard');
+    expect(result?.message).toContain('recursive triggers');
     expect(result?.message).toContain('intentional');
     expect(result?.hoverMessage).toBe(result?.message);
   });

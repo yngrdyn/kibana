@@ -128,10 +128,10 @@ interface YamlValidationResultTriggerConditionError extends YamlValidationResult
   owner: 'trigger-condition-validation';
 }
 
-interface YamlValidationResultTriggerReentryWarning extends YamlValidationResultBase {
+interface YamlValidationResultAllowRecursiveTriggersWarning extends YamlValidationResultBase {
   severity: YamlValidationErrorSeverity;
   message: string;
-  owner: 'trigger-reentry-validation';
+  owner: 'trigger-allow-recursive-triggers-validation';
 }
 
 interface YamlValidationResultWorkflowOutput extends YamlValidationResultBase {
@@ -165,7 +165,7 @@ export const CUSTOM_YAML_VALIDATION_MARKER_OWNERS = [
   'custom-property-validation',
   'workflow-inputs-validation',
   'trigger-condition-validation',
-  'trigger-reentry-validation',
+  'trigger-allow-recursive-triggers-validation',
   'workflow-output-validation',
   'if-condition-validation',
 ] as const;
@@ -189,6 +189,6 @@ export type YamlValidationResult =
   | YamlValidationResultCustomPropertyValid
   | YamlValidationResultWorkflowInputsError
   | YamlValidationResultTriggerConditionError
-  | YamlValidationResultTriggerReentryWarning
+  | YamlValidationResultAllowRecursiveTriggersWarning
   | YamlValidationResultWorkflowOutput
   | YamlValidationResultIfConditionError;

@@ -13,7 +13,8 @@ import { monaco } from '@kbn/monaco';
 import { collectAllConnectorIds } from './collect_all_connector_ids';
 import { collectAllCustomPropertyItems } from './collect_all_custom_property_items';
 import { collectAllVariables } from './collect_all_variables';
-import { collectTriggerReentryItems } from './collect_trigger_reentry_items';
+import { collectAllowRecursiveTriggersItems } from './collect_allow_recursive_triggers_items';
+import { validateAllowRecursiveTriggers } from './validate_allow_recursive_triggers';
 import { validateConnectorIds } from './validate_connector_ids';
 import { validateCustomProperties } from './validate_custom_properties';
 import { validateIfConditions } from './validate_if_conditions';
@@ -21,7 +22,6 @@ import { validateJsonSchemaDefaults } from './validate_json_schema_defaults';
 import { validateLiquidTemplate } from './validate_liquid_template';
 import { validateStepNameUniqueness } from './validate_step_name_uniqueness';
 import { validateTriggerConditions } from './validate_trigger_conditions';
-import { validateTriggerReentry } from './validate_trigger_reentry';
 import { validateVariables as validateVariablesInternal } from './validate_variables';
 import { validateWorkflowInputs } from './validate_workflow_inputs';
 import { validateWorkflowOutputsInYaml } from './validate_workflow_outputs_in_yaml';
@@ -127,7 +127,9 @@ export function useYamlValidation(
         ...validateStepNameUniqueness(yamlDocument),
         ...validateLiquidTemplate(model.getValue(), yamlDocument),
         ...validateConnectorIds(connectorIdItems, dynamicConnectorTypes, connectorsManagementUrl),
-        ...collectTriggerReentryItems(yamlDocument, lineCounter).flatMap(validateTriggerReentry),
+        ...collectAllowRecursiveTriggersItems(yamlDocument, lineCounter).flatMap(
+          validateAllowRecursiveTriggers
+        ),
         ...validateWorkflowOutputsInYaml(yamlDocument, model, workflowDefinition?.outputs),
         ...(customPropertyItems ? await validateCustomProperties(customPropertyItems) : []),
         ...(workflowLookup && lineCounter

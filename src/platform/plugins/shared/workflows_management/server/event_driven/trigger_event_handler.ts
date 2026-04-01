@@ -138,7 +138,10 @@ function buildNextVisitedWorkflowIds(context: EventChainContext | undefined): st
   return [...prev, emitter];
 }
 
-function getTriggerAllowsChainReentry(workflow: WorkflowDetailDto, triggerId: string): boolean {
+function getTriggerAllowsRecursiveTriggers(
+  workflow: WorkflowDetailDto,
+  triggerId: string
+): boolean {
   const matchingTrigger = workflow.definition?.triggers?.find(
     (t) => t != null && typeof t === 'object' && 'type' in t && t.type === triggerId
   );
@@ -153,7 +156,7 @@ function getTriggerAllowsChainReentry(workflow: WorkflowDetailDto, triggerId: st
     return false;
   }
   const on = matchingTrigger.on as Record<string, unknown>;
-  return on.reentry === true;
+  return on.allowRecursiveTriggers === true;
 }
 
 function getEventContextForScheduledWorkflow(
@@ -171,8 +174,8 @@ function getEventContextForScheduledWorkflow(
     return null;
   }
 
-  const allowsReentry = getTriggerAllowsChainReentry(workflow, triggerId);
-  if (!allowsReentry) {
+  const allowsRecursiveTriggers = getTriggerAllowsRecursiveTriggers(workflow, triggerId);
+  if (!allowsRecursiveTriggers) {
     const nextVisited = buildNextVisitedWorkflowIds(eventChainContext);
     if (nextVisited.includes(workflow.id)) {
       logger.warn(
@@ -180,7 +183,7 @@ function getEventContextForScheduledWorkflow(
           workflow.id
         } for trigger ${triggerId} in space ${spaceId}; workflow already in chain [${nextVisited.join(
           ', '
-        )}]. Set on.reentry: true on this trigger to allow repeats.`
+        )}]. Set on.allowRecursiveTriggers: true on this trigger to allow repeats.`
       );
       return null;
     }

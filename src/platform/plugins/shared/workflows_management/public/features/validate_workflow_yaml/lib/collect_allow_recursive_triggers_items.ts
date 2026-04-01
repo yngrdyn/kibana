@@ -11,7 +11,7 @@ import type { Document, LineCounter } from 'yaml';
 import { isScalar, visit } from 'yaml';
 import { getPathFromAncestors } from '../../../../common/lib/yaml';
 
-export interface TriggerReentryItem {
+export interface AllowRecursiveTriggersItem {
   triggerIndex: number;
   startLineNumber: number;
   startColumn: number;
@@ -28,14 +28,16 @@ function offsetToLineColumn(text: string, offset: number): { line: number; colum
   };
 }
 
-/** Path is triggers[n].on.reentry → returns n; otherwise null. */
-function getTriggerIndexIfReentryPath(path: ReadonlyArray<string | number>): number | null {
+/** Path is triggers[n].on.allowRecursiveTriggers → returns n; otherwise null. */
+function getTriggerIndexIfAllowRecursiveTriggersPath(
+  path: ReadonlyArray<string | number>
+): number | null {
   if (
     path.length < 4 ||
     path[0] !== 'triggers' ||
     typeof path[1] !== 'number' ||
     path[2] !== 'on' ||
-    path[3] !== 'reentry'
+    path[3] !== 'allowRecursiveTriggers'
   ) {
     return null;
   }
@@ -43,17 +45,18 @@ function getTriggerIndexIfReentryPath(path: ReadonlyArray<string | number>): num
 }
 
 /**
- * Collects trigger `on.reentry: true` nodes for editor validation (event-chain reentry).
+ * Collects trigger `on.allowRecursiveTriggers: true` nodes for editor validation
+ * (recursive / cyclic trigger paths).
  *
  * @param lineCounter - When provided, must be the same `LineCounter` passed to `parseDocument`
  *   for the current YAML string. Offsets in node `range` are only valid for that source;
  *   using `yamlDocument.toString()` for line/column breaks after round-trip serialization.
  */
-export const collectTriggerReentryItems = (
+export const collectAllowRecursiveTriggersItems = (
   yamlDocument: Document,
   lineCounter?: LineCounter
-): TriggerReentryItem[] => {
-  const items: TriggerReentryItem[] = [];
+): AllowRecursiveTriggersItem[] => {
+  const items: AllowRecursiveTriggersItem[] = [];
 
   if (!yamlDocument?.contents || yamlDocument.errors.length > 0) {
     return items;
@@ -63,12 +66,12 @@ export const collectTriggerReentryItems = (
 
   visit(yamlDocument, {
     Pair(_key, pair, ancestors) {
-      if (!isScalar(pair.key) || pair.key.value !== 'reentry' || !pair.key.range) {
+      if (!isScalar(pair.key) || pair.key.value !== 'allowRecursiveTriggers' || !pair.key.range) {
         return;
       }
       const parentPath = getPathFromAncestors(ancestors);
       const path = [...parentPath, pair.key.value as string];
-      const triggerIndex = getTriggerIndexIfReentryPath(path);
+      const triggerIndex = getTriggerIndexIfAllowRecursiveTriggersPath(path);
       if (triggerIndex === null) {
         return;
       }
@@ -84,7 +87,7 @@ export const collectTriggerReentryItems = (
         return;
       }
 
-      // Highlight from the `reentry` key through the end of the `true` token.
+      // Highlight from the key through the end of the `true` token.
       // Use value-end (range[1]), not node-end (range[2]), so the span does not
       // absorb trailing newline / following tokens (avoids squiggles on the next line).
       const startOffset = pair.key.range[0];

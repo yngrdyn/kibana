@@ -30,8 +30,10 @@ export const TriggerSchema = z.discriminatedUnion('type', [
 const CustomTriggerOnSchema = z
   .object({
     condition: z.string().optional(),
-    /** When true, allow scheduling a workflow that already appears in the current event chain (opt-in). */
-    reentry: z.boolean().optional(),
+    /**
+     * When true, allow scheduling this workflow again when recursive/cyclic trigger paths loop back (opt-in).
+     */
+    allowRecursiveTriggers: z.boolean().optional(),
   })
   .optional();
 
