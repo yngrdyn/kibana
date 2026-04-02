@@ -9,7 +9,7 @@
 
 import { render } from '@testing-library/react';
 import React from 'react';
-import { useWorkflowsCapabilities } from '@kbn/workflows-ui';
+import { useWorkflowsCapabilities, type WorkflowsManagementCapabilities } from '@kbn/workflows-ui';
 import { createMockWorkflowsCapabilities } from '@kbn/workflows-ui/mocks';
 import type { WorkflowDetailHeaderProps } from './workflow_detail_header';
 import { WorkflowDetailHeader } from './workflow_detail_header';
@@ -44,6 +44,8 @@ jest.mock('@kbn/workflows-ui', () => ({
 const mockUseWorkflowsCapabilities = useWorkflowsCapabilities as jest.MockedFunction<
   typeof useWorkflowsCapabilities
 >;
+const defaultWorkflowsCapabilities = createMockWorkflowsCapabilities();
+
 jest.mock('../../../hooks/use_workflow_url_state', () => ({
   useWorkflowUrlState: () => mockUseWorkflowUrlState(),
 }));
@@ -208,7 +210,7 @@ describe('WorkflowDetailHeader', () => {
 
   it('disables executions tab when user cannot read workflow executions', () => {
     mockUseWorkflowsCapabilities.mockReturnValue({
-      ...mockWorkflowsManagementCapabilities,
+      ...defaultWorkflowsCapabilities,
       canReadWorkflowExecution: false,
     });
     const { getByRole } = renderWithProviders(<WorkflowDetailHeader {...defaultProps} />);
@@ -219,7 +221,7 @@ describe('WorkflowDetailHeader', () => {
   describe('Authorization matrix', () => {
     interface MatrixRow {
       roleLabel: string;
-      capabilities: Partial<typeof mockWorkflowsManagementCapabilities>;
+      capabilities: Partial<WorkflowsManagementCapabilities>;
       expectRunDisabled: boolean;
       expectSaveDisabled: boolean;
       expectEnabledSwitchDisabled: boolean;
@@ -303,7 +305,7 @@ describe('WorkflowDetailHeader', () => {
         expectExecutionsTabDisabled,
       }) => {
         mockUseWorkflowsCapabilities.mockReturnValue({
-          ...mockWorkflowsManagementCapabilities,
+          ...defaultWorkflowsCapabilities,
           ...capabilities,
         });
 
@@ -341,7 +343,7 @@ describe('WorkflowDetailHeader', () => {
     it('New workflow URL: save requires createWorkflow, not updateWorkflow', () => {
       mockUseParams.mockReturnValue({});
       mockUseWorkflowsCapabilities.mockReturnValue({
-        ...mockWorkflowsManagementCapabilities,
+        ...defaultWorkflowsCapabilities,
         canReadWorkflow: true,
         canReadWorkflowExecution: true,
         canCreateWorkflow: true,
