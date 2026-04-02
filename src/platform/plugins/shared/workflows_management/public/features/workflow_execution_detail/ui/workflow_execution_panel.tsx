@@ -234,7 +234,9 @@ const ReplayExecutionButton = React.memo<{
 
   return (
     <EuiToolTip
-      content={runDisabledTooltipContent ?? isStepRun ? i18nTexts.replayStep : i18nTexts.replay}
+      content={
+        runDisabledTooltipContent ?? (isStepRun ? i18nTexts.replayStep : i18nTexts.replay)
+      }
       disableScreenReaderOutput
     >
       <EuiButtonIcon
