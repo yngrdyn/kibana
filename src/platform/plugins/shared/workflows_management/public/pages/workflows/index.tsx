@@ -159,40 +159,6 @@ export function WorkflowsPage() {
                   </EuiButton>
                 </EuiFlexItem>
               ) : null}
-              {canCreateWorkflow && (
-                <>
-                  <EuiFlexItem grow={false}>
-                    <EuiButtonEmpty
-                      iconType="download"
-                      size="m"
-                      onClick={() => setShowImportFlyout(true)}
-                      data-test-subj="importWorkflowsButton"
-                    >
-                      <FormattedMessage
-                        id="workflows.importWorkflowsButton"
-                        defaultMessage="Import"
-                        ignoreTag
-                      />
-                    </EuiButtonEmpty>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiButton
-                      iconType="plusCircle"
-                      color="primary"
-                      size="m"
-                      fill
-                      onClick={navigateToCreateWorkflow}
-                      data-test-subj="createWorkflowButton"
-                    >
-                      <FormattedMessage
-                        id="workflows.createWorkflowButton"
-                        defaultMessage="Create a new workflow"
-                        ignoreTag
-                      />
-                    </EuiButton>
-                  </EuiFlexItem>
-                </>
-              )}
             </EuiFlexGroup>
           </EuiFlexItem>
         </EuiFlexGroup>

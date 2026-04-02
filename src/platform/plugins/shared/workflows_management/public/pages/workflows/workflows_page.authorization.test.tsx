@@ -11,15 +11,16 @@ import { EuiProvider } from '@elastic/eui';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { I18nProvider } from '@kbn/i18n-react';
+import { useKibana } from '@kbn/kibana-react-plugin/public';
 import { useWorkflows } from '@kbn/workflows-ui';
 import { WorkflowsPage } from '.';
 import { TestWrapper } from '../../shared/test_utils/test_wrapper';
 
-const mockUseKibana = jest.fn();
-
-jest.mock('../../hooks/use_kibana', () => ({
-  useKibana: () => mockUseKibana(),
+jest.mock('@kbn/kibana-react-plugin/public', () => ({
+  useKibana: jest.fn(),
 }));
+
+const mockUseKibana = useKibana as jest.MockedFunction<typeof useKibana>;
 
 jest.mock('@kbn/workflows-ui', () => {
   const actual = jest.requireActual('@kbn/workflows-ui');
@@ -83,7 +84,7 @@ function mockCapabilities(createWorkflow: boolean, updateWorkflow: boolean): voi
         getBooleanValue: () => false,
       },
     },
-  });
+  } as ReturnType<typeof useKibana>);
 }
 
 describe('WorkflowsPage authorization', () => {
