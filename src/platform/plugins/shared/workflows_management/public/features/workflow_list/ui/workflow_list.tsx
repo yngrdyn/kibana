@@ -7,25 +7,17 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { EuiBasicTableColumn } from '@elastic/eui';
 import {
-  EuiBasicTable,
   EuiCallOut,
   EuiConfirmModal,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiLink,
   EuiLoadingSpinner,
   EuiSpacer,
-  EuiSwitch,
   EuiText,
-  EuiToolTip,
   useGeneratedHtmlId,
 } from '@elastic/eui';
-import type { CriteriaWithPagination } from '@elastic/eui/src/components/basic_table/basic_table';
-import { css } from '@emotion/react';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
 import type { WorkflowListItemDto, WorkflowsSearchParams } from '@kbn/workflows';
@@ -34,6 +26,7 @@ import { useWorkflows, useWorkflowsCapabilities } from '@kbn/workflows-ui';
 import { ExportReferencesModal } from './export_references_modal';
 import { useEventDrivenExecutionStatus } from './use_event_driven_execution_status';
 import { useExportWithReferences } from './use_export_with_references';
+import { WorkflowListTable } from './workflow_list_table';
 import { WorkflowsUtilityBar } from './workflows_utility_bar';
 import { WorkflowsEmptyState } from '../../../components';
 import { useWorkflowActions } from '../../../entities/workflows/model/use_workflow_actions';
@@ -42,11 +35,9 @@ import { useTelemetry } from '../../../hooks/use_telemetry';
 import { StatusBadge, WorkflowStatus } from '../../../shared/ui';
 import { NextExecutionTime } from '../../../shared/ui/next_execution_time';
 import { shouldShowWorkflowsEmptyState } from '../../../shared/utils/workflow_utils';
-import { WorkflowsTriggersList } from '../../../widgets/worflows_triggers_list/worflows_triggers_list';
-import { WorkflowTags } from '../../../widgets/workflow_tags/workflow_tags';
 import type { WorkflowTriggerTab } from '../../run_workflow/ui/types';
 import { WorkflowExecuteModal } from '../../run_workflow/ui/workflow_execute_modal';
-import { WORKFLOWS_TABLE_INITIAL_PAGE_SIZE, WORKFLOWS_TABLE_PAGE_SIZE_OPTIONS } from '../constants';
+import { WORKFLOWS_TABLE_INITIAL_PAGE_SIZE } from '../constants';
 
 interface WorkflowListProps {
   search: WorkflowsSearchParams;
@@ -461,6 +452,11 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
     ]
   );
 
+  const getEditHref = useCallback(
+    (item: WorkflowListItemDto) => application.getUrlForApp('workflows', { path: `/${item.id}` }),
+    [application]
+  );
+
   const showStart = useMemo(() => (page - 1) * size + 1, [page, size]);
   const showEnd = useMemo(() => {
     const end = page * size;
@@ -548,37 +544,26 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
         showStart={showStart}
         showEnd={showEnd}
       />
-      <EuiBasicTable
-        data-test-subj="workflowListTable"
-        css={css`
-          .euiBasicTableAction-showOnHover {
-            opacity: 1 !important;
-          }
-        `}
-        rowProps={() => ({
-          style: { height: '68px' },
-        })}
-        columns={columns}
+      <WorkflowListTable
         items={workflows?.results ?? []}
-        itemId="id"
-        responsiveBreakpoint="xs"
-        tableLayout={'fixed'}
-        onChange={({
-          page: { index: pageIndex, size: pageSize },
-        }: CriteriaWithPagination<WorkflowListItemDto>) =>
+        page={page}
+        size={size}
+        total={workflows?.total ?? 0}
+        selectedItems={selectedItems}
+        onSelectionChange={setSelectedItems}
+        onPageChange={(pageIndex, pageSize) =>
           setSearch({ ...search, page: pageIndex + 1, size: pageSize })
         }
-        selection={{
-          onSelectionChange: setSelectedItems,
-          selectable: () => true,
-          selected: selectedItems,
-        }}
-        pagination={{
-          pageSize: size,
-          pageSizeOptions: WORKFLOWS_TABLE_PAGE_SIZE_OPTIONS,
-          totalItemCount: workflows?.total ?? 0,
-          pageIndex: page - 1,
-        }}
+        onToggleWorkflow={handleToggleWorkflow}
+        onDeleteWorkflow={handleDeleteWorkflow}
+        onCloneWorkflow={handleCloneWorkflow}
+        onExportWorkflow={handleExportWorkflow}
+        onRequestRun={setExecuteWorkflow}
+        getEditHref={getEditHref}
+        canCreateWorkflow={!!canCreateWorkflow}
+        canUpdateWorkflow={!!canUpdateWorkflow}
+        canDeleteWorkflow={!!canDeleteWorkflow}
+        canExecuteWorkflow={!!canExecuteWorkflow}
       />
       {executeWorkflow?.definition && (
         <WorkflowExecuteModal
