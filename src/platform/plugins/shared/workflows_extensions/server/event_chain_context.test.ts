@@ -166,4 +166,17 @@ describe('event_chain_context', () => {
       });
     });
   });
+
+  describe('outbound HTTP header round-trip (kibana.request path)', () => {
+    it('restores depth and sourceExecutionId on a new request from headers (no in-process Symbol)', () => {
+      const engineRequest = {} as KibanaRequest;
+      const original = { depth: 2, sourceExecutionId: 'parent-exec-uuid' };
+      setWorkflowEventChainContext(engineRequest, original);
+
+      const outbound = getOutboundEventChainHeaders(engineRequest);
+      const inboundRequest = { headers: outbound } as unknown as KibanaRequest;
+
+      expect(getEventChainContext(inboundRequest)).toEqual(original);
+    });
+  });
 });
