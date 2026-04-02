@@ -100,6 +100,17 @@ export function resolveInitialSelectedTrigger(
   if (initialExecutionId) {
     return canReadWorkflowExecution ? 'historical' : getFallbackTriggerTab(normalizedInputs);
   }
+
+  const hasAlertTrigger = Boolean(definition?.triggers?.some((t) => t.type === 'alert'));
+
+  if (hasAlertTrigger) {
+    return hasAlertRacAccess ? 'alert' : getFallbackTriggerTab(normalizedInputs);
+  }
+
+  if (hasWorkflowInputFields(normalizedInputs)) {
+    return getFallbackTriggerTab(normalizedInputs);
+  }
+
   const preferred = getDefaultTrigger(definition);
   if (preferred === 'alert' && !hasAlertRacAccess) {
     return getFallbackTriggerTab(normalizedInputs);

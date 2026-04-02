@@ -649,8 +649,8 @@ describe('WorkflowExecuteModal', () => {
         />
       );
 
-      // Without initialExecutionId, the useEffect would switch to 'alert'.
-      // With initialExecutionId, it skips the default trigger selection.
+      // Without initialExecutionId, alert workflows default to the alert tab via resolveInitialSelectedTrigger.
+      // With initialExecutionId, we open on historical instead.
       const historicalButton = getByText('Historical').closest('button');
       const historicalRadio = historicalButton?.querySelector('input[type="radio"]');
       expect(historicalRadio).toBeChecked();

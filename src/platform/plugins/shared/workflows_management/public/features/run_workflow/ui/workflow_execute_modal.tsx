@@ -83,26 +83,15 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
       [definition, yamlString]
     );
 
-    const [requestedTrigger, setRequestedTrigger] = useState<WorkflowTriggerTab>(() => {
-      const initialSelectedTrigger = resolveInitialSelectedTrigger(
+    const [selectedTrigger, setSelectedTrigger] = useState<WorkflowTriggerTab>(() =>
+      resolveInitialSelectedTrigger(
         definition,
         initialExecutionId,
         hasAlertRacAccess,
         canReadWorkflowExecution,
         normalizedInputs
-      );
-      return initialSelectedTrigger;
-    });
-
-    const selectedTrigger = useMemo((): WorkflowTriggerTab => {
-      if (requestedTrigger === 'alert' && !hasAlertRacAccess) {
-        return getFallbackTriggerTab(normalizedInputs);
-      }
-      if (requestedTrigger === 'historical' && !canReadWorkflowExecution) {
-        return getFallbackTriggerTab(normalizedInputs);
-      }
-      return requestedTrigger;
-    }, [requestedTrigger, hasAlertRacAccess, canReadWorkflowExecution, normalizedInputs]);
+      )
+    );
 
     const [executionInput, setExecutionInput] = useState<string>('');
     const [executionInputErrors, setExecutionInputErrors] = useState<string | null>(null);
@@ -126,14 +115,14 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
         if (trigger === 'historical' && !canReadWorkflowExecution) {
           return;
         }
-        if (trigger === requestedTrigger) {
+        if (trigger === selectedTrigger) {
           return;
         }
         setExecutionInput('');
         setExecutionInputErrors(null);
-        setRequestedTrigger(trigger);
+        setSelectedTrigger(trigger);
       },
-      [hasAlertRacAccess, canReadWorkflowExecution, requestedTrigger]
+      [hasAlertRacAccess, canReadWorkflowExecution, selectedTrigger]
     );
 
     const shouldAutoRun = useMemo(() => {
@@ -148,27 +137,20 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
       if (shouldAutoRun) {
         onSubmit({}, 'manual');
         onClose();
-        return;
       }
-      if (initialExecutionId) {
-        return;
-      }
-      if (definition?.triggers?.some((trigger) => trigger.type === 'alert')) {
-        setRequestedTrigger(hasAlertRacAccess ? 'alert' : getFallbackTriggerTab(normalizedInputs));
-        return;
-      }
-      if (hasWorkflowInputFields(normalizedInputs)) {
-        setRequestedTrigger(getFallbackTriggerTab(normalizedInputs));
-      }
-    }, [
-      shouldAutoRun,
-      onSubmit,
-      onClose,
-      definition,
-      normalizedInputs,
-      initialExecutionId,
-      hasAlertRacAccess,
-    ]);
+    }, [shouldAutoRun, onSubmit, onClose]);
+
+    useEffect(() => {
+      setSelectedTrigger((current) => {
+        if (current === 'alert' && !hasAlertRacAccess) {
+          return getFallbackTriggerTab(normalizedInputs);
+        }
+        if (current === 'historical' && !canReadWorkflowExecution) {
+          return getFallbackTriggerTab(normalizedInputs);
+        }
+        return current;
+      });
+    }, [hasAlertRacAccess, canReadWorkflowExecution, normalizedInputs]);
 
     if (shouldAutoRun) {
       return null;
