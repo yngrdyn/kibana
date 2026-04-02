@@ -63,17 +63,16 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
     const { http } = services;
     const { canReadWorkflowExecution } = useWorkflowsCapabilities();
 
-    const [racForbiddenByServer, setRacForbiddenByServer] = useState(false);
-    const alertRacAccessOk = !racForbiddenByServer;
+    const [hasAlertRacAccess, setHasAlertRacAccess] = useState(true);
 
     useFetchAlertsIndexNamesQuery(
       { http, ruleTypeIds: [] },
       {
-        enabled: !racForbiddenByServer,
+        enabled: hasAlertRacAccess,
         retry: false,
         onError: (err: unknown) => {
           if (isRacAlertsApiForbiddenError(err)) {
-            setRacForbiddenByServer(true);
+            setHasAlertRacAccess(false);
           }
         },
       }
@@ -84,15 +83,26 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
       [definition, yamlString]
     );
 
-    const [selectedTrigger, setSelectedTrigger] = useState<WorkflowTriggerTab>(() =>
-      resolveInitialSelectedTrigger(
+    const [requestedTrigger, setRequestedTrigger] = useState<WorkflowTriggerTab>(() => {
+      const initialSelectedTrigger = resolveInitialSelectedTrigger(
         definition,
         initialExecutionId,
-        alertRacAccessOk,
+        hasAlertRacAccess,
         canReadWorkflowExecution,
         normalizedInputs
-      )
-    );
+      );
+      return initialSelectedTrigger;
+    });
+
+    const selectedTrigger = useMemo((): WorkflowTriggerTab => {
+      if (requestedTrigger === 'alert' && !hasAlertRacAccess) {
+        return getFallbackTriggerTab(normalizedInputs);
+      }
+      if (requestedTrigger === 'historical' && !canReadWorkflowExecution) {
+        return getFallbackTriggerTab(normalizedInputs);
+      }
+      return requestedTrigger;
+    }, [requestedTrigger, hasAlertRacAccess, canReadWorkflowExecution, normalizedInputs]);
 
     const [executionInput, setExecutionInput] = useState<string>('');
     const [executionInputErrors, setExecutionInputErrors] = useState<string | null>(null);
@@ -110,20 +120,20 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
 
     const handleChangeTrigger = useCallback(
       (trigger: WorkflowTriggerTab): void => {
-        if (trigger === 'alert' && !alertRacAccessOk) {
+        if (trigger === 'alert' && !hasAlertRacAccess) {
           return;
         }
         if (trigger === 'historical' && !canReadWorkflowExecution) {
           return;
         }
-        if (trigger === selectedTrigger) {
+        if (trigger === requestedTrigger) {
           return;
         }
         setExecutionInput('');
         setExecutionInputErrors(null);
-        setSelectedTrigger(trigger);
+        setRequestedTrigger(trigger);
       },
-      [alertRacAccessOk, canReadWorkflowExecution, selectedTrigger]
+      [hasAlertRacAccess, canReadWorkflowExecution, requestedTrigger]
     );
 
     const shouldAutoRun = useMemo(() => {
@@ -144,11 +154,11 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
         return;
       }
       if (definition?.triggers?.some((trigger) => trigger.type === 'alert')) {
-        setSelectedTrigger(alertRacAccessOk ? 'alert' : getFallbackTriggerTab(normalizedInputs));
+        setRequestedTrigger(hasAlertRacAccess ? 'alert' : getFallbackTriggerTab(normalizedInputs));
         return;
       }
       if (hasWorkflowInputFields(normalizedInputs)) {
-        setSelectedTrigger('manual');
+        setRequestedTrigger(getFallbackTriggerTab(normalizedInputs));
       }
     }, [
       shouldAutoRun,
@@ -157,16 +167,8 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
       definition,
       normalizedInputs,
       initialExecutionId,
-      alertRacAccessOk,
+      hasAlertRacAccess,
     ]);
-
-    useEffect(() => {
-      const mustLeaveAlert = !alertRacAccessOk && selectedTrigger === 'alert';
-      const mustLeaveHistorical = !canReadWorkflowExecution && selectedTrigger === 'historical';
-      if (mustLeaveAlert || mustLeaveHistorical) {
-        setSelectedTrigger(getFallbackTriggerTab(normalizedInputs));
-      }
-    }, [alertRacAccessOk, canReadWorkflowExecution, selectedTrigger, normalizedInputs]);
 
     if (shouldAutoRun) {
       return null;
@@ -257,7 +259,7 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
                 <EuiFlexGroup direction="row" gutterSize="s" alignItems="stretch">
                   {ENABLED_TRIGGER_TABS.map((trigger) => {
                     let triggerDisabledTooltip: string | undefined;
-                    if (trigger === 'alert' && !alertRacAccessOk) {
+                    if (trigger === 'alert' && !hasAlertRacAccess) {
                       triggerDisabledTooltip = alertTabDisabledTooltip;
                     } else if (trigger === 'historical' && !canReadWorkflowExecution) {
                       triggerDisabledTooltip = historicalTabDisabledTooltip;
@@ -376,7 +378,7 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
                     setValue={handleInputChange}
                     errors={executionInputErrors}
                     setErrors={setExecutionInputErrors}
-                    racQueriesEnabled={alertRacAccessOk}
+                    racQueriesEnabled={hasAlertRacAccess}
                   />
                 )}
                 {selectedTrigger === 'manual' && (
@@ -395,7 +397,7 @@ export const WorkflowExecuteModal = React.memo<WorkflowExecuteModalProps>(
                     setErrors={setExecutionInputErrors}
                   />
                 )}
-                {selectedTrigger === 'historical' && canReadWorkflowExecution && (
+                {selectedTrigger === 'historical' && (
                   <WorkflowExecuteHistoricalForm
                     workflowId={workflowId}
                     inputs={normalizedInputs}

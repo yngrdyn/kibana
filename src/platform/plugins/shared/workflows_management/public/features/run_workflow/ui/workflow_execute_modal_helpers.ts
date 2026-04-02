@@ -93,7 +93,7 @@ export function getFallbackTriggerTab(
 export function resolveInitialSelectedTrigger(
   definition: WorkflowYaml | null,
   initialExecutionId: string | undefined,
-  alertRacAccessOk: boolean,
+  hasAlertRacAccess: boolean,
   canReadWorkflowExecution: boolean,
   normalizedInputs: NormalizedWorkflowInputs | undefined
 ): WorkflowTriggerTab {
@@ -101,7 +101,7 @@ export function resolveInitialSelectedTrigger(
     return canReadWorkflowExecution ? 'historical' : getFallbackTriggerTab(normalizedInputs);
   }
   const preferred = getDefaultTrigger(definition);
-  if (preferred === 'alert' && !alertRacAccessOk) {
+  if (preferred === 'alert' && !hasAlertRacAccess) {
     return getFallbackTriggerTab(normalizedInputs);
   }
   return preferred;

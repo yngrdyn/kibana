@@ -67,7 +67,8 @@ export function WorkflowDetailPage({ id }: { id?: string }) {
     if (!canReadWorkflowExecution) {
       if (activeTab === 'executions') {
         setUrlTab('workflow');
-      } else if (selectedExecutionId) {
+      }
+      if (selectedExecutionId) {
         setSelectedExecution(null);
       }
     }
