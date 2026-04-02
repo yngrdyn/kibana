@@ -46,6 +46,14 @@ interface WorkflowListProps {
 export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowListProps) {
   const { page = 1, size = WORKFLOWS_TABLE_INITIAL_PAGE_SIZE } = search;
   const { application, notifications } = useKibana().services;
+  const {
+    canCreateWorkflow,
+    canReadWorkflow,
+    canReadWorkflowExecution,
+    canExecuteWorkflow,
+    canUpdateWorkflow,
+    canDeleteWorkflow,
+  } = useWorkflowsCapabilities();
 
   const searchParams = useMemo(() => {
     if (search.enabled != null) {
@@ -110,15 +118,6 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
       ) ?? false,
     [workflows?.results]
   );
-
-  const {
-    canCreateWorkflow,
-    canReadWorkflow,
-    canReadWorkflowExecution,
-    canExecuteWorkflow,
-    canUpdateWorkflow,
-    canDeleteWorkflow,
-  } = useWorkflowsCapabilities();
 
   const deselectWorkflows = useCallback(() => {
     setSelectedItems([]);
@@ -274,7 +273,7 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
         <EuiFlexItem grow={false}>
           <WorkflowsEmptyState
             onCreateWorkflow={onCreateWorkflow}
-            canCreateWorkflow={!!canCreateWorkflow}
+            canCreateWorkflow={canCreateWorkflow}
           />
         </EuiFlexItem>
       </EuiFlexGroup>

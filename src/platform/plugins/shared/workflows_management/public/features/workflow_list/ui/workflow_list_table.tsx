@@ -171,11 +171,16 @@ export const WorkflowListTable = ({
           defaultMessage: 'Trigger',
         }),
         width: '12%',
-        render: (value: unknown, item: WorkflowListItemDto) => (
-          <NextExecutionTime triggers={item.definition?.triggers ?? []} history={item.history}>
-            <WorkflowsTriggersList triggers={item.definition?.triggers ?? []} />
-          </NextExecutionTime>
-        ),
+        render: (value: unknown, item: WorkflowListItemDto) => {
+          if (!item.history || item.history.length === 0) {
+            return <WorkflowsTriggersList triggers={item.definition?.triggers ?? []} />;
+          }
+          return (
+            <NextExecutionTime triggers={item.definition?.triggers ?? []} history={item.history}>
+              <WorkflowsTriggersList triggers={item.definition?.triggers ?? []} />
+            </NextExecutionTime>
+          );
+        },
       },
       {
         field: 'steps',
@@ -332,13 +337,13 @@ export const WorkflowListTable = ({
       canReadWorkflow,
       canReadWorkflowExecution,
       canUpdateWorkflow,
-      onToggleWorkflow,
       canExecuteWorkflow,
-      getEditHref,
       canCreateWorkflow,
+      canDeleteWorkflow,
+      getEditHref,
+      onToggleWorkflow,
       onCloneWorkflow,
       onExportWorkflow,
-      canDeleteWorkflow,
       onDeleteWorkflow,
       onRequestRun,
     ]
