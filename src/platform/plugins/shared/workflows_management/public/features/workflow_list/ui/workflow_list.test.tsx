@@ -24,6 +24,8 @@ const { application: mockApplication } = mockKibanaValue.services;
 // Configure capabilities needed by the component
 (mockApplication.capabilities as Record<string, Record<string, boolean>>).workflowsManagement = {
   createWorkflow: true,
+  readWorkflow: true,
+  readWorkflowExecution: true,
   updateWorkflow: true,
   deleteWorkflow: true,
   executeWorkflow: true,

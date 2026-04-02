@@ -111,8 +111,14 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
     [workflows?.results]
   );
 
-  const { canCreateWorkflow, canExecuteWorkflow, canUpdateWorkflow, canDeleteWorkflow } =
-    useWorkflowsCapabilities();
+  const {
+    canCreateWorkflow,
+    canReadWorkflow,
+    canReadWorkflowExecution,
+    canExecuteWorkflow,
+    canUpdateWorkflow,
+    canDeleteWorkflow,
+  } = useWorkflowsCapabilities();
 
   const deselectWorkflows = useCallback(() => {
     setSelectedItems([]);
@@ -327,6 +333,8 @@ export function WorkflowList({ search, setSearch, onCreateWorkflow }: WorkflowLi
         onRequestRun={setExecuteWorkflow}
         getEditHref={getEditHref}
         canCreateWorkflow={!!canCreateWorkflow}
+        canReadWorkflow={!!canReadWorkflow}
+        canReadWorkflowExecution={!!canReadWorkflowExecution}
         canUpdateWorkflow={!!canUpdateWorkflow}
         canDeleteWorkflow={!!canDeleteWorkflow}
         canExecuteWorkflow={!!canExecuteWorkflow}
