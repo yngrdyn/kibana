@@ -51,6 +51,7 @@ import type {
   GetAvailableConnectorsResponse,
   WorkflowListItemDto,
   WorkflowPartialDetailDto,
+  WorkflowTriggerEventTraceResponseDto,
 } from '@kbn/workflows/types/v1';
 import type {
   IWorkflowEventLoggerService,
@@ -64,6 +65,7 @@ import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extens
 import type { z } from '@kbn/zod/v4';
 
 import { getChildWorkflowExecutions } from './lib/get_child_workflow_executions';
+import { getTriggerEventTraceForExecution } from './lib/get_trigger_event_trace_for_execution';
 import { getWorkflowExecution } from './lib/get_workflow_execution';
 import { searchStepExecutions, type StepExecutionListResult } from './lib/search_step_executions';
 import { searchWorkflowExecutions } from './lib/search_workflow_executions';
@@ -1336,6 +1338,26 @@ export class WorkflowsService {
       spaceId,
       includeInput: options?.includeInput,
       includeOutput: options?.includeOutput,
+    });
+  }
+
+  public async getTriggerEventTrace(
+    executionId: string,
+    spaceId: string
+  ): Promise<WorkflowTriggerEventTraceResponseDto | null> {
+    const execution = await this.getWorkflowExecution(executionId, spaceId, {
+      includeInput: false,
+      includeOutput: false,
+    });
+    if (!execution) {
+      return null;
+    }
+    return getTriggerEventTraceForExecution({
+      esClient: this.esClient,
+      logger: this.logger,
+      execution,
+      spaceId,
+      getWorkflowExecution: (id, sid, opts) => this.getWorkflowExecution(id, sid, opts),
     });
   }
 

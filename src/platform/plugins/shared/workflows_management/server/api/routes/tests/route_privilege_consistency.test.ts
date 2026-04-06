@@ -19,6 +19,7 @@ import { coreMock, httpServerMock } from '@kbn/core/server/mocks';
 import { loggerMock } from '@kbn/logging-mocks';
 import { WorkflowsManagementApiActions } from '@kbn/workflows';
 import {
+  WORKFLOWS_EVENTS_INDEX,
   WORKFLOWS_EXECUTIONS_INDEX,
   WORKFLOWS_INDEX,
   WORKFLOWS_STEP_EXECUTIONS_INDEX,
@@ -72,7 +73,7 @@ const PRIVILEGE_SCOPE: Record<string, PrivilegeScope> = {
     delegates: ['actionsClient'],
   },
   [WorkflowsManagementApiActions.readExecution]: {
-    reads: [WORKFLOWS_EXECUTIONS_INDEX, WORKFLOWS_STEP_EXECUTIONS_INDEX],
+    reads: [WORKFLOWS_EXECUTIONS_INDEX, WORKFLOWS_STEP_EXECUTIONS_INDEX, WORKFLOWS_EVENTS_INDEX],
     writes: [],
     delegates: ['eventLoggerService'],
   },
@@ -265,6 +266,9 @@ const ROUTE_REQUEST_FIXTURES: Record<string, { params?: any; body?: any; query?:
   'GET:/api/workflows/executions/{executionId}/children': {
     params: { executionId: 'test-exec-id' },
   },
+  'GET:/api/workflows/executions/{executionId}/trigger_event_trace': {
+    params: { executionId: 'test-exec-id' },
+  },
   'GET:/api/workflows/executions/{executionId}/logs': {
     params: { executionId: 'test-exec-id' },
   },
@@ -433,6 +437,11 @@ describe('Route privilege/ES-operation consistency', () => {
         if (idx === WORKFLOWS_STEP_EXECUTIONS_INDEX) {
           return Promise.resolve({
             hits: { hits: [mockStepExecutionDocument], total: { value: 1 } },
+          });
+        }
+        if (idx === WORKFLOWS_EVENTS_INDEX) {
+          return Promise.resolve({
+            hits: { hits: [], total: { value: 0 } },
           });
         }
         return Promise.resolve({
