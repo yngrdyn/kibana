@@ -10,7 +10,7 @@
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 import type { WorkflowListDto, WorkflowListItemDto, WorkflowsSearchParams } from '@kbn/workflows';
-import { createMockWorkflowsCapabilities } from '@kbn/workflows-ui/mocks';
+import { createMockWorkflowsCapabilities as mockCreateMockWorkflowsCapabilities } from '@kbn/workflows-ui/mocks';
 import { WorkflowList } from './workflow_list';
 import { createUseKibanaMockValue } from '../../../mocks';
 import { TestWrapper } from '../../../shared/test_utils';
@@ -26,7 +26,7 @@ jest.mock('@kbn/workflows-ui', () => {
   return {
     ...actual,
     useWorkflows: (...args: unknown[]) => mockUseWorkflows(...args),
-    useWorkflowsCapabilities: jest.fn(() => createMockWorkflowsCapabilities()),
+    useWorkflowsCapabilities: jest.fn(() => mockCreateMockWorkflowsCapabilities()),
   };
 });
 
