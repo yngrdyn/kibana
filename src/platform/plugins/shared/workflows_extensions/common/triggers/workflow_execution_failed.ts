@@ -11,7 +11,7 @@ import { i18n } from '@kbn/i18n';
 import { z } from '@kbn/zod/v4';
 import type { CommonTriggerDefinition } from '../trigger_registry/types';
 
-export const WORKFLOW_EXECUTION_FAILED_TRIGGER_ID = 'workflows.executionFailed' as const;
+export const WORKFLOW_EXECUTION_FAILED_TRIGGER_ID = 'workflows.failed' as const;
 
 const workflowExecutionFailedWorkflowSchema = z
   .object({

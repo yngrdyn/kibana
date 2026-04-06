@@ -18,7 +18,7 @@ import { spaceTest } from '../../fixtures';
 const FAILING_WORKFLOW_YAML = `
 name: Scout Error Trigger - Failing Workflow
 enabled: true
-description: Fails on purpose to trigger workflows.executionFailed
+description: Fails on purpose to trigger workflows.failed
 triggers:
   - type: manual
 steps:
@@ -32,9 +32,9 @@ steps:
 const ERROR_HANDLER_WORKFLOW_YAML = `
 name: Scout Error Trigger - Error Handler
 enabled: true
-description: Subscribes to workflows.executionFailed
+description: Subscribes to workflows.failed
 triggers:
-  - type: workflows.executionFailed
+  - type: workflows.failed
     on:
       condition: 'not event.workflow.isErrorHandler:true'
 steps:
@@ -63,9 +63,9 @@ steps:
 const ERROR_HANDLER_NAME_FILTER_YAML = `
 name: Scout Error Trigger - Name Filter Handler
 enabled: true
-description: Subscribes to workflows.executionFailed when workflow name matches Scout*
+description: Subscribes to workflows.failed when workflow name matches Scout*
 triggers:
-  - type: workflows.executionFailed
+  - type: workflows.failed
     on:
       condition: 'not event.workflow.isErrorHandler:true and event.workflow.name: Scout*'
 steps:
@@ -79,9 +79,9 @@ steps:
 const ERROR_HANDLER_STEP_ID_FILTER_YAML = `
 name: Scout Error Trigger - StepId Filter Handler
 enabled: true
-description: Subscribes to workflows.executionFailed when failed step id is fail_step
+description: Subscribes to workflows.failed when failed step id is fail_step
 triggers:
-  - type: workflows.executionFailed
+  - type: workflows.failed
     on:
       condition: 'not event.workflow.isErrorHandler:true and event.error.stepId:"fail_step"'
 steps:
@@ -107,7 +107,7 @@ async function waitForExecution(
 }
 
 spaceTest.describe(
-  'Workflow error trigger (workflows.executionFailed)',
+  'Workflow error trigger (workflows.failed)',
   { tag: tags.deploymentAgnostic },
   () => {
     let workflowsApi: WorkflowsApiService;
@@ -142,7 +142,7 @@ spaceTest.describe(
     });
 
     spaceTest(
-      'when a workflow fails, a workflow subscribed to workflows.executionFailed runs and receives the event',
+      'when a workflow fails, a workflow subscribed to workflows.failed runs and receives the event',
       async () => {
         const { workflowExecutionId: failedExecutionId } = await workflowsApi.run(
           failingWorkflowId,
@@ -168,7 +168,7 @@ spaceTest.describe(
         const handlerExecutionId = (firstHandlerExecution as (typeof handlerExecutions)[number]).id;
         const handlerExecution = await waitForExecution(workflowsApi, handlerExecutionId);
 
-        expect(handlerExecution?.triggeredBy).toBe('workflows.executionFailed');
+        expect(handlerExecution?.triggeredBy).toBe('workflows.failed');
         expect(handlerExecution?.status).toBe(ExecutionStatus.COMPLETED);
       }
     );
@@ -246,7 +246,7 @@ spaceTest.describe(
         expect(firstHandlerExecution).toBeDefined();
         const handlerExecutionId = (firstHandlerExecution as (typeof handlerExecutions)[number]).id;
         const handlerExecution = await waitForExecution(workflowsApi, handlerExecutionId);
-        expect(handlerExecution?.triggeredBy).toBe('workflows.executionFailed');
+        expect(handlerExecution?.triggeredBy).toBe('workflows.failed');
         expect(handlerExecution?.status).toBe(ExecutionStatus.COMPLETED);
       }
     );

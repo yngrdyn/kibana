@@ -67,7 +67,7 @@ describe('buildWorkflowExecutionFailedPayload', () => {
     });
   });
 
-  it('sets isErrorHandler to true when execution was triggered by workflows.executionFailed', () => {
+  it('sets isErrorHandler to true when execution was triggered by workflows.failed', () => {
     const execution: EsWorkflowExecution = {
       ...baseExecution,
       triggeredBy: WORKFLOW_EXECUTION_FAILED_TRIGGER_ID,

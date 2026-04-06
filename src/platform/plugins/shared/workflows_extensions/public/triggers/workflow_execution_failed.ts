@@ -18,7 +18,7 @@ import type { PublicTriggerDefinition } from '../trigger_registry/types';
 export const workflowExecutionFailedPublicTriggerDefinition: PublicTriggerDefinition = {
   ...commonWorkflowExecutionFailedTriggerDefinition,
   title: i18n.translate('workflowsExtensions.triggers.workflowExecutionFailed.title', {
-    defaultMessage: 'Workflow execution failed',
+    defaultMessage: 'Workflow failed',
   }),
   description: i18n.translate('workflowsExtensions.triggers.workflowExecutionFailed.description', {
     defaultMessage:
