@@ -558,6 +558,8 @@ export class WorkflowsExecutionEnginePlugin
         eventPayload?.eventChainVisitedWorkflowIds,
         this.getMaxEventChainDepth()
       );
+      const dispatchEventId =
+        typeof metadata?.eventId === 'string' ? metadata.eventId.trim() || undefined : undefined;
       const workflowExecution: Partial<EsWorkflowExecution> = {
         id: generateUuid(),
         spaceId,
@@ -573,6 +575,7 @@ export class WorkflowsExecutionEnginePlugin
         ...(metadata ? { metadata } : {}),
         ...(rootEventChainDepth !== undefined ? { eventChainDepth: rootEventChainDepth } : {}),
         ...(rootVisited.length > 0 ? { eventChainVisitedWorkflowIds: rootVisited } : {}),
+        ...(dispatchEventId ? { dispatchEventId } : {}),
       };
 
       const concurrencyGroupKey = this.getConcurrencyGroupKey(

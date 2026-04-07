@@ -22,9 +22,9 @@ const MAX_VISITED_IDS_IN_HEADER = 128;
  */
 export interface EventChainContext {
   depth: number;
-  sourceWorkflowId?: string;
   /** Workflow ids that already ran earlier in this event chain (cycle guard). */
   visitedWorkflowIds?: string[];
+  sourceExecutionId?: string;
 }
 
 /**
@@ -35,10 +35,10 @@ export interface EventChainContext {
 export const EVENT_CHAIN_DEPTH_HEADER = 'x-kibana-event-chain-depth';
 
 /**
- * HTTP header name for the workflow id associated with the current chain hop. Set on outbound
- * requests so the server can restore `sourceWorkflowId` on the incoming request (logging and attribution).
+ * HTTP header for the workflow execution id associated with the current chain hop. Set on outbound
+ * requests so the server can restore `sourceExecutionId` on the incoming request.
  */
-export const EVENT_CHAIN_SOURCE_WORKFLOW_HEADER = 'x-kibana-event-chain-source-workflow';
+export const EVENT_CHAIN_SOURCE_EXECUTION_HEADER = 'x-kibana-event-chain-source-execution-id';
 
 /**
  * Base64url JSON array of visited workflow ids (bounded length) for HTTP emit recovery.
@@ -138,8 +138,8 @@ function parseDepthFromHeaders(headers: KibanaRequest['headers']): number | unde
   return depth >= 0 ? depth : undefined;
 }
 
-function parseSourceWorkflowIdFromHeaders(headers: KibanaRequest['headers']): string | undefined {
-  return getHeaderValue(headers, EVENT_CHAIN_SOURCE_WORKFLOW_HEADER);
+function parseSourceExecutionIdFromHeaders(headers: KibanaRequest['headers']): string | undefined {
+  return getHeaderValue(headers, EVENT_CHAIN_SOURCE_EXECUTION_HEADER);
 }
 
 /** Workflow execution id for chain context recovery on HTTP emit paths. */
@@ -164,13 +164,14 @@ export function getEventChainContext(request: KibanaRequest): EventChainContext 
   if (depth === undefined) {
     return undefined;
   }
-  const sourceWorkflowId = parseSourceWorkflowIdFromHeaders(request.headers);
   const visitedEncoded = getHeaderValue(request.headers, EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER);
   const visitedFromHeader =
     visitedEncoded !== undefined ? parseVisitedWorkflowIdsFromHeader(visitedEncoded) : undefined;
+
+  const sourceExecutionId = parseSourceExecutionIdFromHeaders(request.headers);
   return {
     depth,
-    ...(sourceWorkflowId !== undefined && { sourceWorkflowId }),
+    ...(sourceExecutionId !== undefined && { sourceExecutionId }),
     ...(visitedFromHeader !== undefined &&
       visitedFromHeader.length > 0 && { visitedWorkflowIds: visitedFromHeader }),
   };
@@ -179,7 +180,7 @@ export function getEventChainContext(request: KibanaRequest): EventChainContext 
 /**
  * Sets the event-chain context on the request. Called by the execution engine
  * at the start of a workflow run so that any emitEvent call using this request
- * (e.g. in-process with the fakeRequest) will have the correct depth and sourceWorkflowId.
+ * (e.g. in-process with the fakeRequest) will have the correct depth and sourceExecutionId.
  */
 export function setWorkflowEventChainContext(
   request: KibanaRequest,
@@ -203,7 +204,11 @@ export function getOutboundEventChainHeaders(
   const headers: Record<string, string> = {};
   if (ctx) {
     headers[EVENT_CHAIN_DEPTH_HEADER] = String(ctx.depth);
-    headers[EVENT_CHAIN_SOURCE_WORKFLOW_HEADER] = ctx.sourceWorkflowId ?? '';
+    headers[EVENT_CHAIN_SOURCE_EXECUTION_HEADER] =
+      ctx.sourceExecutionId !== undefined && ctx.sourceExecutionId !== ''
+        ? ctx.sourceExecutionId
+        : undefined;
+
     if (ctx.visitedWorkflowIds !== undefined && ctx.visitedWorkflowIds.length > 0) {
       headers[EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER] = encodeVisitedWorkflowIdsForHeader(
         ctx.visitedWorkflowIds

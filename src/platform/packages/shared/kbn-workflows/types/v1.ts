@@ -129,6 +129,8 @@ export interface EsWorkflowExecution {
    * Root copy survives partial `context` updates.
    */
   eventChainVisitedWorkflowIds?: string[];
+  /** Trigger dispatch id from event-driven scheduling (`context.metadata.eventId`), when set */
+  dispatchEventId?: string;
 }
 
 export interface ProviderInput {
@@ -366,7 +368,7 @@ export interface WorkflowListItemDto {
   enabled: boolean;
   definition: WorkflowYaml | null;
   createdAt: string;
-  history: WorkflowExecutionHistoryModel[];
+  history?: WorkflowExecutionHistoryModel[];
   tags?: string[];
   valid: boolean;
 }
@@ -406,7 +408,7 @@ export interface WorkflowStatsDto {
     enabled: number;
     disabled: number;
   };
-  executions: WorkflowExecutionsHistoryStats[];
+  executions?: WorkflowExecutionsHistoryStats[];
 }
 
 export interface WorkflowAggsDto {

@@ -8,6 +8,7 @@
  */
 
 import pLimit from 'p-limit';
+import { v4 as generateUuid } from 'uuid';
 import type { Logger } from '@kbn/core/server';
 import type {
   EsWorkflowExecution,
@@ -46,10 +47,12 @@ async function writeTriggerEvents(
   logEventsEnabled: boolean,
   params: {
     timestamp: string;
+    eventId: string;
     triggerId: string;
     spaceId: string;
     subscriptions: string[];
     payload: Record<string, unknown>;
+    sourceExecutionId?: string;
   },
   logger: Logger
 ): Promise<void> {
@@ -71,6 +74,7 @@ interface ScheduleEventParams {
   payload: Record<string, unknown>;
   timestamp: string;
   spaceId: string;
+  eventId: string;
   eventChainContext?: EventChainContext;
   triggerId: string;
 }
@@ -284,6 +288,7 @@ async function scheduleMatchingWorkflows(
             {
               eventDispatchTimestamp: eventParams.timestamp,
               eventTriggerId: eventParams.triggerId,
+              eventId: eventParams.eventId,
             }
           );
           return 'success';
@@ -385,8 +390,14 @@ export function createTriggerEventHandler({
         maxEventChainDepth
       );
     }
+    const eventId = generateUuid();
 
-    const eventContextForResolution = { ...payload, timestamp, spaceId, eventChainDepth: 0 };
+    const eventContextForResolution = {
+      ...payload,
+      timestamp,
+      spaceId,
+      eventChainDepth: 1,
+    };
     const resolutionStartMs = Date.now();
     const { workflows, stats: resolutionStats } = await resolveMatchingWorkflowSubscriptions({
       triggerId,
@@ -404,7 +415,18 @@ export function createTriggerEventHandler({
     await writeTriggerEvents(
       getTriggerEventsClient(),
       logEventsEnabled,
-      { timestamp, triggerId, spaceId, subscriptions, payload },
+      {
+        timestamp,
+        eventId,
+        triggerId,
+        spaceId,
+        subscriptions,
+        payload,
+        ...(eventChainContext?.sourceExecutionId !== undefined &&
+        eventChainContext.sourceExecutionId !== ''
+          ? { sourceExecutionId: eventChainContext.sourceExecutionId }
+          : {}),
+      },
       logger
     );
 
@@ -414,7 +436,7 @@ export function createTriggerEventHandler({
         api,
         workflows,
         spaceId,
-        { payload, timestamp, spaceId, eventChainContext, triggerId },
+        { payload, timestamp, spaceId, eventId, eventChainContext, triggerId },
         maxEventChainDepth,
         request,
         logger
@@ -428,6 +450,11 @@ export function createTriggerEventHandler({
     reportDispatchedEvent({
       ...baseTelemetry,
       eventChainDepth: eventChainContext != null ? Math.max(0, eventChainContext.depth) : 0,
+      eventId,
+      ...(eventChainContext?.sourceExecutionId !== undefined &&
+      eventChainContext.sourceExecutionId !== ''
+        ? { sourceExecutionId: eventChainContext.sourceExecutionId }
+        : {}),
       auditOnly: !executionEnabled && logEventsEnabled,
       subscriberResolutionMs,
       ...resolutionStats,

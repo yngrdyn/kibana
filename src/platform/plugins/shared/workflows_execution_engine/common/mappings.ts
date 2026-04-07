@@ -67,6 +67,9 @@ export const WORKFLOWS_EXECUTIONS_INDEX_MAPPINGS: MappingTypeMapping = {
     eventChainVisitedWorkflowIds: {
       type: 'keyword',
     },
+    dispatchEventId: {
+      type: 'keyword',
+    },
     concurrencyGroupKey: {
       type: 'keyword',
     },

@@ -84,6 +84,13 @@ export async function setupDependencies(
     visitedWorkflowIds,
   });
 
+  if (eventChainDepth !== undefined) {
+    setWorkflowEventChainContext(fakeRequest, {
+      depth: eventChainDepth,
+      sourceExecutionId: workflowExecution.id,
+    });
+  }
+
   let workflowExecutionGraph = WorkflowGraph.fromWorkflowDefinition(
     workflowExecution.workflowDefinition,
     defaultWorkflowSettings
