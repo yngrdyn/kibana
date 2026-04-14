@@ -10,8 +10,8 @@ report_step() {
   echo "--- $1"
 }
 
-STEP_DOCS_FILE="docs/reference/workflows/_snippets/step-definitions-list.md"
-TRIGGER_DOCS_FILE="docs/reference/workflows/_snippets/trigger-definitions-list.md"
+STEP_DOCS_SNIPPETS_DIR="docs/reference/workflows/_snippets"
+WORKFLOW_REFERENCE_TOC_FILE="docs/reference/toc.yml"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT"
 
@@ -98,8 +98,18 @@ node scripts/generate workflow-step-docs
 node scripts/generate workflow-trigger-docs
 
 report_step "Check for uncommitted documentation changes"
+shopt -s nullglob
+STEP_DOCS_FILES=(
+  "${STEP_DOCS_SNIPPETS_DIR}/step-definitions-index.md"
+  "${STEP_DOCS_SNIPPETS_DIR}"/step-definitions-category-*.md
+)
+TRIGGER_DOCS_FILES=(
+  "${STEP_DOCS_SNIPPETS_DIR}/trigger-definitions-index.md"
+  "${STEP_DOCS_SNIPPETS_DIR}"/trigger-definitions-category-*.md
+)
+shopt -u nullglob
 set +e
-git diff --exit-code --quiet -- "$STEP_DOCS_FILE" "$TRIGGER_DOCS_FILE"
+git diff --exit-code --quiet -- "${STEP_DOCS_FILES[@]}" "${TRIGGER_DOCS_FILES[@]}" "$WORKFLOW_REFERENCE_TOC_FILE"
 diff_status=$?
 set -e
 
@@ -108,8 +118,9 @@ if [ "$diff_status" -ne 0 ]; then
   echo "ERROR: Workflow reference docs are out of date."
   echo ""
   echo "The following files differ from what the registries produce after loading the Workflows app:"
-  echo "  - $STEP_DOCS_FILE"
-  echo "  - $TRIGGER_DOCS_FILE"
+  for f in "${STEP_DOCS_FILES[@]}" "${TRIGGER_DOCS_FILES[@]}" "$WORKFLOW_REFERENCE_TOC_FILE"; do
+    echo "  - $f"
+  done
   echo ""
   echo "To fix locally:"
   echo "  1. Start Elasticsearch and Kibana with the workflows UI enabled (see Workflows Management README)."
@@ -117,9 +128,9 @@ if [ "$diff_status" -ne 0 ]; then
   echo "  3. Run:"
   echo "       node scripts/generate workflow-step-docs"
   echo "       node scripts/generate workflow-trigger-docs"
-  echo "  4. Commit the updated snippet files."
+  echo "  4. Commit the updated snippet files and docs/reference/toc.yml (step/trigger category lines are synced by the generators)."
   echo ""
-  git --no-pager diff -- "$STEP_DOCS_FILE" "$TRIGGER_DOCS_FILE" || true
+  git --no-pager diff -- "${STEP_DOCS_FILES[@]}" "${TRIGGER_DOCS_FILES[@]}" "$WORKFLOW_REFERENCE_TOC_FILE" || true
   exit 1
 fi
 

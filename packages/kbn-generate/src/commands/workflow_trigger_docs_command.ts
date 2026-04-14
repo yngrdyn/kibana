@@ -14,10 +14,13 @@ import { REPO_ROOT } from '@kbn/repo-info';
 
 import type { GenerateCommand } from '../generate_command';
 
-const OUTPUT_FILE = Path.resolve(
-  REPO_ROOT,
-  'docs/reference/workflows/_snippets/trigger-definitions-list.md'
-);
+const SNIPPETS_DIR = Path.resolve(REPO_ROOT, 'docs/reference/workflows/_snippets');
+const TRIGGER_INDEX_FILE = Path.join(SNIPPETS_DIR, 'trigger-definitions-index.md');
+const LEGACY_TRIGGER_LIST_FILE = Path.join(SNIPPETS_DIR, 'trigger-definitions-list.md');
+const REFERENCE_TOC_FILE = Path.resolve(REPO_ROOT, 'docs/reference/toc.yml');
+
+const WORKFLOW_TRIGGER_TOC_BEGIN_SENTINEL = 'workflow-trigger-docs-toc:begin';
+const WORKFLOW_TRIGGER_TOC_END_SENTINEL = 'workflow-trigger-docs-toc:end';
 
 const DEFAULT_KIBANA_URL = 'http://localhost:5601';
 const DEFAULT_KIBANA_AUTH = 'elastic:changeme';
@@ -65,6 +68,64 @@ function getKibanaAuth(): string {
 function getAuthHeader(auth: string): string {
   const encoded = Buffer.from(auth, 'utf8').toString('base64');
   return `Basic ${encoded}`;
+}
+
+/**
+ * Category is the prefix of the trigger id before the first dot (e.g. `workflows.failed` → `workflows`).
+ * Triggers with no dot are grouped under `uncategorized`.
+ */
+function triggerCategoryFromId(id: string): string {
+  const dot = id.indexOf('.');
+  if (dot === -1) {
+    return 'uncategorized';
+  }
+  const prefix = id.slice(0, dot);
+  return prefix.length > 0 ? prefix : 'uncategorized';
+}
+
+function triggerCategoryFileBasename(category: string): string {
+  const safe = category.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `trigger-definitions-category-${safe}.md`;
+}
+
+function triggerCategoryDisplayTitle(category: string): string {
+  if (category === 'uncategorized') {
+    return 'Uncategorized';
+  }
+  const withSpaces = category.replace(/_/g, ' ');
+  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
+}
+
+function compareTriggerCategories(a: string, b: string): number {
+  return a.localeCompare(b, 'en');
+}
+
+/** Rewrites the auto-managed trigger category entries in docs/reference/toc.yml. */
+function replaceWorkflowTriggerDocsTocChildren(content: string, categories: string[]): string {
+  const lines = content.split('\n');
+  const beginIndex = lines.findIndex((l) => l.includes(WORKFLOW_TRIGGER_TOC_BEGIN_SENTINEL));
+  const endIndex = lines.findIndex((l) => l.includes(WORKFLOW_TRIGGER_TOC_END_SENTINEL));
+  if (beginIndex === -1 || endIndex === -1 || endIndex <= beginIndex) {
+    throw new Error(
+      `docs/reference/toc.yml must contain lines with "${WORKFLOW_TRIGGER_TOC_BEGIN_SENTINEL}" and "${WORKFLOW_TRIGGER_TOC_END_SENTINEL}" wrapping workflow trigger category entries.`
+    );
+  }
+  const childLines = categories.map(
+    (c) => `      - file: workflows/_snippets/${triggerCategoryFileBasename(c)}`
+  );
+  return [...lines.slice(0, beginIndex + 1), ...childLines, ...lines.slice(endIndex)].join('\n');
+}
+
+async function syncWorkflowTriggerDocsToc(
+  categories: string[],
+  log: { info: (msg: string) => void }
+): Promise<void> {
+  const current = await Fsp.readFile(REFERENCE_TOC_FILE, 'utf8');
+  const next = replaceWorkflowTriggerDocsTocChildren(current, categories);
+  if (next !== current) {
+    await Fsp.writeFile(REFERENCE_TOC_FILE, next, 'utf8');
+    log.info(`Updated ${Path.relative(REPO_ROOT, REFERENCE_TOC_FILE)}`);
+  }
 }
 
 async function fetchTriggerDefinitions(
@@ -149,7 +210,6 @@ function renderTriggerSection(trigger: TriggerDefinitionResponseItem): string {
   if (examples.length > 0) {
     lines.push('### Examples', '');
     for (const example of examples) {
-      // Demote example headings (## → ####) so each example is a subsection of "### Examples".
       const marked = example.trim().replace(/^## /gm, '#### ');
       lines.push(marked, '');
     }
@@ -158,22 +218,31 @@ function renderTriggerSection(trigger: TriggerDefinitionResponseItem): string {
   return lines.join('\n');
 }
 
-function renderDocument(triggers: TriggerDefinitionResponseItem[]): string {
+function sortTriggers(triggers: TriggerDefinitionResponseItem[]): TriggerDefinitionResponseItem[] {
+  return [...triggers].sort((a, b) => a.id.localeCompare(b.id, 'en'));
+}
+
+function renderIndexDocument(
+  sorted: TriggerDefinitionResponseItem[],
+  categories: string[]
+): string {
   const header = '<!-- To regenerate, run: node scripts/generate workflow-trigger-docs -->';
-  const intro =
-    'Event-driven triggers start a workflow when an event is emitted. The following triggers are available:';
+  const intro = 'Event-driven triggers start a workflow when an event is emitted.';
 
-  const sorted = [...triggers].sort((a, b) => a.id.localeCompare(b.id, 'en'));
-
-  const bulletLines = sorted.map((t) => {
-    const title = t.title ?? t.id;
-    const desc = t.description ?? 'No description.';
-    return `- **${title}** (\`${t.id}\`): ${desc}`;
+  const categoryLinks = categories.map((c) => {
+    const title = triggerCategoryDisplayTitle(c);
+    const count = sorted.filter((t) => triggerCategoryFromId(t.id) === c).length;
+    const file = triggerCategoryFileBasename(c);
+    return `- [${title}](${file}) (${count} trigger${count === 1 ? '' : 's'})`;
   });
 
-  // Render a section for every trigger so we always show event payload (and snippet/examples when present),
-  // even when doc metadata (title/description) was not pushed by the client.
-  const sections = sorted.map(renderTriggerSection);
+  const bulletLines = sorted.map((t) => {
+    const label = t.title ?? t.id;
+    const desc = t.description ?? 'No description.';
+    const catTitle = triggerCategoryDisplayTitle(triggerCategoryFromId(t.id));
+    const catFile = triggerCategoryFileBasename(triggerCategoryFromId(t.id));
+    return `- **${label}** (\`${t.id}\`, ${catTitle}): ${desc} — [${catTitle} triggers](${catFile})`;
+  });
 
   return [
     header,
@@ -182,10 +251,28 @@ function renderDocument(triggers: TriggerDefinitionResponseItem[]): string {
     '',
     intro,
     '',
+    '## Browse by category',
+    '',
+    ...categoryLinks,
+    '',
+    '## All triggers',
+    '',
     ...bulletLines,
     '',
-    ...sections,
   ].join('\n');
+}
+
+function renderCategoryDocument(
+  category: string,
+  triggersInCategory: TriggerDefinitionResponseItem[]
+): string {
+  const header = '<!-- To regenerate, run: node scripts/generate workflow-trigger-docs -->';
+  const display = triggerCategoryDisplayTitle(category);
+  const intro = `Triggers in the ${display} category.`;
+  const sorted = sortTriggers(triggersInCategory);
+  const sections = sorted.map(renderTriggerSection);
+
+  return [header, '', `# ${display} event triggers`, '', intro, '', ...sections].join('\n');
 }
 
 export const WorkflowTriggerDocsCommand: GenerateCommand = {
@@ -202,11 +289,56 @@ export const WorkflowTriggerDocsCommand: GenerateCommand = {
     const { triggers } = await fetchTriggerDefinitions(url, authHeader);
     log.info(`Got ${triggers.length} trigger(s).`);
 
-    const markdown = renderDocument(triggers);
+    for (const trigger of triggers) {
+      if (typeof trigger.id !== 'string' || trigger.id.length === 0) {
+        throw new Error('Trigger definition is missing a non-empty id in the API response.');
+      }
+    }
 
-    await Fsp.mkdir(Path.dirname(OUTPUT_FILE), { recursive: true });
-    await Fsp.writeFile(OUTPUT_FILE, markdown, 'utf8');
+    const sorted = sortTriggers(triggers);
+    const categories = [...new Set(triggers.map((t) => triggerCategoryFromId(t.id)))].sort(
+      compareTriggerCategories
+    );
 
-    log.success(`Wrote ${Path.relative(REPO_ROOT, OUTPUT_FILE)}`);
+    await Fsp.mkdir(SNIPPETS_DIR, { recursive: true });
+
+    try {
+      await Fsp.unlink(LEGACY_TRIGGER_LIST_FILE);
+      log.info(`Removed legacy ${Path.relative(REPO_ROOT, LEGACY_TRIGGER_LIST_FILE)}`);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+
+    const expectedCategoryFiles = new Set<string>();
+
+    for (const category of categories) {
+      const triggersInCategory = triggers.filter((t) => triggerCategoryFromId(t.id) === category);
+      const basename = triggerCategoryFileBasename(category);
+      expectedCategoryFiles.add(basename);
+      const outPath = Path.join(SNIPPETS_DIR, basename);
+      await Fsp.writeFile(outPath, renderCategoryDocument(category, triggersInCategory), 'utf8');
+      log.info(`Wrote ${Path.relative(REPO_ROOT, outPath)}`);
+    }
+
+    const entries = await Fsp.readdir(SNIPPETS_DIR, { withFileTypes: true });
+    const staleCategorySnippets = entries.filter(
+      (ent) =>
+        ent.isFile() &&
+        ent.name.startsWith('trigger-definitions-category-') &&
+        ent.name.endsWith('.md') &&
+        !expectedCategoryFiles.has(ent.name)
+    );
+    for (const ent of staleCategorySnippets) {
+      await Fsp.unlink(Path.join(SNIPPETS_DIR, ent.name));
+      log.info(`Removed stale snippet ${ent.name}`);
+    }
+
+    const indexMarkdown = renderIndexDocument(sorted, categories);
+    await Fsp.writeFile(TRIGGER_INDEX_FILE, indexMarkdown, 'utf8');
+    log.success(`Wrote ${Path.relative(REPO_ROOT, TRIGGER_INDEX_FILE)}`);
+
+    await syncWorkflowTriggerDocsToc(categories, log);
   },
 };

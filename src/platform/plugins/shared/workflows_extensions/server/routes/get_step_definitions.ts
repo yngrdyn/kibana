@@ -10,7 +10,7 @@
 import type { IRouter } from '@kbn/core/server';
 import { createSHA256Hash } from '@kbn/crypto';
 import { z } from '@kbn/zod/v4';
-import type { StepDocMetadata } from '../../common';
+import type { StepDocMetadata } from '../../common/step_registry/types';
 import type { ServerStepRegistry } from '../step_registry';
 
 const ROUTE_PATH = '/internal/workflows_extensions/step_definitions';
@@ -76,6 +76,8 @@ function schemaToProperties(schema: z.ZodType): SchemaProperty[] | null {
 export interface StepDefinitionResponseItem {
   id: string;
   handlerHash: string;
+  /** Grouping for documentation (matches `StepCategory` in step definitions). Present only when step doc metadata has been pushed. */
+  stepCategory?: string;
   label?: string;
   description?: string;
   documentation?: StepDocMetadata['documentation'];
@@ -119,6 +121,7 @@ export function registerGetStepDefinitionsRoute(
             handlerHash: createSHA256Hash(handler.toString()),
           };
           if (doc) {
+            item.stepCategory = step.category;
             item.label = doc.label;
             item.description = doc.description;
             if (doc.documentation) item.documentation = doc.documentation;
