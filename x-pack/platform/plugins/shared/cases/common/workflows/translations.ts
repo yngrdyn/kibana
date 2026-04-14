@@ -476,34 +476,6 @@ export const CASE_NOT_FOUND_MESSAGE = (caseId: string) =>
     values: { caseId },
   });
 
-export const CASE_TRIGGER_EVENT_SCHEMA_CASE_ID_DESCRIPTION = i18n.translate(
-  'xpack.cases.workflowTriggers.eventSchema.caseId',
-  {
-    defaultMessage: 'The ID of the case.',
-  }
-);
-
-export const CASE_TRIGGER_EVENT_SCHEMA_OWNER_DESCRIPTION = i18n.translate(
-  'xpack.cases.workflowTriggers.case.eventSchema.owner',
-  {
-    defaultMessage: 'The owner of the case.',
-  }
-);
-
-export const CASE_UPDATED_TRIGGER_EVENT_SCHEMA_UPDATED_FIELDS_DESCRIPTION = i18n.translate(
-  'xpack.cases.workflowTriggers.caseUpdated.eventSchema.updatedFields',
-  {
-    defaultMessage: 'A list of case fields updated by this operation.',
-  }
-);
-
-export const COMMENT_ADDED_TRIGGER_EVENT_SCHEMA_CASE_COMMENT_IDS_DESCRIPTION = i18n.translate(
-  'xpack.cases.workflowTriggers.commentAdded.eventSchema.caseCommentIds',
-  {
-    defaultMessage: 'The IDs of comments that were added.',
-  }
-);
-
 export const CUSTOM_FIELD_CAN_BE_USED_MESSAGE = (fieldName: string) =>
   i18n.translate('xpack.cases.workflowSteps.shared.customFieldCanBeUsedMessage', {
     defaultMessage: 'Custom field "{fieldName}" can be updated by this step.',

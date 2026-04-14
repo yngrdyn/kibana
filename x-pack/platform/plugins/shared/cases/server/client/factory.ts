@@ -60,7 +60,6 @@ import type { CasesServices } from './types';
 import { LicensingService } from '../services/licensing';
 import { EmailNotificationService } from '../services/notifications/email_notification_service';
 import type { ConfigType } from '../config';
-import type { CasesEventBus } from '../events/event_bus';
 import { getSavedObjectsTypes } from '../../common';
 
 interface CasesClientFactoryArgs {
@@ -81,11 +80,6 @@ interface CasesClientFactoryArgs {
   filesPluginStart: FilesStart;
   usageCounter?: IUsageCounter;
   config: ConfigType;
-  closeReasonValidator?: (
-    closeReason: string,
-    owner: string,
-    request: KibanaRequest
-  ) => Promise<boolean>;
 }
 
 /**
@@ -163,13 +157,7 @@ export class CasesClientFactory {
 
     const userInfo = await this.getUserInfo(request);
 
-    const spaceId =
-      this.options.spacesPluginStart?.spacesService.getSpaceId(request) ?? DEFAULT_SPACE_ID;
     const fileService = this.options.filesPluginStart.fileServiceFactory.asScoped(request);
-    const { closeReasonValidator } = this.options;
-    const boundCloseReasonValidator = closeReasonValidator
-      ? (closeReason: string, owner: string) => closeReasonValidator(closeReason, owner, request)
-      : undefined;
 
     return createCasesClient({
       services,
@@ -184,12 +172,12 @@ export class CasesClientFactory {
       unifiedAttachmentTypeRegistry: this.options.unifiedAttachmentTypeRegistry,
       securityStartPlugin: this.options.securityPluginStart,
       publicBaseUrl: this.options.publicBaseUrl,
-      spaceId,
+      spaceId:
+        this.options.spacesPluginStart?.spacesService.getSpaceId(request) ?? DEFAULT_SPACE_ID,
       savedObjectsSerializer,
       fileService,
       usageCounter: this.options.usageCounter,
       config: this.options.config,
-      closeReasonValidator: boundCloseReasonValidator,
     });
   }
 

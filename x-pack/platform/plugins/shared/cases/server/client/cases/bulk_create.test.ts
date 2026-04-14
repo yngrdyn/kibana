@@ -63,29 +63,6 @@ describe('bulkCreate', () => {
     jest.clearAllMocks();
   });
 
-  describe('workflow events', () => {
-    it('emits caseCreated events on successful bulk create', async () => {
-      const clientArgs = createCasesClientMockArgs();
-      clientArgs.services.caseService.bulkCreateCases.mockResolvedValue({
-        saved_objects: [caseSO, { ...caseSO, id: 'mock-id-2' }],
-      });
-
-      await bulkCreate({ cases: [getCases()[0], getCases()[0]] }, clientArgs, casesClientMock);
-
-      expect(clientArgs.casesEventBus.emitCaseCreated).toHaveBeenCalledTimes(2);
-      expect(clientArgs.casesEventBus.emitCaseCreated).toHaveBeenNthCalledWith(
-        1,
-        clientArgs.casesEventMetadata,
-        { caseId: 'mock-id-1', owner: caseSO.attributes.owner }
-      );
-      expect(clientArgs.casesEventBus.emitCaseCreated).toHaveBeenNthCalledWith(
-        2,
-        clientArgs.casesEventMetadata,
-        { caseId: 'mock-id-2', owner: caseSO.attributes.owner }
-      );
-    });
-  });
-
   describe('execution', () => {
     const createdAtDate = new Date('2023-11-05');
 
