@@ -23,6 +23,7 @@ import { registerPostTriggerDocMetadataRoute } from './routes/post_trigger_doc_m
 import { ServerStepRegistry } from './step_registry';
 import { registerInternalStepDefinitions } from './steps';
 import { TriggerRegistry } from './trigger_registry';
+import { registerInternalTriggerDefinitions } from './triggers';
 import type {
   EmitEventParams,
   TriggerEventHandler,
@@ -78,6 +79,7 @@ export class WorkflowsExtensionsServerPlugin
     // Register POST route for public plugin to push trigger doc metadata
     registerPostTriggerDocMetadataRoute(router, this.triggerRegistry, this.triggerDocMetadataStore);
     registerInternalStepDefinitions(core, this.stepRegistry);
+    registerInternalTriggerDefinitions(this.triggerRegistry);
 
     core.http.registerRouteHandlerContext<WorkflowsExtensionsRequestHandlerContext, 'workflows'>(
       'workflows',

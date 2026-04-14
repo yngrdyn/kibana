@@ -11,8 +11,9 @@ import type { CoreSetup, CoreStart, Plugin, PluginInitializerContext } from '@kb
 import { PublicStepRegistry } from './step_registry';
 import type { PublicStepDefinition } from './step_registry/types';
 import { registerInternalStepDefinitions } from './steps';
+import type { PublicTriggerDefinition } from './trigger_registry';
 import { PublicTriggerRegistry } from './trigger_registry';
-import type { PublicTriggerDefinition } from './trigger_registry/types';
+import { registerInternalTriggerDefinitions } from './triggers';
 import type {
   WorkflowsExtensionsPublicPluginSetup,
   WorkflowsExtensionsPublicPluginSetupDeps,
@@ -66,6 +67,7 @@ export class WorkflowsExtensionsPublicPlugin
     _plugins: WorkflowsExtensionsPublicPluginSetupDeps
   ): WorkflowsExtensionsPublicPluginSetup {
     registerInternalStepDefinitions(this.stepRegistry);
+    registerInternalTriggerDefinitions(this.triggerRegistry);
 
     return {
       registerStepDefinition: (definition) => this.stepRegistry.register(definition),

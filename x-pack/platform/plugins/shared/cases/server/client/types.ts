@@ -69,8 +69,7 @@ export interface CasesClientArgs {
   readonly fileService: FileServiceStart;
   readonly usageCounter?: IUsageCounter;
   readonly config: ConfigType;
-  readonly casesEventBus?: CasesEventBus;
-  readonly casesEventMetadata: CasesEventMetadata;
+  readonly closeReasonValidator?: (closeReason: string, owner: string) => Promise<boolean>;
 }
 
 export type CasesSearchParams = Partial<

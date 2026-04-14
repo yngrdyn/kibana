@@ -81,7 +81,11 @@ interface CasesClientFactoryArgs {
   filesPluginStart: FilesStart;
   usageCounter?: IUsageCounter;
   config: ConfigType;
-  casesEventBus?: CasesEventBus;
+  closeReasonValidator?: (
+    closeReason: string,
+    owner: string,
+    request: KibanaRequest
+  ) => Promise<boolean>;
 }
 
 /**
@@ -162,10 +166,10 @@ export class CasesClientFactory {
     const spaceId =
       this.options.spacesPluginStart?.spacesService.getSpaceId(request) ?? DEFAULT_SPACE_ID;
     const fileService = this.options.filesPluginStart.fileServiceFactory.asScoped(request);
-    const casesEventMetadata = {
-      request,
-      spaceId,
-    };
+    const { closeReasonValidator } = this.options;
+    const boundCloseReasonValidator = closeReasonValidator
+      ? (closeReason: string, owner: string) => closeReasonValidator(closeReason, owner, request)
+      : undefined;
 
     return createCasesClient({
       services,
@@ -185,8 +189,7 @@ export class CasesClientFactory {
       fileService,
       usageCounter: this.options.usageCounter,
       config: this.options.config,
-      casesEventBus: this.options.casesEventBus,
-      casesEventMetadata,
+      closeReasonValidator: boundCloseReasonValidator,
     });
   }
 
