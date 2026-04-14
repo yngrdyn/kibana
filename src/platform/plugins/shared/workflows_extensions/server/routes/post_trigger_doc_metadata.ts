@@ -9,7 +9,7 @@
 
 import { schema } from '@kbn/config-schema';
 import type { IRouter } from '@kbn/core/server';
-import type { TriggerDocMetadata } from '../../common';
+import type { TriggerDocMetadata } from '../../common/trigger_registry/types';
 import type { TriggerRegistry } from '../trigger_registry';
 
 const ROUTE_PATH = '/internal/workflows_extensions/trigger_doc_metadata';
@@ -78,6 +78,8 @@ export function registerPostTriggerDocMetadataRoute(
               },
             });
           }
+        }
+        for (const doc of triggers) {
           docMetadataStore.set(doc.id, doc);
         }
 

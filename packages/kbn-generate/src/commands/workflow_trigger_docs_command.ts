@@ -14,7 +14,7 @@ import { REPO_ROOT } from '@kbn/repo-info';
 
 import type { GenerateCommand } from '../generate_command';
 
-const SNIPPETS_DIR = Path.resolve(REPO_ROOT, 'docs/reference/workflows/_snippets');
+const SNIPPETS_DIR = Path.resolve(REPO_ROOT, 'docs/reference/workflows');
 const TRIGGER_INDEX_FILE = Path.join(SNIPPETS_DIR, 'trigger-definitions-index.md');
 const LEGACY_TRIGGER_LIST_FILE = Path.join(SNIPPETS_DIR, 'trigger-definitions-list.md');
 const REFERENCE_TOC_FILE = Path.resolve(REPO_ROOT, 'docs/reference/toc.yml');
@@ -111,7 +111,7 @@ function replaceWorkflowTriggerDocsTocChildren(content: string, categories: stri
     );
   }
   const childLines = categories.map(
-    (c) => `      - file: workflows/_snippets/${triggerCategoryFileBasename(c)}`
+    (c) => `      - file: workflows/${triggerCategoryFileBasename(c)}`
   );
   return [...lines.slice(0, beginIndex + 1), ...childLines, ...lines.slice(endIndex)].join('\n');
 }

@@ -10,7 +10,7 @@ report_step() {
   echo "--- $1"
 }
 
-STEP_DOCS_SNIPPETS_DIR="docs/reference/workflows/_snippets"
+STEP_DOCS_SNIPPETS_DIR="docs/reference/workflows"
 WORKFLOW_REFERENCE_TOC_FILE="docs/reference/toc.yml"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO_ROOT"
@@ -36,6 +36,17 @@ node scripts/es snapshot \
   -E discovery.type=single-node \
   --license=trial &
 ES_PID=$!
+# Empty until Kibana is started; required so `cleanup` is safe under `set -u` if we exit early.
+KIBANA_PID=""
+
+cleanup() {
+  echo "Cleaning up..."
+  if [[ -n "${KIBANA_PID}" ]]; then
+    kill "$KIBANA_PID" 2>/dev/null || true
+  fi
+  kill "$ES_PID" 2>/dev/null || true
+}
+trap cleanup EXIT
 
 echo "Waiting for Elasticsearch to be ready..."
 # Snapshot download/install on cold agents can exceed 5m; ES may not bind 9200 until then.
@@ -61,13 +72,6 @@ fi
 report_step "Starting Kibana"
 node scripts/kibana --dev --no-base-path &
 KIBANA_PID=$!
-
-cleanup() {
-  echo "Cleaning up..."
-  kill "$KIBANA_PID" 2>/dev/null || true
-  kill "$ES_PID" 2>/dev/null || true
-}
-trap cleanup EXIT
 
 echo "Waiting for Kibana to be ready..."
 MAX_WAIT=900

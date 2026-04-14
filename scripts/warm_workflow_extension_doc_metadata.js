@@ -65,14 +65,18 @@ function pollUntilMetadataReady(normalizedBase, authHeader, attempt) {
       )
     );
   }
-  return stepDocMetadataLooksReady(normalizedBase, authHeader).then(function (ready) {
-    if (ready) {
-      return true;
-    }
-    return delay(POLL_INTERVAL_MS).then(function () {
-      return pollUntilMetadataReady(normalizedBase, authHeader, attempt + 1);
+  return stepDocMetadataLooksReady(normalizedBase, authHeader)
+    .catch(function () {
+      return false;
+    })
+    .then(function (ready) {
+      if (ready) {
+        return true;
+      }
+      return delay(POLL_INTERVAL_MS).then(function () {
+        return pollUntilMetadataReady(normalizedBase, authHeader, attempt + 1);
+      });
     });
-  });
 }
 
 function warmWorkflowsApp(baseUrl, username, password) {

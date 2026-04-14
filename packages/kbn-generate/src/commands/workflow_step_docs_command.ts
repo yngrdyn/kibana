@@ -14,7 +14,7 @@ import { REPO_ROOT } from '@kbn/repo-info';
 
 import type { GenerateCommand } from '../generate_command';
 
-const SNIPPETS_DIR = Path.resolve(REPO_ROOT, 'docs/reference/workflows/_snippets');
+const SNIPPETS_DIR = Path.resolve(REPO_ROOT, 'docs/reference/workflows');
 const LEGACY_STEP_LIST_FILE = Path.join(SNIPPETS_DIR, 'step-definitions-list.md');
 const STEP_INDEX_FILE = Path.join(SNIPPETS_DIR, 'step-definitions-index.md');
 const REFERENCE_TOC_FILE = Path.resolve(REPO_ROOT, 'docs/reference/toc.yml');
@@ -109,9 +109,7 @@ function replaceWorkflowStepDocsTocChildren(content: string, categories: string[
       `docs/reference/toc.yml must contain lines with "${WORKFLOW_STEP_TOC_BEGIN_SENTINEL}" and "${WORKFLOW_STEP_TOC_END_SENTINEL}" wrapping workflow step category entries (run from repo root).`
     );
   }
-  const childLines = categories.map(
-    (c) => `      - file: workflows/_snippets/${categoryPageBasename(c)}`
-  );
+  const childLines = categories.map((c) => `      - file: workflows/${categoryPageBasename(c)}`);
   return [...lines.slice(0, beginIndex + 1), ...childLines, ...lines.slice(endIndex)].join('\n');
 }
 
