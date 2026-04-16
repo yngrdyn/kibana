@@ -9,6 +9,11 @@
  * Name of the datastream in elasticsearch
  */
 export const DATA_STREAM_NAME = '.kibana-change-history';
+
+/**
+ * Hidden index backing atomic per-object sequence allocation for the change-history data stream.
+ */
+export const SEQUENCE_COUNTER_INDEX = '.kibana-change-history-sequence';
 /**
  * Separator char. Used for scoping.
  */

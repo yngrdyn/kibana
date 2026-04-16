@@ -23,6 +23,7 @@ import {
   ECS_VERSION,
   DEFAULT_RESULT_SIZE,
 } from './constants';
+import { allocateSequencesForChanges, ensureSequenceCounterIndex } from './sequence_allocator';
 import type {
   ChangeHistoryDocument,
   GetHistoryResult,
@@ -32,7 +33,7 @@ import type {
 } from './types';
 import { sha256, defaultDiffCalculation, hashFields } from './utils';
 
-export { DATA_STREAM_NAME } from './constants';
+export { DATA_STREAM_NAME, SEQUENCE_COUNTER_INDEX } from './constants';
 
 type ChangeHistoryDataStreamClient = DataStreamClient<
   typeof changeHistoryMappings.v1,
@@ -58,6 +59,7 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
   private kibanaVersion: string;
   private logger: Logger;
   private client?: ChangeHistoryDataStreamClient;
+  private elasticsearchClient?: ElasticsearchClient;
 
   constructor({
     module,
@@ -106,6 +108,19 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
       this.logger.error(error);
       throw error;
     }
+    this.elasticsearchClient = elasticsearchClient;
+
+    try {
+      await ensureSequenceCounterIndex(elasticsearchClient);
+    } catch (error) {
+      const err = new Error(
+        `Unable to initialize change history sequence counter index: ${error}`,
+        { cause: error }
+      );
+      this.logger.error(err);
+      throw err;
+    }
+
     // Step 1: Create data stream definition
     // TODO: What about ILM policy (defaults to none = keep forever)
     const definition: DataStreamDefinition<typeof changeHistoryMappings.v1, ChangeHistoryDocument> =
@@ -165,9 +180,9 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
    * @throws An error if the data stream is not initialized, or if an error occurs while logging the change.
    */
   async logBulk(changes: ObjectChange[], opts: LogChangeHistoryOptions) {
-    const { module, dataset, client, kibanaVersion } = this;
+    const { module, dataset, client, kibanaVersion, elasticsearchClient } = this;
 
-    if (!client) {
+    if (!client || !elasticsearchClient) {
       const err = new Error(
         `Change history data stream not initialized for: module [${this.module}] and dataset [${this.dataset}]`
       );
@@ -175,15 +190,26 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
       throw err;
     }
     const { username, userProfileId, spaceId: space, correlationId, refresh } = opts;
+
+    const sequences = await allocateSequencesForChanges(elasticsearchClient, {
+      spaceId: space,
+      module,
+      dataset,
+      changes,
+      refresh,
+    });
+
     const request: ClientCreateRequest<ChangeHistoryDocument> = {
       refresh,
       space,
       documents: [],
     };
 
-    for (const change of changes) {
+    for (let i = 0; i < changes.length; i++) {
+      const change = changes[i];
       // Create document and populate
-      const { objectType, objectId, index, timestamp, sequence } = change;
+      const { objectType, objectId, index, timestamp } = change;
+      const sequence = sequences[i];
       const hash = sha256(JSON.stringify(change.after));
       const hashed = hashFields(change.after, opts.fieldsToHash);
       const { event, metadata, tags } = opts.data ?? {};
