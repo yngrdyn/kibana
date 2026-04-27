@@ -138,7 +138,12 @@ export const useWorkflowEventsOnDecorations = ({
                 : 'avoidLoop';
 
             decorations.push({
-              range: new monaco.Range(lineNumber, 1, lineNumber, model.getLineMaxColumn(lineNumber)),
+              range: new monaco.Range(
+                lineNumber,
+                1,
+                lineNumber,
+                model.getLineMaxColumn(lineNumber)
+              ),
               options: {
                 glyphMarginClassName: 'workflow-trigger-on-chain-glyph',
                 glyphMarginHoverMessage: glyphHoverForWorkflowEvents(mode),
