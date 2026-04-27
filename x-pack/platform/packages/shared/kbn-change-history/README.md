@@ -2,7 +2,7 @@
 
 Generic change-history storage and query for Kibana.
 
-Persists point-in-time snapshots of object changes to Elasticsearch data streams. To see what changed between versions, compare consecutive `object.snapshot` values in query results (or in your domain code).
+Persists point-in-time snapshots of object changes to Elasticsearch data streams. Each stored event’s `object.snapshot` is the object **after** that change (the post-change state). To see what changed between versions, compare consecutive `object.snapshot` values in query results (or in your domain code); the package does not store a separate “before” image.
 
 Solution-agnostic: use it from any plugin or module that needs audit-style history.
 

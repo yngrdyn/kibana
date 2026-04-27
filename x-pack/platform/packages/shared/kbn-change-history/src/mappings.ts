@@ -9,7 +9,7 @@ import { mappings, type MappingsDefinition } from '@kbn/es-mappings';
 
 /**
  * Elasticsearch mappings for change history documents.
- * Uses unmapped fields for variable structures (`object.snapshot`)
+ * Uses unmapped fields for variable structures (`object.snapshot`: full object after each change)
  * and flattened type for `metadata`.
  * Do not map `kibana.space_ids` here — `@kbn/data-streams` injects reserved `kibana` mappings for all data streams.
  * For field reference @see [README.md]

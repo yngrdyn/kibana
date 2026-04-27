@@ -90,7 +90,10 @@ export interface ObjectChange {
   objectId: string;
   /** A sequentially increasing version for ordering changes. Please avoid ES _seq_no or _version as these are not reliable */
   sequence?: number;
-  /** Snapshot persisted as `object.snapshot` on the stored document. */
+  /**
+   * Full snapshot of the object **after** the change (post-write state). Persisted as
+   * `object.snapshot`.
+   */
   snapshot: Record<string, any>;
 }
 

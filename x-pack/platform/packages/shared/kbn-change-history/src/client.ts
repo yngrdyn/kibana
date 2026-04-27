@@ -139,7 +139,7 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
 
   /**
    * Log a change for a single object.
-   * @param change - The changes to object that was affected.
+   * @param change - The affected object; `change.snapshot` must be the **after** (post-change) state persisted as `object.snapshot`.
    * @param opts - The options for the change.
    * @returns A promise that resolves when the change is logged.
    * @throws An error if the data stream is not initialized, or if an error occurs while logging the change.
@@ -150,7 +150,7 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
 
   /**
    * Log a bulk change for one or more objects.
-   * @param changes - The changes to objects that were affected.
+   * @param changes - The affected objects; each `snapshot` is the **after** (post-change) state for that object.
    * @param opts - The options for the bulk change.
    * @param opts.action - The action performed (`rule_create`, `rule_update`, `rule_delete`, etc.)
    * @param opts.username - Current login name for the user who performed the change.

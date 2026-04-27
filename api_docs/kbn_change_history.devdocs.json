@@ -1408,9 +1408,11 @@
         "type": "Interface",
         "tags": [],
         "label": "ObjectChange",
-        "description": [],
+        "description": [
+          "Input for logging one change. Callers supply the object state after the change succeeds; the package persists it as `object.snapshot` on the stored document. There is no stored \"before\" payload—derive diffs by comparing this event's snapshot to a prior history entry (or keep a separate before image in your domain if needed)."
+        ],
         "path": "x-pack/platform/packages/shared/kbn-change-history/src/types.ts",
-        "lineNumber": 84,
+        "lineNumber": 90,
         "columnNumber": 1,
         "deprecated": false,
         "trackAdoption": false,
@@ -1428,7 +1430,7 @@
               "string | undefined"
             ],
             "path": "x-pack/platform/packages/shared/kbn-change-history/src/types.ts",
-            "lineNumber": 85,
+            "lineNumber": 92,
             "columnNumber": 3,
             "deprecated": false,
             "trackAdoption": false
@@ -1443,7 +1445,7 @@
               "The `object.type`. Allows multiple object types per data stream."
             ],
             "path": "x-pack/platform/packages/shared/kbn-change-history/src/types.ts",
-            "lineNumber": 87,
+            "lineNumber": 94,
             "columnNumber": 3,
             "deprecated": false,
             "trackAdoption": false
@@ -1458,7 +1460,7 @@
               "The `object.id`. Uniquely identifies this object in Kibana within its `type`"
             ],
             "path": "x-pack/platform/packages/shared/kbn-change-history/src/types.ts",
-            "lineNumber": 89,
+            "lineNumber": 96,
             "columnNumber": 3,
             "deprecated": false,
             "trackAdoption": false
@@ -1476,7 +1478,7 @@
               "number | undefined"
             ],
             "path": "x-pack/platform/packages/shared/kbn-change-history/src/types.ts",
-            "lineNumber": 91,
+            "lineNumber": 98,
             "columnNumber": 3,
             "deprecated": false,
             "trackAdoption": false
@@ -1488,13 +1490,13 @@
             "tags": [],
             "label": "snapshot",
             "description": [
-              "Snapshot persisted as `object.snapshot` on the stored document."
+              "Full snapshot of the object after this change (post-write state). Persisted as `object.snapshot`. Do not pass the pre-change state here unless you intentionally want that older version recorded for this event (e.g. a deletion may use the last known state)."
             ],
             "signature": [
               "{ [x: string]: any; }"
             ],
             "path": "x-pack/platform/packages/shared/kbn-change-history/src/types.ts",
-            "lineNumber": 93,
+            "lineNumber": 104,
             "columnNumber": 3,
             "deprecated": false,
             "trackAdoption": false
