@@ -377,8 +377,9 @@ export function normalizeEventChainVisitedWorkflowIds(raw: unknown, maxCount: nu
 }
 
 /**
- * Visited workflow ids for the next event-chain hop: prior visits plus the emitting workflow
- * (skipped if already the trailing id). Used when attaching chain context to emits / restoring from ES.
+ * Visited workflow ids for the next event-chain hop: prior visits (capped to {@link maxCount})
+ * plus the emitting workflow, skipped if it already matches the trailing id of that capped prefix.
+ * Used when attaching chain context to emits / restoring from ES.
  */
 export function mergeEmitterWorkflowIntoEventChainVisited(
   prev: string[],
@@ -396,8 +397,11 @@ export function mergeEmitterWorkflowIntoEventChainVisited(
   if (trimmedEmitter === undefined) {
     return base.slice(0, cap);
   }
+  const boundedBase = base.slice(0, cap);
   const next =
-    base.length > 0 && base[base.length - 1] === trimmedEmitter ? base : [...base, trimmedEmitter];
+    boundedBase.length > 0 && boundedBase[boundedBase.length - 1] === trimmedEmitter
+      ? boundedBase
+      : [...boundedBase, trimmedEmitter];
   return next.slice(0, cap);
 }
 

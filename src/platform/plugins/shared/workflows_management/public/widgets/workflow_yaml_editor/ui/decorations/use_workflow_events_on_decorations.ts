@@ -115,53 +115,59 @@ export const useWorkflowEventsOnDecorations = ({
   const decorationCollectionRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
 
   useEffect(() => {
+    let retryTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
     const model = editor?.getModel() ?? null;
     if (decorationCollectionRef.current) {
       decorationCollectionRef.current.clear();
     }
 
-    if (!model || !yamlDocument || !isEditorMounted || readOnly || !editor) {
-      return;
-    }
+    if (model && yamlDocument && isEditorMounted && !readOnly && editor) {
+      const triggerNodes = getTriggerNodes(yamlDocument);
+      const decorations: monaco.editor.IModelDeltaDecoration[] = [];
 
-    const triggerNodes = getTriggerNodes(yamlDocument);
-    const decorations: monaco.editor.IModelDeltaDecoration[] = [];
+      for (const { node } of triggerNodes) {
+        const pairs = getTriggerOnChainOptionPairs(node);
 
-    for (const { node } of triggerNodes) {
-      const pairs = getTriggerOnChainOptionPairs(node);
+        for (const pair of pairs) {
+          const lineNumber = resolveChainOptionPropertyLine(model, node, pair, yamlLineCounter);
+          if (lineNumber !== null) {
+            const mode =
+              isScalar(pair.value) && typeof pair.value.value === 'string'
+                ? pair.value.value
+                : 'avoidLoop';
 
-      for (const pair of pairs) {
-        const lineNumber = resolveChainOptionPropertyLine(model, node, pair, yamlLineCounter);
-        if (lineNumber !== null) {
-          const mode =
-            isScalar(pair.value) && typeof pair.value.value === 'string'
-              ? pair.value.value
-              : 'avoidLoop';
+            decorations.push({
+              range: new monaco.Range(lineNumber, 1, lineNumber, model.getLineMaxColumn(lineNumber)),
+              options: {
+                glyphMarginClassName: 'workflow-trigger-on-chain-glyph',
+                glyphMarginHoverMessage: glyphHoverForWorkflowEvents(mode),
+              },
+            });
+          }
+        }
+      }
 
-          decorations.push({
-            range: new monaco.Range(lineNumber, 1, lineNumber, model.getLineMaxColumn(lineNumber)),
-            options: {
-              glyphMarginClassName: 'workflow-trigger-on-chain-glyph',
-              glyphMarginHoverMessage: glyphHoverForWorkflowEvents(mode),
-            },
-          });
+      if (decorations.length > 0 && editor) {
+        const createDecorations = () => {
+          if (editor) {
+            decorationCollectionRef.current = editor.createDecorationsCollection(decorations);
+          }
+        };
+
+        try {
+          createDecorations();
+        } catch {
+          retryTimeoutId = setTimeout(createDecorations, 10);
         }
       }
     }
 
-    if (decorations.length > 0 && editor) {
-      const createDecorations = () => {
-        if (editor) {
-          decorationCollectionRef.current = editor.createDecorationsCollection(decorations);
-        }
-      };
-
-      try {
-        createDecorations();
-      } catch {
-        setTimeout(createDecorations, 10);
+    return () => {
+      if (retryTimeoutId !== undefined) {
+        clearTimeout(retryTimeoutId);
       }
-    }
+    };
   }, [isEditorMounted, yamlDocument, yamlLineCounter, readOnly, editor]);
 
   return { decorationCollectionRef };

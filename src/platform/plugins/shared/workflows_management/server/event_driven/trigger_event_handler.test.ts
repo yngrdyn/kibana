@@ -136,7 +136,6 @@ describe('createTriggerEventHandler', () => {
     expect(event.status).toBe('open');
     expect(event.eventChainDepth).toBe(0);
     expect(event.eventChainVisitedWorkflowIds).toEqual([]);
-    expect(event.eventChainDepth).toBe(1);
     expect(event.eventId).toBeUndefined();
     const scheduleMeta = scheduleWorkflow.mock.calls[0][5] as Record<string, unknown>;
     expect(scheduleMeta).toEqual(
@@ -531,6 +530,7 @@ describe('createTriggerEventHandler', () => {
         workflowEventsIgnoreSkippedCount: 1,
         workflowEventsCycleSkippedCount: 0,
         depthSkippedCount: 0,
+        scheduledAttemptCount: 0,
       })
     );
   });

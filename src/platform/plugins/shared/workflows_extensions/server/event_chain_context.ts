@@ -107,12 +107,11 @@ function parseVisitedWorkflowIdsFromHeader(encoded: string): string[] | undefine
     }
     const out: string[] = [];
     for (const item of parsed) {
-      if (typeof item !== 'string' || item.trim() === '') {
-        continue;
-      }
-      out.push(item.trim());
-      if (out.length >= MAX_VISITED_IDS_IN_HEADER) {
-        break;
+      if (typeof item === 'string' && item.trim() !== '') {
+        out.push(item.trim());
+        if (out.length >= MAX_VISITED_IDS_IN_HEADER) {
+          break;
+        }
       }
     }
     return out;
@@ -219,10 +218,9 @@ export function getOutboundEventChainHeaders(
   const headers: Record<string, string> = {};
   if (ctx) {
     headers[EVENT_CHAIN_DEPTH_HEADER] = String(ctx.depth);
-    headers[EVENT_CHAIN_SOURCE_EXECUTION_HEADER] =
-      ctx.sourceExecutionId !== undefined && ctx.sourceExecutionId !== ''
-        ? ctx.sourceExecutionId
-        : undefined;
+    if (ctx.sourceExecutionId !== undefined && ctx.sourceExecutionId !== '') {
+      headers[EVENT_CHAIN_SOURCE_EXECUTION_HEADER] = ctx.sourceExecutionId;
+    }
 
     if (ctx.visitedWorkflowIds !== undefined && ctx.visitedWorkflowIds.length > 0) {
       headers[EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER] = encodeVisitedWorkflowIdsForHeader(
