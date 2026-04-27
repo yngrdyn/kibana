@@ -31,3 +31,10 @@ export type {
 } from './repositories/logs_repository';
 
 export type { IWorkflowEventLoggerService } from './workflow_event_logger';
+
+export {
+  extractEventChainDepthFromExecution,
+  extractEventChainVisitedWorkflowIdsFromExecution,
+  mergeEmitterWorkflowIntoEventChainVisited,
+  normalizeEventChainVisitedWorkflowIds,
+} from './lib/telemetry/utils/extract_execution_metadata';

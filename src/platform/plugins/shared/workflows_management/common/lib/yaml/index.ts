@@ -19,7 +19,6 @@ export { getStepNode } from './get_step_node';
 export { getStepNodesWithType, isStepLikeMap } from './get_step_nodes_with_type';
 export { getTriggerNodes, getTriggersPair } from './get_trigger_nodes';
 export { getTriggerOnChainOptionPairs } from './get_trigger_on_chain_option_pairs';
-export { triggerMapHasRecursiveSkipOverlapOn } from './trigger_map_has_recursive_skip_overlap';
 export { getTriggerNodesWithType } from './get_trigger_nodes_with_type';
 export {
   parseWorkflowYamlToJSON,

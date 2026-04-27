@@ -11,9 +11,8 @@ import type { KibanaRequest } from '@kbn/core/server';
 import {
   EVENT_CHAIN_DEPTH_HEADER,
   EVENT_CHAIN_EMITTER_EXECUTION_ID_HEADER,
-  EVENT_CHAIN_SOURCE_WORKFLOW_HEADER,
-  EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER,
   EVENT_CHAIN_SOURCE_EXECUTION_HEADER,
+  EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER,
   getEventChainContext,
   getOutboundEventChainHeaders,
   setWorkflowEventChainContext,
@@ -128,6 +127,8 @@ describe('event_chain_context', () => {
       depth: 1,
       visitedWorkflowIds: ['wf-a', 'wf-b'],
     });
+  });
+
   it('returns undefined when header value is an array with null first element', () => {
     const request = {
       headers: { [EVENT_CHAIN_DEPTH_HEADER]: [null as any] },
@@ -188,16 +189,16 @@ describe('event_chain_context', () => {
       });
     });
 
-    it('includes visited header and emitter execution id when provided', () => {
+    it('includes visited header, source execution id, and emitter execution id when provided', () => {
       const request = {} as KibanaRequest;
       setWorkflowEventChainContext(request, {
         depth: 2,
-        sourceWorkflowId: 'wf-src',
+        sourceExecutionId: 'exec-src',
         visitedWorkflowIds: ['wf-a'],
       });
       expect(getOutboundEventChainHeaders(request, 'exec-uuid')).toEqual({
         [EVENT_CHAIN_DEPTH_HEADER]: '2',
-        [EVENT_CHAIN_SOURCE_WORKFLOW_HEADER]: 'wf-src',
+        [EVENT_CHAIN_SOURCE_EXECUTION_HEADER]: 'exec-src',
         [EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER]: Buffer.from(
           JSON.stringify(['wf-a']),
           'utf8'

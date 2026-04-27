@@ -9,16 +9,19 @@
 
 import type { Pair, Scalar, YAMLMap } from 'yaml';
 import { isMap, isPair, isScalar } from 'yaml';
+import { WORKFLOW_EVENTS_VALUES_SET } from '@kbn/workflows';
 
-const TRIGGER_ON_CHAIN_KEYS = new Set<string>(['allowRecursiveTriggers', 'skipWorkflowEmits']);
+function isOnMapKey(key: Scalar): boolean {
+  return key.value === 'on' || key.value === true;
+}
 
 /**
- * Pairs under `triggers[].on` for `allowRecursiveTriggers: true` or `skipWorkflowEmits: true`.
+ * Pairs under `triggers[].on` for `workflowEvents` when set to a known enum string (`ignore`, `allow`, `avoidLoop`).
  */
 export function getTriggerOnChainOptionPairs(node: YAMLMap): Array<Pair<Scalar, Scalar>> {
   const onPair = node.items.find(
     (item): item is Pair<Scalar, unknown> =>
-      isPair(item) && isScalar(item.key) && item.key.value === 'on'
+      isPair(item) && isScalar(item.key) && isOnMapKey(item.key)
   );
   if (onPair === undefined || !isMap(onPair.value)) {
     return [];
@@ -28,7 +31,12 @@ export function getTriggerOnChainOptionPairs(node: YAMLMap): Array<Pair<Scalar, 
   for (const item of onMap.items) {
     if (isPair(item) && isScalar(item.key) && isScalar(item.value)) {
       const key = item.key.value;
-      if (TRIGGER_ON_CHAIN_KEYS.has(key as string) && item.value.value === true) {
+      const val = item.value.value;
+      if (
+        key === 'workflowEvents' &&
+        typeof val === 'string' &&
+        WORKFLOW_EVENTS_VALUES_SET.has(val)
+      ) {
         out.push(item as Pair<Scalar, Scalar>);
       }
     }

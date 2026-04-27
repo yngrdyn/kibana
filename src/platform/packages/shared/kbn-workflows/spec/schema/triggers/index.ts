@@ -26,19 +26,23 @@ export const TriggerSchema = z.discriminatedUnion('type', [
   ManualTriggerSchema,
 ]);
 
+/** Allowed values for `on.workflowEvents` on custom (event-driven) triggers. */
+const WORKFLOW_EVENTS_VALUES = ['ignore', 'allow', 'avoidLoop'] as const;
+export type WorkflowEventsValue = (typeof WORKFLOW_EVENTS_VALUES)[number];
+export const WORKFLOW_EVENTS_VALUES_SET = new Set<string>(WORKFLOW_EVENTS_VALUES);
+export const WorkflowEventsSchema = z.enum(WORKFLOW_EVENTS_VALUES);
+
 /** Schema for the `on` block of custom triggers (KQL condition to filter when the workflow runs). */
 const CustomTriggerOnSchema = z
   .object({
     condition: z.string().optional(),
     /**
-     * When true, allow scheduling this workflow again when recursive/cyclic trigger paths loop back (opt-in).
+     * How this trigger responds when the event was emitted from a workflow-attributed chain:
+     * `ignore` — do not schedule;
+     * `avoidLoop`— schedule with cycle guard (default when omitted);
+     * `allow` — schedule without cycle guard (max chain depth still applies).
      */
-    allowRecursiveTriggers: z.boolean().optional(),
-    /**
-     * When true, do not schedule this workflow when the trigger event was emitted from an active workflow
-     * execution (workflow-attributed emit path). External/domain emits still run the workflow.
-     */
-    skipWorkflowEmits: z.boolean().optional(),
+    workflowEvents: WorkflowEventsSchema.optional(),
   })
   .optional();
 

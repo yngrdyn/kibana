@@ -18,6 +18,7 @@ import { ConnectorExecutor } from '../connector_executor';
 import {
   extractEventChainDepthFromExecution,
   extractEventChainVisitedWorkflowIdsFromExecution,
+  mergeEmitterWorkflowIntoEventChainVisited,
 } from '../lib/telemetry/utils/extract_execution_metadata';
 import { WorkflowExecutionTelemetryClient } from '../lib/telemetry/workflow_execution_telemetry_client';
 import { StepExecutionRepository } from '../repositories/step_execution_repository';
@@ -74,22 +75,20 @@ export async function setupDependencies(
   }
 
   const eventChainDepth = extractEventChainDepthFromExecution(workflowExecution) ?? -1;
-  const visitedWorkflowIds = extractEventChainVisitedWorkflowIdsFromExecution(
+  const baseVisited = extractEventChainVisitedWorkflowIdsFromExecution(
     workflowExecution,
+    config.eventDriven.maxChainDepth
+  );
+  const visitedWorkflowIds = mergeEmitterWorkflowIntoEventChainVisited(
+    baseVisited,
+    workflowExecution.workflowId,
     config.eventDriven.maxChainDepth
   );
   setWorkflowEventChainContext(fakeRequest, {
     depth: eventChainDepth,
-    sourceWorkflowId: workflowExecution.workflowId,
-    visitedWorkflowIds,
+    sourceExecutionId: workflowExecution.id,
+    ...(visitedWorkflowIds.length > 0 ? { visitedWorkflowIds } : {}),
   });
-
-  if (eventChainDepth !== undefined) {
-    setWorkflowEventChainContext(fakeRequest, {
-      depth: eventChainDepth,
-      sourceExecutionId: workflowExecution.id,
-    });
-  }
 
   let workflowExecutionGraph = WorkflowGraph.fromWorkflowDefinition(
     workflowExecution.workflowDefinition,

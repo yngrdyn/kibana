@@ -201,17 +201,24 @@ const workflowCreatedSchema: RootSchema<ReportWorkflowCreatedActionParams> = {
       optional: false,
     },
   },
-  hasTriggerAllowRecursiveTriggers: {
+  hasTriggerWorkflowEventsIgnore: {
     type: 'boolean',
     _meta: {
-      description: 'Whether any trigger sets on.allowRecursiveTriggers: true',
+      description: 'Whether any trigger sets on.workflowEvents: ignore',
       optional: false,
     },
   },
-  hasTriggerSkipWorkflowEmits: {
+  hasTriggerWorkflowEventsAllow: {
     type: 'boolean',
     _meta: {
-      description: 'Whether any trigger sets on.skipWorkflowEmits: true',
+      description: 'Whether any trigger sets on.workflowEvents: allow',
+      optional: false,
+    },
+  },
+  hasTriggerWorkflowEventsAvoidLoop: {
+    type: 'boolean',
+    _meta: {
+      description: 'Whether any trigger explicitly sets on.workflowEvents: avoidLoop',
       optional: false,
     },
   },

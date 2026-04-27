@@ -12,11 +12,7 @@ import type { Document, LineCounter, Node, Pair, Scalar, YAMLMap } from 'yaml';
 import { isScalar } from 'yaml';
 import { i18n } from '@kbn/i18n';
 import { monaco } from '@kbn/monaco';
-import {
-  getTriggerNodes,
-  getTriggerOnChainOptionPairs,
-  triggerMapHasRecursiveSkipOverlapOn,
-} from '../../../../../common/lib/yaml';
+import { getTriggerNodes, getTriggerOnChainOptionPairs } from '../../../../../common/lib/yaml';
 import { getMonacoRangeFromYamlNode } from '../../lib/utils';
 
 /**
@@ -69,7 +65,7 @@ function resolveChainOptionPropertyLine(
   return null;
 }
 
-interface UseRecursiveSkipOverlapDecorationsProps {
+interface UseWorkflowEventsOnDecorationsProps {
   editor: monaco.editor.IStandaloneCodeEditor | null;
   yamlDocument: Document | null;
   /** Same counter as `parseDocument(..., { lineCounter })` in workflow computation; aligns glyphs with markers. */
@@ -78,44 +74,44 @@ interface UseRecursiveSkipOverlapDecorationsProps {
   readOnly: boolean;
 }
 
-function glyphHoverForPair(propertyKey: string, triggerHasOverlap: boolean): { value: string } {
-  if (triggerHasOverlap) {
+function glyphHoverForWorkflowEvents(mode: string): { value: string } {
+  if (mode === 'ignore') {
     return {
       value: i18n.translate(
-        'workflows.workflowDetail.yamlEditor.recursiveSkipOverlapGlyphTooltip',
+        'workflows.workflowDetail.yamlEditor.workflowEventsIgnoreGlyphTooltip',
         {
           defaultMessage:
-            'This trigger sets both allowRecursiveTriggers and skipWorkflowEmits. Workflow-emitted events are skipped, so recursive scheduling cannot apply to those emits. Consider using only one of these options.',
+            'workflowEvents: ignore — this workflow is not scheduled when the trigger event was emitted from another workflow run. User- or domain-originated events still run it.',
         }
       ),
     };
   }
-  if (propertyKey === 'allowRecursiveTriggers') {
+  if (mode === 'allow') {
     return {
-      value: i18n.translate(
-        'workflows.workflowDetail.yamlEditor.allowRecursiveTriggersGlyphTooltip',
-        {
-          defaultMessage:
-            'Recursive triggers: this workflow may run again when downstream events loop back. Only enable if intentional; otherwise runs may repeat until max event chain depth.',
-        }
-      ),
+      value: i18n.translate('workflows.workflowDetail.yamlEditor.workflowEventsAllowGlyphTooltip', {
+        defaultMessage:
+          'workflowEvents: allow — this workflow may run on workflow-emitted events without the event-chain cycle guard. Max event chain depth still applies; use only when intentional.',
+      }),
     };
   }
   return {
-    value: i18n.translate('workflows.workflowDetail.yamlEditor.skipWorkflowEmitsGlyphTooltip', {
-      defaultMessage:
-        'Skip workflow emits: this workflow is not scheduled when the event is emitted from another workflow execution. Non-workflow events still run it.',
-    }),
+    value: i18n.translate(
+      'workflows.workflowDetail.yamlEditor.workflowEventsAvoidLoopGlyphTooltip',
+      {
+        defaultMessage:
+          'workflowEvents: avoidLoop — run on workflow-emitted events but skip scheduling if this workflow is already on the event chain (loop guard). Omitted defaults to avoidLoop.',
+      }
+    ),
   };
 }
 
-export const useRecursiveSkipOverlapDecorations = ({
+export const useWorkflowEventsOnDecorations = ({
   editor,
   yamlDocument,
   yamlLineCounter,
   isEditorMounted,
   readOnly,
-}: UseRecursiveSkipOverlapDecorationsProps) => {
+}: UseWorkflowEventsOnDecorationsProps) => {
   const decorationCollectionRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
 
   useEffect(() => {
@@ -133,19 +129,20 @@ export const useRecursiveSkipOverlapDecorations = ({
 
     for (const { node } of triggerNodes) {
       const pairs = getTriggerOnChainOptionPairs(node);
-      const triggerHasOverlap = triggerMapHasRecursiveSkipOverlapOn(node);
 
       for (const pair of pairs) {
         const lineNumber = resolveChainOptionPropertyLine(model, node, pair, yamlLineCounter);
         if (lineNumber !== null) {
-          const propertyKey =
-            typeof pair.key.value === 'string' ? pair.key.value : 'skipWorkflowEmits';
+          const mode =
+            isScalar(pair.value) && typeof pair.value.value === 'string'
+              ? pair.value.value
+              : 'avoidLoop';
 
           decorations.push({
             range: new monaco.Range(lineNumber, 1, lineNumber, model.getLineMaxColumn(lineNumber)),
             options: {
               glyphMarginClassName: 'workflow-trigger-on-chain-glyph',
-              glyphMarginHoverMessage: glyphHoverForPair(propertyKey, triggerHasOverlap),
+              glyphMarginHoverMessage: glyphHoverForWorkflowEvents(mode),
             },
           });
         }

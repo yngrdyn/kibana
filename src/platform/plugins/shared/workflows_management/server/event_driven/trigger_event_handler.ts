@@ -20,7 +20,9 @@ import type { WorkflowsExecutionEnginePluginStart } from '@kbn/workflows-executi
 import {
   extractEventChainDepthFromExecution,
   extractEventChainVisitedWorkflowIdsFromExecution,
-} from '@kbn/workflows-execution-engine/server/lib/telemetry/utils/extract_execution_metadata';
+  mergeEmitterWorkflowIntoEventChainVisited,
+  normalizeEventChainVisitedWorkflowIds,
+} from '@kbn/workflows-execution-engine/server';
 import {
   type EventChainContext,
   getEmitterWorkflowExecutionIdFromRequest,
@@ -34,6 +36,7 @@ import {
   createEmptyTriggerScheduleStats,
   type TriggerEventScheduleStats,
 } from './trigger_event_stats';
+import { resolveWorkflowEventsModeFromOn } from '../../common/lib/resolve_workflow_events_mode_from_on';
 import type { WorkflowsManagementApi } from '../api/workflows_management_api';
 import { validateWorkflowForExecution } from '../connectors/workflows/validate_workflow_for_execution';
 import { type TriggerEventDispatchedTelemetryEvent } from '../telemetry/events';
@@ -84,13 +87,16 @@ function eventChainContextFromExecutionDto(
   maxEventChainDepth: number
 ): EventChainContext {
   const esLike = doc as unknown as EsWorkflowExecution;
+  const baseVisited = extractEventChainVisitedWorkflowIdsFromExecution(esLike, maxEventChainDepth);
+  const visitedWorkflowIds = mergeEmitterWorkflowIntoEventChainVisited(
+    baseVisited,
+    doc.workflowId,
+    maxEventChainDepth
+  );
   return {
     depth: extractEventChainDepthFromExecution(esLike) ?? -1,
-    sourceWorkflowId: doc.workflowId,
-    visitedWorkflowIds: extractEventChainVisitedWorkflowIdsFromExecution(
-      esLike,
-      maxEventChainDepth
-    ),
+    sourceExecutionId: doc.id,
+    ...(visitedWorkflowIds.length > 0 ? { visitedWorkflowIds } : {}),
   };
 }
 
@@ -155,35 +161,18 @@ function getMatchingTriggerOn(
   return matchingTrigger.on as Record<string, unknown>;
 }
 
-function buildNextVisitedWorkflowIds(context: EventChainContext | undefined): string[] {
-  const prev =
-    context?.visitedWorkflowIds?.filter(
-      (id): id is string => typeof id === 'string' && id !== ''
-    ) ?? [];
-  const emitter = context?.sourceWorkflowId;
-  if (emitter === undefined || emitter === '') {
-    return prev;
-  }
-  if (prev.length > 0 && prev[prev.length - 1] === emitter) {
-    return prev;
-  }
-  return [...prev, emitter];
+function buildNextVisitedWorkflowIds(
+  context: EventChainContext | undefined,
+  maxEventChainDepth: number
+): string[] {
+  return normalizeEventChainVisitedWorkflowIds(context?.visitedWorkflowIds, maxEventChainDepth);
 }
 
-function getTriggerAllowsRecursiveTriggers(
-  workflow: WorkflowDetailDto,
-  triggerId: string
-): boolean {
-  const on = getMatchingTriggerOn(workflow, triggerId);
-  return on?.allowRecursiveTriggers === true;
+function getWorkflowEventsMode(workflow: WorkflowDetailDto, triggerId: string) {
+  return resolveWorkflowEventsModeFromOn(getMatchingTriggerOn(workflow, triggerId));
 }
 
-function getTriggerSkipWorkflowEmits(workflow: WorkflowDetailDto, triggerId: string): boolean {
-  const on = getMatchingTriggerOn(workflow, triggerId);
-  return on?.skipWorkflowEmits === true;
-}
-
-type ScheduleContextSkipReason = 'skip_workflow_emit' | 'depth' | 'cycle';
+type ScheduleContextSkipReason = 'workflow_events_ignore' | 'depth' | 'cycle';
 
 function getEventContextForScheduledWorkflow(
   workflow: WorkflowDetailDto,
@@ -194,15 +183,13 @@ function getEventContextForScheduledWorkflow(
   | { outcome: 'scheduled'; event: Record<string, unknown> }
   | { outcome: 'skipped'; reason: ScheduleContextSkipReason } {
   const { payload, timestamp, spaceId, eventChainContext, triggerId } = eventParams;
+  const workflowEventsMode = getWorkflowEventsMode(workflow, triggerId);
 
-  if (
-    getTriggerSkipWorkflowEmits(workflow, triggerId) &&
-    isWorkflowSourcedChainContext(eventChainContext)
-  ) {
+  if (workflowEventsMode === 'ignore' && isWorkflowSourcedChainContext(eventChainContext)) {
     logger.warn(
-      `Skip workflow emit guard skipped scheduling workflow ${workflow.id} for trigger ${triggerId} in space ${spaceId}; on.skipWorkflowEmits is true and this event was emitted from a workflow execution.`
+      `WorkflowEvents ignore skipped scheduling workflow ${workflow.id} for trigger ${triggerId} in space ${spaceId}; on.workflowEvents is ignore and this event was emitted from a workflow execution.`
     );
-    return { outcome: 'skipped', reason: 'skip_workflow_emit' };
+    return { outcome: 'skipped', reason: 'workflow_events_ignore' };
   }
 
   const newDepth = (eventChainContext?.depth ?? -1) + 1;
@@ -213,22 +200,21 @@ function getEventContextForScheduledWorkflow(
     return { outcome: 'skipped', reason: 'depth' };
   }
 
-  const allowsRecursiveTriggers = getTriggerAllowsRecursiveTriggers(workflow, triggerId);
-  if (!allowsRecursiveTriggers) {
-    const nextVisited = buildNextVisitedWorkflowIds(eventChainContext);
+  if (workflowEventsMode !== 'allow') {
+    const nextVisited = buildNextVisitedWorkflowIds(eventChainContext, maxEventChainDepth);
     if (nextVisited.includes(workflow.id)) {
       logger.warn(
         `Event chain cycle guard skipped scheduling workflow ${
           workflow.id
         } for trigger ${triggerId} in space ${spaceId}; workflow already in chain [${nextVisited.join(
           ', '
-        )}]. Set on.allowRecursiveTriggers: true on this trigger to allow repeats.`
+        )}]. Set on.workflowEvents: allow on this trigger to allow repeats.`
       );
       return { outcome: 'skipped', reason: 'cycle' };
     }
   }
 
-  const nextVisitedForPayload = buildNextVisitedWorkflowIds(eventChainContext);
+  const nextVisitedForPayload = buildNextVisitedWorkflowIds(eventChainContext, maxEventChainDepth);
 
   return {
     outcome: 'scheduled',
@@ -257,7 +243,13 @@ async function scheduleMatchingWorkflows(
   const scheduleConcurrency = pLimit(SCHEDULE_CONCURRENCY);
   const schedulePromises = workflows.map((workflow) =>
     scheduleConcurrency(
-      async (): Promise<'depth_skipped' | 'skip_workflow_emit_skipped' | 'success' | 'failure'> => {
+      async (): Promise<
+        | 'workflow_events_cycle_skipped'
+        | 'depth_skipped'
+        | 'workflow_events_ignore_skipped'
+        | 'success'
+        | 'failure'
+      > => {
         const scheduleResult = getEventContextForScheduledWorkflow(
           workflow,
           eventParams,
@@ -265,8 +257,11 @@ async function scheduleMatchingWorkflows(
           logger
         );
         if (scheduleResult.outcome === 'skipped') {
-          if (scheduleResult.reason === 'skip_workflow_emit') {
-            return 'skip_workflow_emit_skipped';
+          if (scheduleResult.reason === 'workflow_events_ignore') {
+            return 'workflow_events_ignore_skipped';
+          }
+          if (scheduleResult.reason === 'cycle') {
+            return 'workflow_events_cycle_skipped';
           }
           return 'depth_skipped';
         }
@@ -317,8 +312,10 @@ async function scheduleMatchingWorkflows(
     } else {
       if (outcome.value === 'depth_skipped') {
         stats.depthSkippedCount += 1;
-      } else if (outcome.value === 'skip_workflow_emit_skipped') {
-        stats.skipWorkflowEmitSkippedCount += 1;
+      } else if (outcome.value === 'workflow_events_ignore_skipped') {
+        stats.workflowEventsIgnoreSkippedCount += 1;
+      } else if (outcome.value === 'workflow_events_cycle_skipped') {
+        stats.workflowEventsCycleSkippedCount += 1;
       } else {
         stats.scheduledAttemptCount += 1;
         if (outcome.value === 'success') {

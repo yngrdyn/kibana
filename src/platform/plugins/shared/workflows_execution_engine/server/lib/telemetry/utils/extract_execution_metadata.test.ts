@@ -18,6 +18,7 @@ import {
   extractExecutionMetadata,
   extractQueueDelayMs,
   extractTimeToFirstStep,
+  mergeEmitterWorkflowIntoEventChainVisited,
 } from './extract_execution_metadata';
 
 const createMockWorkflowExecution = (
@@ -570,5 +571,32 @@ describe('extractEventChainVisitedWorkflowIdsFromExecution', () => {
         2
       )
     ).toEqual(['wf-a', 'wf-b']);
+  });
+});
+
+describe('mergeEmitterWorkflowIntoEventChainVisited', () => {
+  it('appends emitter workflow id when not already trailing', () => {
+    expect(mergeEmitterWorkflowIntoEventChainVisited(['wf-a'], 'wf-b', 10)).toEqual([
+      'wf-a',
+      'wf-b',
+    ]);
+  });
+
+  it('does not duplicate when emitter is already trailing', () => {
+    expect(mergeEmitterWorkflowIntoEventChainVisited(['wf-a', 'wf-b'], 'wf-b', 10)).toEqual([
+      'wf-a',
+      'wf-b',
+    ]);
+  });
+
+  it('returns base list when emitter is omitted', () => {
+    expect(mergeEmitterWorkflowIntoEventChainVisited(['wf-a'], undefined, 10)).toEqual(['wf-a']);
+  });
+
+  it('respects maxCount', () => {
+    expect(mergeEmitterWorkflowIntoEventChainVisited(['wf-a', 'wf-b'], 'wf-c', 2)).toEqual([
+      'wf-a',
+      'wf-b',
+    ]);
   });
 });

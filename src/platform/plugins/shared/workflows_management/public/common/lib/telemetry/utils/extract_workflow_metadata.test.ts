@@ -70,8 +70,9 @@ describe('extractWorkflowMetadata', () => {
     constCount: 0,
     triggerCount: 0,
     hasTriggerConditions: false,
-    hasTriggerAllowRecursiveTriggers: false,
-    hasTriggerSkipWorkflowEmits: false,
+    hasTriggerWorkflowEventsIgnore: false,
+    hasTriggerWorkflowEventsAllow: false,
+    hasTriggerWorkflowEventsAvoidLoop: false,
     settingsUsed: [],
     hasDescription: false,
     tagCount: 0,
@@ -90,8 +91,9 @@ describe('extractWorkflowMetadata', () => {
         constCount: 0,
         triggerCount: 0,
         hasTriggerConditions: false,
-        hasTriggerAllowRecursiveTriggers: false,
-        hasTriggerSkipWorkflowEmits: false,
+        hasTriggerWorkflowEventsIgnore: false,
+        hasTriggerWorkflowEventsAllow: false,
+        hasTriggerWorkflowEventsAvoidLoop: false,
         settingsUsed: [],
         hasDescription: false,
         tagCount: 0,
@@ -291,50 +293,62 @@ describe('extractWorkflowMetadata', () => {
       expect(withoutCondition.hasTriggerConditions).toBe(false);
     });
 
-    it('tracks on.allowRecursiveTriggers and on.skipWorkflowEmits when strictly true', () => {
-      const recursiveOnly = metadata(
+    it('tracks on.workflowEvents per known enum string', () => {
+      const allowOnly = metadata(
+        baseWorkflow({
+          triggers: asRuntimeTriggers([{ type: 'cases.updated', on: { workflowEvents: 'allow' } }]),
+        })
+      );
+      expect(allowOnly.hasTriggerWorkflowEventsAllow).toBe(true);
+      expect(allowOnly.hasTriggerWorkflowEventsIgnore).toBe(false);
+      expect(allowOnly.hasTriggerWorkflowEventsAvoidLoop).toBe(false);
+
+      const ignoreOnly = metadata(
         baseWorkflow({
           triggers: asRuntimeTriggers([
-            { type: 'cases.updated', on: { allowRecursiveTriggers: true } },
+            { type: 'cases.updated', on: { workflowEvents: 'ignore' } },
           ]),
         })
       );
-      expect(recursiveOnly.hasTriggerAllowRecursiveTriggers).toBe(true);
-      expect(recursiveOnly.hasTriggerSkipWorkflowEmits).toBe(false);
+      expect(ignoreOnly.hasTriggerWorkflowEventsIgnore).toBe(true);
+      expect(ignoreOnly.hasTriggerWorkflowEventsAllow).toBe(false);
+      expect(ignoreOnly.hasTriggerWorkflowEventsAvoidLoop).toBe(false);
 
-      const skipOnly = metadata(
-        baseWorkflow({
-          triggers: asRuntimeTriggers([{ type: 'cases.updated', on: { skipWorkflowEmits: true } }]),
-        })
-      );
-      expect(skipOnly.hasTriggerAllowRecursiveTriggers).toBe(false);
-      expect(skipOnly.hasTriggerSkipWorkflowEmits).toBe(true);
-
-      const bothOnSameTrigger = metadata(
+      const avoidLoopExplicit = metadata(
         baseWorkflow({
           triggers: asRuntimeTriggers([
-            {
-              type: 'cases.updated',
-              on: { allowRecursiveTriggers: true, skipWorkflowEmits: true },
-            },
+            { type: 'cases.updated', on: { workflowEvents: 'avoidLoop' } },
           ]),
         })
       );
-      expect(bothOnSameTrigger.hasTriggerAllowRecursiveTriggers).toBe(true);
-      expect(bothOnSameTrigger.hasTriggerSkipWorkflowEmits).toBe(true);
+      expect(avoidLoopExplicit.hasTriggerWorkflowEventsAvoidLoop).toBe(true);
+      expect(avoidLoopExplicit.hasTriggerWorkflowEventsIgnore).toBe(false);
+      expect(avoidLoopExplicit.hasTriggerWorkflowEventsAllow).toBe(false);
+
+      const twoTriggers = metadata(
+        baseWorkflow({
+          triggers: asRuntimeTriggers([
+            { type: 'cases.updated', on: { workflowEvents: 'ignore' } },
+            { type: 'cases.comment_added', on: { workflowEvents: 'allow' } },
+          ]),
+        })
+      );
+      expect(twoTriggers.hasTriggerWorkflowEventsIgnore).toBe(true);
+      expect(twoTriggers.hasTriggerWorkflowEventsAllow).toBe(true);
     });
 
-    it('ignores string or non-true on-chain trigger flags', () => {
+    it('ignores unknown or non-string on.workflowEvents values', () => {
       const result = metadata(
         baseWorkflow({
           triggers: asRuntimeTriggers([
-            { type: 'cases.updated', on: { allowRecursiveTriggers: 'true' as unknown as boolean } },
-            { type: 'cases.other', on: { skipWorkflowEmits: false } },
+            { type: 'cases.updated', on: { workflowEvents: 'maybeLater' } },
+            { type: 'cases.other', on: { workflowEvents: false as unknown as string } },
           ]),
         })
       );
-      expect(result.hasTriggerAllowRecursiveTriggers).toBe(false);
-      expect(result.hasTriggerSkipWorkflowEmits).toBe(false);
+      expect(result.hasTriggerWorkflowEventsIgnore).toBe(false);
+      expect(result.hasTriggerWorkflowEventsAllow).toBe(false);
+      expect(result.hasTriggerWorkflowEventsAvoidLoop).toBe(false);
     });
 
     it('reflects root field: inputs (array length)', () => {

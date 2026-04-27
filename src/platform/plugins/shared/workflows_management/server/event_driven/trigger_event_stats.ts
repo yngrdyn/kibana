@@ -12,8 +12,10 @@ import type { TriggerResolutionStats } from './resolve_workflow_subscriptions';
 /** Scheduling outcomes after KQL-matched workflows are considered. */
 export interface TriggerEventScheduleStats {
   depthSkippedCount: number;
-  /** Matched workflows skipped because `on.skipWorkflowEmits` and the emit was workflow-attributed. */
-  skipWorkflowEmitSkippedCount: number;
+  /** Matched workflows skipped because `on.workflowEvents: ignore` and the emit was workflow-attributed. */
+  workflowEventsIgnoreSkippedCount: number;
+  /** Matched workflows skipped by the event-chain cycle guard (typically `on.workflowEvents: avoidLoop` or omitted). */
+  workflowEventsCycleSkippedCount: number;
   scheduledAttemptCount: number;
   scheduledSuccessCount: number;
   scheduledFailureCount: number;
@@ -29,7 +31,8 @@ export const createEmptyTriggerResolutionStats = (): TriggerResolutionStats => (
 
 export const createEmptyTriggerScheduleStats = (): TriggerEventScheduleStats => ({
   depthSkippedCount: 0,
-  skipWorkflowEmitSkippedCount: 0,
+  workflowEventsIgnoreSkippedCount: 0,
+  workflowEventsCycleSkippedCount: 0,
   scheduledAttemptCount: 0,
   scheduledSuccessCount: 0,
   scheduledFailureCount: 0,

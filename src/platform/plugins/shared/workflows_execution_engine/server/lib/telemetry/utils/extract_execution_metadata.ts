@@ -376,6 +376,31 @@ export function normalizeEventChainVisitedWorkflowIds(raw: unknown, maxCount: nu
   return out;
 }
 
+/**
+ * Visited workflow ids for the next event-chain hop: prior visits plus the emitting workflow
+ * (skipped if already the trailing id). Used when attaching chain context to emits / restoring from ES.
+ */
+export function mergeEmitterWorkflowIntoEventChainVisited(
+  prev: string[],
+  emitterWorkflowId: string | undefined,
+  maxCount: number = DEFAULT_MAX_EVENT_CHAIN_DEPTH
+): string[] {
+  const cap = Math.max(1, maxCount);
+  const base = prev
+    .filter((id) => typeof id === 'string' && id.trim() !== '')
+    .map((id) => id.trim());
+  const trimmedEmitter =
+    typeof emitterWorkflowId === 'string' && emitterWorkflowId.trim() !== ''
+      ? emitterWorkflowId.trim()
+      : undefined;
+  if (trimmedEmitter === undefined) {
+    return base.slice(0, cap);
+  }
+  const next =
+    base.length > 0 && base[base.length - 1] === trimmedEmitter ? base : [...base, trimmedEmitter];
+  return next.slice(0, cap);
+}
+
 function parsePersistedEventChainDepthFromUnknown(raw: unknown): number | undefined {
   if (typeof raw === 'number' && !Number.isNaN(raw) && raw >= 0) {
     return raw;

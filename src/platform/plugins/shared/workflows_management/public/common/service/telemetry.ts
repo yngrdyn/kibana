@@ -92,8 +92,9 @@ export class WorkflowsBaseTelemetry {
       tagCount: metadata.tagCount,
       constCount: metadata.constCount,
       hasTriggerConditions: metadata.hasTriggerConditions,
-      hasTriggerAllowRecursiveTriggers: metadata.hasTriggerAllowRecursiveTriggers,
-      hasTriggerSkipWorkflowEmits: metadata.hasTriggerSkipWorkflowEmits,
+      hasTriggerWorkflowEventsIgnore: metadata.hasTriggerWorkflowEventsIgnore,
+      hasTriggerWorkflowEventsAllow: metadata.hasTriggerWorkflowEventsAllow,
+      hasTriggerWorkflowEventsAvoidLoop: metadata.hasTriggerWorkflowEventsAvoidLoop,
       ...this.getBaseResultParams(error),
     });
   };

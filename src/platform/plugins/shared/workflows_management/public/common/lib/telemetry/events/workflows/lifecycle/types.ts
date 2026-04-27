@@ -124,13 +124,17 @@ export interface ReportWorkflowCreatedActionParams
    */
   hasTriggerConditions: boolean;
   /**
-   * Whether any trigger sets `on.allowRecursiveTriggers: true`.
+   * Whether any trigger sets `on.workflowEvents: ignore`.
    */
-  hasTriggerAllowRecursiveTriggers: boolean;
+  hasTriggerWorkflowEventsIgnore: boolean;
   /**
-   * Whether any trigger sets `on.skipWorkflowEmits: true`.
+   * Whether any trigger sets `on.workflowEvents: allow`.
    */
-  hasTriggerSkipWorkflowEmits: boolean;
+  hasTriggerWorkflowEventsAllow: boolean;
+  /**
+   * Whether any trigger explicitly sets `on.workflowEvents: avoidLoop`.
+   */
+  hasTriggerWorkflowEventsAvoidLoop: boolean;
 }
 
 /**

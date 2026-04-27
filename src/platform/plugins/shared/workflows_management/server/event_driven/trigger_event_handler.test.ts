@@ -208,7 +208,11 @@ describe('createTriggerEventHandler', () => {
       spaceId: 'default',
       payload: { id: '1' },
       request: mockRequest,
-      eventChainContext: { depth: 2, sourceExecutionId: 'exec-other' },
+      eventChainContext: {
+        depth: 2,
+        sourceExecutionId: 'exec-other',
+        visitedWorkflowIds: ['wf-other'],
+      },
     });
 
     expect(resolveMatchingWorkflowSubscriptions).toHaveBeenCalledWith(
@@ -245,7 +249,11 @@ describe('createTriggerEventHandler', () => {
       spaceId: 'default',
       payload: { id: '1' },
       request: mockRequest,
-      eventChainContext: { depth: 2, sourceExecutionId: 'exec-1' },
+      eventChainContext: {
+        depth: 2,
+        sourceExecutionId: 'exec-1',
+        visitedWorkflowIds: ['wf-1'],
+      },
     });
 
     expect(resolveMatchingWorkflowSubscriptions).toHaveBeenCalledWith(
@@ -284,8 +292,8 @@ describe('createTriggerEventHandler', () => {
       request: mockRequest,
       eventChainContext: {
         depth: 1,
-        sourceWorkflowId: 'wf-b',
-        visitedWorkflowIds: ['wf-a'],
+        sourceExecutionId: 'exec-b',
+        visitedWorkflowIds: ['wf-a', 'wf-b'],
       },
     });
 
@@ -295,12 +303,12 @@ describe('createTriggerEventHandler', () => {
     );
   });
 
-  it('should schedule when on.allowRecursiveTriggers is true even if target is in the chain', async () => {
+  it('should schedule when on.workflowEvents is allow even if target is in the chain', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const wfA = createMockWorkflow({
       id: 'wf-a',
       definition: {
-        triggers: [{ type: 'cases.updated', on: { allowRecursiveTriggers: true } }],
+        triggers: [{ type: 'cases.updated', on: { workflowEvents: 'allow' } }],
         steps: [],
       },
     });
@@ -326,8 +334,8 @@ describe('createTriggerEventHandler', () => {
       request: mockRequest,
       eventChainContext: {
         depth: 1,
-        sourceWorkflowId: 'wf-b',
-        visitedWorkflowIds: ['wf-a'],
+        sourceExecutionId: 'exec-b',
+        visitedWorkflowIds: ['wf-a', 'wf-b'],
       },
     });
 
@@ -336,12 +344,12 @@ describe('createTriggerEventHandler', () => {
     expect(event.eventChainVisitedWorkflowIds).toEqual(['wf-a', 'wf-b']);
   });
 
-  it('should schedule when on.skipWorkflowEmits is true and there is no workflow chain context', async () => {
+  it('should schedule when on.workflowEvents is ignore and there is no workflow chain context', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const wf = createMockWorkflow({
       id: 'wf-skip-emit',
       definition: {
-        triggers: [{ type: 'cases.updated', on: { skipWorkflowEmits: true } }],
+        triggers: [{ type: 'cases.updated', on: { workflowEvents: 'ignore' } }],
         steps: [],
       },
     });
@@ -370,18 +378,19 @@ describe('createTriggerEventHandler', () => {
     expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
     expect(telemetryClient.reportTriggerEventDispatched).toHaveBeenCalledWith(
       expect.objectContaining({
-        skipWorkflowEmitSkippedCount: 0,
+        workflowEventsIgnoreSkippedCount: 0,
+        workflowEventsCycleSkippedCount: 0,
         scheduledAttemptCount: 1,
       })
     );
   });
 
-  it('should not schedule when on.skipWorkflowEmits is true and event has workflow chain context', async () => {
+  it('should not schedule when on.workflowEvents is ignore and event has workflow chain context', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const wf = createMockWorkflow({
       id: 'wf-skip-emit',
       definition: {
-        triggers: [{ type: 'cases.updated', on: { skipWorkflowEmits: true } }],
+        triggers: [{ type: 'cases.updated', on: { workflowEvents: 'ignore' } }],
         steps: [],
       },
     });
@@ -407,25 +416,26 @@ describe('createTriggerEventHandler', () => {
       request: mockRequest,
       eventChainContext: {
         depth: 0,
-        sourceWorkflowId: 'wf-parent',
+        sourceExecutionId: 'exec-parent',
         visitedWorkflowIds: [],
       },
     });
 
     expect(scheduleWorkflow).not.toHaveBeenCalled();
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Skip workflow emit guard skipped scheduling workflow wf-skip-emit')
+      expect.stringContaining('WorkflowEvents ignore skipped scheduling workflow wf-skip-emit')
     );
     expect(telemetryClient.reportTriggerEventDispatched).toHaveBeenCalledWith(
       expect.objectContaining({
-        skipWorkflowEmitSkippedCount: 1,
+        workflowEventsIgnoreSkippedCount: 1,
+        workflowEventsCycleSkippedCount: 0,
         depthSkippedCount: 0,
         scheduledAttemptCount: 0,
       })
     );
   });
 
-  it('should schedule under workflow chain context when skipWorkflowEmits is not set', async () => {
+  it('should schedule under workflow chain context when workflowEvents is omitted (avoidLoop default)', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const wf = createMockWorkflow({
       id: 'wf-normal',
@@ -456,7 +466,7 @@ describe('createTriggerEventHandler', () => {
       request: mockRequest,
       eventChainContext: {
         depth: 0,
-        sourceWorkflowId: 'wf-parent',
+        sourceExecutionId: 'exec-parent',
         visitedWorkflowIds: [],
       },
     });
@@ -464,13 +474,14 @@ describe('createTriggerEventHandler', () => {
     expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
     expect(telemetryClient.reportTriggerEventDispatched).toHaveBeenCalledWith(
       expect.objectContaining({
-        skipWorkflowEmitSkippedCount: 0,
+        workflowEventsIgnoreSkippedCount: 0,
+        workflowEventsCycleSkippedCount: 0,
         scheduledAttemptCount: 1,
       })
     );
   });
 
-  it('should apply skipWorkflowEmits before cycle guard (skip wins when both would apply)', async () => {
+  it('should apply workflowEvents ignore before cycle guard when both would apply', async () => {
     const scheduleWorkflow = jest.fn().mockResolvedValue(undefined);
     const wf = createMockWorkflow({
       id: 'wf-a',
@@ -478,7 +489,7 @@ describe('createTriggerEventHandler', () => {
         triggers: [
           {
             type: 'cases.updated',
-            on: { skipWorkflowEmits: true, allowRecursiveTriggers: true },
+            on: { workflowEvents: 'ignore' },
           },
         ],
         steps: [],
@@ -506,23 +517,22 @@ describe('createTriggerEventHandler', () => {
       request: mockRequest,
       eventChainContext: {
         depth: 1,
-        sourceWorkflowId: 'wf-b',
-        visitedWorkflowIds: ['wf-a'],
+        sourceExecutionId: 'exec-b',
+        visitedWorkflowIds: ['wf-a', 'wf-b'],
       },
     });
 
     expect(scheduleWorkflow).not.toHaveBeenCalled();
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Skip workflow emit guard skipped scheduling workflow wf-a')
+      expect.stringContaining('WorkflowEvents ignore skipped scheduling workflow wf-a')
     );
     expect(telemetryClient.reportTriggerEventDispatched).toHaveBeenCalledWith(
       expect.objectContaining({
-        skipWorkflowEmitSkippedCount: 1,
+        workflowEventsIgnoreSkippedCount: 1,
+        workflowEventsCycleSkippedCount: 0,
         depthSkippedCount: 0,
       })
     );
-    expect(event.eventChainDepth).toBe(3);
-    expect(event.eventId).toBeUndefined();
   });
 
   it('should not resolve or schedule when event-driven execution is disabled and logEvents is disabled', async () => {

@@ -10,7 +10,7 @@
 import { renderHook } from '@testing-library/react';
 import { LineCounter, parseDocument } from 'yaml';
 import type { monaco } from '@kbn/monaco';
-import { useRecursiveSkipOverlapDecorations } from './use_recursive_skip_overlap_decorations';
+import { useWorkflowEventsOnDecorations } from './use_workflow_events_on_decorations';
 
 jest.mock('@kbn/monaco', () => {
   const actualMonaco = jest.requireActual('@kbn/monaco');
@@ -62,19 +62,19 @@ const createMockEditor = (value: string) => {
   };
 };
 
-describe('useRecursiveSkipOverlapDecorations', () => {
+describe('useWorkflowEventsOnDecorations', () => {
   it('does not create decorations when readOnly is true', () => {
     const yamlString = [
       'triggers:',
       '  - type: example.loopTrigger',
       '    on:',
-      '      allowRecursiveTriggers: true',
+      '      workflowEvents: allow',
     ].join('\n');
     const doc = parseDocument(yamlString, { keepSourceTokens: true });
     const { editor } = createMockEditor(yamlString);
 
     renderHook(() =>
-      useRecursiveSkipOverlapDecorations({
+      useWorkflowEventsOnDecorations({
         editor,
         yamlDocument: doc,
         yamlLineCounter: undefined,
@@ -86,19 +86,19 @@ describe('useRecursiveSkipOverlapDecorations', () => {
     expect(editor.createDecorationsCollection).not.toHaveBeenCalled();
   });
 
-  it('creates a glyph on the allowRecursiveTriggers line when only that flag is set', () => {
+  it('creates a glyph on the workflowEvents line when set to allow', () => {
     const yamlString = [
       'triggers:',
       '  - type: example.loopTrigger',
       '    on:',
-      '      allowRecursiveTriggers: true',
+      '      workflowEvents: allow',
     ].join('\n');
     const lineCounter = new LineCounter();
     const doc = parseDocument(yamlString, { lineCounter, keepSourceTokens: true });
     const { editor } = createMockEditor(yamlString);
 
     renderHook(() =>
-      useRecursiveSkipOverlapDecorations({
+      useWorkflowEventsOnDecorations({
         editor,
         yamlDocument: doc,
         yamlLineCounter: lineCounter,
@@ -112,22 +112,22 @@ describe('useRecursiveSkipOverlapDecorations', () => {
     expect(decorations).toHaveLength(1);
     expect(decorations[0].options.glyphMarginClassName).toBe('workflow-trigger-on-chain-glyph');
     expect(decorations[0].range.startLineNumber).toBe(4);
-    expect(decorations[0].options.glyphMarginHoverMessage?.value).toContain('Recursive');
+    expect(decorations[0].options.glyphMarginHoverMessage?.value).toContain('allow');
   });
 
-  it('creates a glyph on the skipWorkflowEmits line when only that flag is set', () => {
+  it('creates a glyph on the workflowEvents line when set to ignore', () => {
     const yamlString = [
       'triggers:',
       '  - type: example.loopTrigger',
       '    on:',
-      '      skipWorkflowEmits: true',
+      '      workflowEvents: ignore',
     ].join('\n');
     const lineCounter = new LineCounter();
     const doc = parseDocument(yamlString, { lineCounter, keepSourceTokens: true });
     const { editor } = createMockEditor(yamlString);
 
     renderHook(() =>
-      useRecursiveSkipOverlapDecorations({
+      useWorkflowEventsOnDecorations({
         editor,
         yamlDocument: doc,
         yamlLineCounter: lineCounter,
@@ -139,7 +139,7 @@ describe('useRecursiveSkipOverlapDecorations', () => {
     const decorations = (editor.createDecorationsCollection as jest.Mock).mock.calls[0][0];
     expect(decorations).toHaveLength(1);
     expect(decorations[0].range.startLineNumber).toBe(4);
-    expect(decorations[0].options.glyphMarginHoverMessage?.value).toContain('Skip workflow');
+    expect(decorations[0].options.glyphMarginHoverMessage?.value).toContain('ignore');
   });
 
   it('still creates a glyph when YAML is parsed without keepSourceTokens (pair range fallback)', () => {
@@ -147,14 +147,14 @@ describe('useRecursiveSkipOverlapDecorations', () => {
       'triggers:',
       '  - type: example.loopTrigger',
       '    on:',
-      '      allowRecursiveTriggers: true',
+      '      workflowEvents: avoidLoop',
     ].join('\n');
     const lineCounter = new LineCounter();
     const doc = parseDocument(yamlString, { lineCounter });
     const { editor } = createMockEditor(yamlString);
 
     renderHook(() =>
-      useRecursiveSkipOverlapDecorations({
+      useWorkflowEventsOnDecorations({
         editor,
         yamlDocument: doc,
         yamlLineCounter: lineCounter,
@@ -169,20 +169,22 @@ describe('useRecursiveSkipOverlapDecorations', () => {
     expect(decorations[0].options.glyphMarginClassName).toBe('workflow-trigger-on-chain-glyph');
   });
 
-  it('creates two glyphs when both flags are set', () => {
+  it('creates one glyph per trigger when multiple triggers set workflowEvents', () => {
     const yamlString = [
       'triggers:',
       '  - type: example.loopTrigger',
       '    on:',
-      '      allowRecursiveTriggers: true',
-      '      skipWorkflowEmits: true',
+      '      workflowEvents: ignore',
+      '  - type: example.otherTrigger',
+      '    on:',
+      '      workflowEvents: allow',
     ].join('\n');
     const lineCounter = new LineCounter();
     const doc = parseDocument(yamlString, { lineCounter, keepSourceTokens: true });
     const { editor } = createMockEditor(yamlString);
 
     renderHook(() =>
-      useRecursiveSkipOverlapDecorations({
+      useWorkflowEventsOnDecorations({
         editor,
         yamlDocument: doc,
         yamlLineCounter: lineCounter,
@@ -194,7 +196,6 @@ describe('useRecursiveSkipOverlapDecorations', () => {
     const decorations = (editor.createDecorationsCollection as jest.Mock).mock.calls[0][0];
     expect(decorations).toHaveLength(2);
     expect(decorations[0].range.startLineNumber).toBe(4);
-    expect(decorations[1].range.startLineNumber).toBe(5);
-    expect(decorations[0].options.glyphMarginHoverMessage?.value).toContain('both');
+    expect(decorations[1].range.startLineNumber).toBe(7);
   });
 });

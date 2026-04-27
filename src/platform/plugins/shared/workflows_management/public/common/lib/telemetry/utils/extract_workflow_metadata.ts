@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { isWellKnownWorkflowTriggerSource } from '@kbn/workflows';
+import { isWellKnownWorkflowTriggerSource, WORKFLOW_EVENTS_VALUES_SET } from '@kbn/workflows';
 import type { WorkflowYaml } from '@kbn/workflows/spec/schema';
 import { parseWorkflowYamlForAutocomplete } from '../../../../../common/lib/yaml/parse_workflow_yaml_for_autocomplete';
 
@@ -28,36 +28,40 @@ function isConnectorStep(step: unknown): boolean {
 const ON_FAILURE_KEYS = ['on-failure', 'iteration-on-failure'] as const;
 
 /**
- * Reads `on.allowRecursiveTriggers` / `on.skipWorkflowEmits` from triggers (custom/event-driven shape).
- * Only strict `=== true` counts, matching runtime scheduling semantics.
+ * Reads `on.workflowEvents` from triggers. Only known enum strings count (matches runtime scheduling).
  */
-function extractTriggerOnChainTelemetry(triggers: unknown[]): {
-  hasTriggerAllowRecursiveTriggers: boolean;
-  hasTriggerSkipWorkflowEmits: boolean;
+function extractWorkflowEventsTelemetry(triggers: unknown[]): {
+  hasTriggerWorkflowEventsIgnore: boolean;
+  hasTriggerWorkflowEventsAllow: boolean;
+  hasTriggerWorkflowEventsAvoidLoop: boolean;
 } {
-  let hasTriggerAllowRecursiveTriggers = false;
-  let hasTriggerSkipWorkflowEmits = false;
+  let hasTriggerWorkflowEventsIgnore = false;
+  let hasTriggerWorkflowEventsAllow = false;
+  let hasTriggerWorkflowEventsAvoidLoop = false;
 
   for (const trigger of triggers) {
     if (trigger && typeof trigger === 'object' && 'on' in trigger) {
       const on = (trigger as { on?: unknown }).on;
       if (on && typeof on === 'object') {
         const rec = on as Record<string, unknown>;
-        const allowRecursive = rec.allowRecursiveTriggers === true;
-        const skipWorkflowEmits = rec.skipWorkflowEmits === true;
-        if (allowRecursive) {
-          hasTriggerAllowRecursiveTriggers = true;
-        }
-        if (skipWorkflowEmits) {
-          hasTriggerSkipWorkflowEmits = true;
+        const raw = rec.workflowEvents;
+        if (typeof raw === 'string' && WORKFLOW_EVENTS_VALUES_SET.has(raw)) {
+          if (raw === 'ignore') {
+            hasTriggerWorkflowEventsIgnore = true;
+          } else if (raw === 'allow') {
+            hasTriggerWorkflowEventsAllow = true;
+          } else if (raw === 'avoidLoop') {
+            hasTriggerWorkflowEventsAvoidLoop = true;
+          }
         }
       }
     }
   }
 
   return {
-    hasTriggerAllowRecursiveTriggers,
-    hasTriggerSkipWorkflowEmits,
+    hasTriggerWorkflowEventsIgnore,
+    hasTriggerWorkflowEventsAllow,
+    hasTriggerWorkflowEventsAvoidLoop,
   };
 }
 
@@ -123,13 +127,17 @@ export interface WorkflowTelemetryMetadata {
    */
   hasTriggerConditions: boolean;
   /**
-   * Whether any trigger has `on.allowRecursiveTriggers: true`.
+   * Whether any trigger sets `on.workflowEvents: ignore`.
    */
-  hasTriggerAllowRecursiveTriggers: boolean;
+  hasTriggerWorkflowEventsIgnore: boolean;
   /**
-   * Whether any trigger has `on.skipWorkflowEmits: true`.
+   * Whether any trigger sets `on.workflowEvents: allow`.
    */
-  hasTriggerSkipWorkflowEmits: boolean;
+  hasTriggerWorkflowEventsAllow: boolean;
+  /**
+   * Whether any trigger explicitly sets `on.workflowEvents: avoidLoop` (omitted field defaults to avoidLoop at runtime but is not counted here).
+   */
+  hasTriggerWorkflowEventsAvoidLoop: boolean;
   /**
    * Maximum concurrent runs if concurrency is configured
    */
@@ -184,8 +192,9 @@ export function extractWorkflowMetadata(
     constCount: 0,
     triggerCount: 0,
     hasTriggerConditions: false,
-    hasTriggerAllowRecursiveTriggers: false,
-    hasTriggerSkipWorkflowEmits: false,
+    hasTriggerWorkflowEventsIgnore: false,
+    hasTriggerWorkflowEventsAllow: false,
+    hasTriggerWorkflowEventsAvoidLoop: false,
     settingsUsed: [],
     hasDescription: false,
     tagCount: 0,
@@ -261,8 +270,11 @@ export function extractWorkflowMetadata(
     return typeof condition === 'string' && condition.trim().length > 0;
   });
 
-  const { hasTriggerAllowRecursiveTriggers, hasTriggerSkipWorkflowEmits } =
-    extractTriggerOnChainTelemetry(triggers);
+  const {
+    hasTriggerWorkflowEventsIgnore,
+    hasTriggerWorkflowEventsAllow,
+    hasTriggerWorkflowEventsAvoidLoop,
+  } = extractWorkflowEventsTelemetry(triggers);
 
   // Count inputs
   const inputCount = Array.isArray(workflow.inputs) ? workflow.inputs.length : 0;
@@ -296,8 +308,9 @@ export function extractWorkflowMetadata(
     constCount,
     triggerCount: triggers.length,
     hasTriggerConditions,
-    hasTriggerAllowRecursiveTriggers,
-    hasTriggerSkipWorkflowEmits,
+    hasTriggerWorkflowEventsIgnore,
+    hasTriggerWorkflowEventsAllow,
+    hasTriggerWorkflowEventsAvoidLoop,
     ...(concurrencyMax !== undefined && { concurrencyMax }),
     ...(concurrencyStrategy && { concurrencyStrategy }),
     settingsUsed,

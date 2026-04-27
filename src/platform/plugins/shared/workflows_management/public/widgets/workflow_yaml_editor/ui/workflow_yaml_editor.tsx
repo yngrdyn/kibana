@@ -33,9 +33,9 @@ import {
   useConnectorTypeDecorations,
   useFocusedStepDecoration,
   useLineDifferencesDecorations,
-  useRecursiveSkipOverlapDecorations,
   useStepDecorationsInExecution,
   useTriggerTypeDecorations,
+  useWorkflowEventsOnDecorations,
   useWorkflowIdDecorations,
 } from './decorations';
 import { DocumentationLink } from './documentation_link';
@@ -501,7 +501,7 @@ export const WorkflowYAMLEditor = ({
     readOnly: isExecutionYaml,
   });
 
-  useRecursiveSkipOverlapDecorations({
+  useWorkflowEventsOnDecorations({
     editor: editorRef.current,
     yamlDocument: yamlDocument || null,
     yamlLineCounter,

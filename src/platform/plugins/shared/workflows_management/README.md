@@ -684,10 +684,10 @@ workflows_management/
 
 Registered (non-built-in) triggers may set optional flags under `triggers[].on` in YAML:
 
-- **`allowRecursiveTriggers: true`** — Allow this workflow to run again when recursive trigger paths loop back to the same workflow (opts out of the event-chain cycle guard for that trigger).
-- **`skipWorkflowEmits: true`** — Do not schedule when the event was emitted from an active workflow execution (workflow-attributed `emitEvent`). Domain events that are not attributed to a workflow run still schedule the workflow. Relies on event-chain context; if attribution is missing, the emit may be treated as non-workflow.
-
-These interact with **`maxEventChainDepth`** from the execution engine config. `skipWorkflowEmits` is evaluated before depth and cycle checks when scheduling.
+- **`workflowEvents`**: One of **`ignore`**, **`avoidLoop`**, or **`allow`** (string). Controls how the workflow is scheduled when the trigger event was emitted from a workflow-attributed chain:
+  - **`ignore`**: Do not schedule when the emit is workflow-attributed; user or domain-originated emits (no chain context) still run the workflow.
+  - **`avoidLoop`**: Schedule on workflow-attributed emits, but skip if this workflow id is already on the event chain (cycle guard). **Omitted defaults to `avoidLoop`** at runtime.
+  - **`allow`**: Schedule without the cycle guard; **`maxEventChainDepth`** from the execution engine config still applies.
 
 ### Testing
 
