@@ -30,7 +30,7 @@ import type {
   GetChangeHistoryOptions,
   ObjectChange,
 } from './types';
-import { sha256, defaultDiffCalculation, hashFields } from './utils';
+import { sha256, hashFields } from './utils';
 
 export { DATA_STREAM_NAME } from './constants';
 
@@ -158,7 +158,6 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
    * @param opts.spaceId - The ID of the space that the change belongs to.
    * @param opts.correlationId - Optional correlation ID for the bulk change.
    * @param opts.data - Optional data to merge into the change history document.
-   * @param opts.fieldsToIgnore - Optional fields to exclude from the diff calculation.
    * @param opts.fieldsToHash - Optional fields whose string values are replaced with full SHA-256 digests in the stored snapshot.
    * @param opts.refresh - Optional indicator to force an ES refresh after changes (affects performance)
    * @returns A promise that resolves when the bulk change is logged.
@@ -183,9 +182,9 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
 
     for (const change of changes) {
       // Create document and populate
-      const { objectType, objectId, index, timestamp, sequence } = change;
-      const hash = sha256(JSON.stringify(change.after));
-      const hashed = hashFields(change.after, opts.fieldsToHash);
+      const { objectType, objectId, timestamp, sequence } = change;
+      const hash = sha256(JSON.stringify(change.snapshot));
+      const hashed = hashFields(change.snapshot, opts.fieldsToHash);
       const { event, metadata, tags } = opts.data ?? {};
       const created = new Date().toISOString();
       const document: ChangeHistoryDocument = {
@@ -204,7 +203,6 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
         object: {
           id: objectId,
           type: objectType,
-          index,
           hash,
           sequence,
           fields: { hashed: hashed.fields },
@@ -215,31 +213,6 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
         service: { type: 'kibana', version: kibanaVersion },
         transaction: correlationId ? { id: correlationId } : undefined,
       };
-      // Do we have "before" state?
-      // Perform diff using registered calculation, defaulting to defaultDiffCalculation().
-      if (change.before) {
-        const diffCalc = defaultDiffCalculation;
-        try {
-          const hashedBefore = hashFields(change.before, opts.fieldsToHash);
-          const { type, fields, before } = diffCalc({
-            a: hashedBefore.snapshot,
-            b: hashed.snapshot,
-            fieldsToIgnore: opts.fieldsToIgnore,
-          });
-          document.object.diff = { type, fields, before };
-          document.object.fields.hashed = Array.from(
-            new Set([...hashedBefore.fields, ...hashed.fields])
-          );
-        } catch (err) {
-          // Uncalculated diff should not be fatal, just log and continue
-          this.logger.error(
-            new Error(
-              `Unable to calculate change history diff for module ${module} and dataset ${dataset}`,
-              { cause: err }
-            )
-          );
-        }
-      }
       // Queue operations
       request.documents.push({ _id: document.event.id, ...document });
     }
