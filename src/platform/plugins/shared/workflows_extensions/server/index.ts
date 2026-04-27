@@ -38,6 +38,7 @@ export {
   EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER,
   getEmitterWorkflowExecutionIdFromRequest,
   EVENT_CHAIN_SOURCE_EXECUTION_HEADER,
+  X_ELASTIC_INTERNAL_ORIGIN_REQUEST,
   getEventChainContext,
   getOutboundEventChainHeaders,
   setWorkflowEventChainContext,
