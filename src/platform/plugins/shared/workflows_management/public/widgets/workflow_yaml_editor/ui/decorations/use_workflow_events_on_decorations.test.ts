@@ -10,6 +10,7 @@
 import { renderHook } from '@testing-library/react';
 import { LineCounter, parseDocument } from 'yaml';
 import type { monaco } from '@kbn/monaco';
+import { resolveWorkflowEventsModeFromOn } from '@kbn/workflows-execution-engine/server';
 import { useWorkflowEventsOnDecorations } from './use_workflow_events_on_decorations';
 
 jest.mock('@kbn/monaco', () => {
@@ -167,6 +168,32 @@ describe('useWorkflowEventsOnDecorations', () => {
     const decorations = (editor.createDecorationsCollection as jest.Mock).mock.calls[0][0];
     expect(decorations.length).toBeGreaterThanOrEqual(1);
     expect(decorations[0].options.glyphMarginClassName).toBe('workflow-trigger-on-chain-glyph');
+  });
+
+  it('does not create a glyph for invalid workflowEvents while the engine defaults to avoid-loop', () => {
+    const invalidMode = 'not-a-valid-mode';
+    const yamlString = [
+      'triggers:',
+      '  - type: example.loopTrigger',
+      '    on:',
+      `      workflowEvents: ${invalidMode}`,
+    ].join('\n');
+    const lineCounter = new LineCounter();
+    const doc = parseDocument(yamlString, { lineCounter, keepSourceTokens: true });
+    const { editor } = createMockEditor(yamlString);
+
+    renderHook(() =>
+      useWorkflowEventsOnDecorations({
+        editor,
+        yamlDocument: doc,
+        yamlLineCounter: lineCounter,
+        isEditorMounted: true,
+        readOnly: false,
+      })
+    );
+
+    expect(editor.createDecorationsCollection).not.toHaveBeenCalled();
+    expect(resolveWorkflowEventsModeFromOn({ workflowEvents: invalidMode })).toBe('avoid-loop');
   });
 
   it('creates one glyph per trigger when multiple triggers set workflowEvents', () => {
