@@ -8,9 +8,9 @@
  */
 
 import { isScalar, parseDocument } from 'yaml';
+import { resolveWorkflowEventsModeFromOn } from '@kbn/workflows-execution-engine/server';
 import { getTriggerNodes } from './get_trigger_nodes';
 import { getTriggerOnChainOptionPairs } from './get_trigger_on_chain_option_pairs';
-import { resolveWorkflowEventsModeFromOn } from '../resolve_workflow_events_mode_from_on';
 
 function onBlockFromTriggerJson(trigger: Record<string, unknown>): Record<string, unknown> | null {
   if (

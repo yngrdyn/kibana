@@ -32,9 +32,4 @@ export type {
 
 export type { IWorkflowEventLoggerService } from './workflow_event_logger';
 
-export {
-  extractEventChainDepthFromExecution,
-  extractEventChainVisitedWorkflowIdsFromExecution,
-  mergeEmitterWorkflowIntoEventChainVisited,
-  normalizeEventChainVisitedWorkflowIds,
-} from './lib/telemetry/utils/extract_execution_metadata';
+export { resolveWorkflowEventsModeFromOn } from './trigger_events/lib/resolve_workflow_events_mode_from_on';

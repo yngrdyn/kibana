@@ -1255,6 +1255,7 @@ export class WorkflowsExecutionEnginePlugin
 
     const triggerEventHandler = new TriggerEventHandler({
       coreStart,
+      workflowRepository,
       workflowsExtensions: plugins.workflowsExtensions,
       spaces: plugins.spaces?.spacesService,
       scheduleWorkflow,
