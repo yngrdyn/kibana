@@ -296,7 +296,9 @@ describe('extractWorkflowMetadata', () => {
     it('tracks on.workflowEvents per known enum string', () => {
       const allowOnly = metadata(
         baseWorkflow({
-          triggers: asRuntimeTriggers([{ type: 'cases.updated', on: { workflowEvents: 'allow' } }]),
+          triggers: asRuntimeTriggers([
+            { type: 'cases.updated', on: { workflowEvents: 'allow-all' } },
+          ]),
         })
       );
       expect(allowOnly.hasTriggerWorkflowEventsAllow).toBe(true);
@@ -317,7 +319,7 @@ describe('extractWorkflowMetadata', () => {
       const avoidLoopExplicit = metadata(
         baseWorkflow({
           triggers: asRuntimeTriggers([
-            { type: 'cases.updated', on: { workflowEvents: 'avoidLoop' } },
+            { type: 'cases.updated', on: { workflowEvents: 'avoid-loop' } },
           ]),
         })
       );
@@ -329,7 +331,7 @@ describe('extractWorkflowMetadata', () => {
         baseWorkflow({
           triggers: asRuntimeTriggers([
             { type: 'cases.updated', on: { workflowEvents: 'ignore' } },
-            { type: 'cases.comment_added', on: { workflowEvents: 'allow' } },
+            { type: 'cases.comment_added', on: { workflowEvents: 'allow-all' } },
           ]),
         })
       );

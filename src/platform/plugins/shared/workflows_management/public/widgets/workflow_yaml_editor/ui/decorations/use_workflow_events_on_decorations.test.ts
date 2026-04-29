@@ -68,7 +68,7 @@ describe('useWorkflowEventsOnDecorations', () => {
       'triggers:',
       '  - type: example.loopTrigger',
       '    on:',
-      '      workflowEvents: allow',
+      '      workflowEvents: allow-all',
     ].join('\n');
     const doc = parseDocument(yamlString, { keepSourceTokens: true });
     const { editor } = createMockEditor(yamlString);
@@ -86,12 +86,12 @@ describe('useWorkflowEventsOnDecorations', () => {
     expect(editor.createDecorationsCollection).not.toHaveBeenCalled();
   });
 
-  it('creates a glyph on the workflowEvents line when set to allow', () => {
+  it('creates a glyph on the workflowEvents line when set to allow-all', () => {
     const yamlString = [
       'triggers:',
       '  - type: example.loopTrigger',
       '    on:',
-      '      workflowEvents: allow',
+      '      workflowEvents: allow-all',
     ].join('\n');
     const lineCounter = new LineCounter();
     const doc = parseDocument(yamlString, { lineCounter, keepSourceTokens: true });
@@ -112,7 +112,7 @@ describe('useWorkflowEventsOnDecorations', () => {
     expect(decorations).toHaveLength(1);
     expect(decorations[0].options.glyphMarginClassName).toBe('workflow-trigger-on-chain-glyph');
     expect(decorations[0].range.startLineNumber).toBe(4);
-    expect(decorations[0].options.glyphMarginHoverMessage?.value).toContain('allow');
+    expect(decorations[0].options.glyphMarginHoverMessage?.value).toContain('allow-all');
   });
 
   it('creates a glyph on the workflowEvents line when set to ignore', () => {
@@ -147,7 +147,7 @@ describe('useWorkflowEventsOnDecorations', () => {
       'triggers:',
       '  - type: example.loopTrigger',
       '    on:',
-      '      workflowEvents: avoidLoop',
+      '      workflowEvents: avoid-loop',
     ].join('\n');
     const lineCounter = new LineCounter();
     const doc = parseDocument(yamlString, { lineCounter });
@@ -177,7 +177,7 @@ describe('useWorkflowEventsOnDecorations', () => {
       '      workflowEvents: ignore',
       '  - type: example.otherTrigger',
       '    on:',
-      '      workflowEvents: allow',
+      '      workflowEvents: allow-all',
     ].join('\n');
     const lineCounter = new LineCounter();
     const doc = parseDocument(yamlString, { lineCounter, keepSourceTokens: true });

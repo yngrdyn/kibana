@@ -140,7 +140,7 @@ export const triggerEventDispatchedSchema: RootSchema<TriggerEventDispatchedTele
     type: 'integer',
     _meta: {
       description:
-        'Number of matched workflows skipped by the event-chain cycle guard (on.workflowEvents avoidLoop or omitted)',
+        'Number of matched workflows skipped by the event-chain cycle guard (on.workflowEvents avoid-loop or omitted)',
       optional: false,
     },
   },

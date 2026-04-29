@@ -21,7 +21,7 @@ export interface TriggerEventScheduleStats {
   depthSkippedCount: number;
   /** Matched workflows skipped because `on.workflowEvents: ignore` and the emit was workflow-attributed. */
   workflowEventsIgnoreSkippedCount: number;
-  /** Matched workflows skipped by the event-chain cycle guard (typically `on.workflowEvents: avoidLoop` or omitted). */
+  /** Matched workflows skipped by the event-chain cycle guard (typically `on.workflowEvents: avoid-loop` or omitted). */
   workflowEventsCycleSkippedCount: number;
   scheduledAttemptCount: number;
   scheduledSuccessCount: number;

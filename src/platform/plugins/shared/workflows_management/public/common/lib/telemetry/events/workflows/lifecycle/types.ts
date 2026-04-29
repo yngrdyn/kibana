@@ -128,11 +128,11 @@ export interface ReportWorkflowCreatedActionParams
    */
   hasTriggerWorkflowEventsIgnore: boolean;
   /**
-   * Whether any trigger sets `on.workflowEvents: allow`.
+   * Whether any trigger sets `on.workflowEvents: allow-all`.
    */
   hasTriggerWorkflowEventsAllow: boolean;
   /**
-   * Whether any trigger explicitly sets `on.workflowEvents: avoidLoop`.
+   * Whether any trigger explicitly sets `on.workflowEvents: avoid-loop`.
    */
   hasTriggerWorkflowEventsAvoidLoop: boolean;
 }

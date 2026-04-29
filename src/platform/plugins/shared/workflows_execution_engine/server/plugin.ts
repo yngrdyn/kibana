@@ -661,7 +661,7 @@ export class WorkflowsExecutionEnginePlugin
       }
       const rootVisited = normalizeEventChainVisitedWorkflowIds(
         eventPayload?.eventChainVisitedWorkflowIds,
-        this.getMaxEventChainDepth()
+        this.config.eventDriven.maxChainDepth
       );
       const dispatchEventId =
         typeof metadata?.eventId === 'string' ? metadata.eventId.trim() || undefined : undefined;

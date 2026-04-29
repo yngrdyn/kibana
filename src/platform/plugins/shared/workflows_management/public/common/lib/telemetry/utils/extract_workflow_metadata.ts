@@ -48,9 +48,9 @@ function extractWorkflowEventsTelemetry(triggers: unknown[]): {
         if (typeof raw === 'string' && WORKFLOW_EVENTS_VALUES_SET.has(raw)) {
           if (raw === 'ignore') {
             hasTriggerWorkflowEventsIgnore = true;
-          } else if (raw === 'allow') {
+          } else if (raw === 'allow-all') {
             hasTriggerWorkflowEventsAllow = true;
-          } else if (raw === 'avoidLoop') {
+          } else if (raw === 'avoid-loop') {
             hasTriggerWorkflowEventsAvoidLoop = true;
           }
         }
@@ -131,11 +131,11 @@ export interface WorkflowTelemetryMetadata {
    */
   hasTriggerWorkflowEventsIgnore: boolean;
   /**
-   * Whether any trigger sets `on.workflowEvents: allow`.
+   * Whether any trigger sets `on.workflowEvents: allow-all`.
    */
   hasTriggerWorkflowEventsAllow: boolean;
   /**
-   * Whether any trigger explicitly sets `on.workflowEvents: avoidLoop` (omitted field defaults to avoidLoop at runtime but is not counted here).
+   * Whether any trigger explicitly sets `on.workflowEvents: avoid-loop` (omitted field defaults to avoid-loop at runtime but is not counted here).
    */
   hasTriggerWorkflowEventsAvoidLoop: boolean;
   /**

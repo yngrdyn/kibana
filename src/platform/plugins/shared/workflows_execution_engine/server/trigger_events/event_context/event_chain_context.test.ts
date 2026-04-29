@@ -100,9 +100,15 @@ describe('event_chain_context', () => {
       ).toBeUndefined();
     });
 
-    it('returns undefined when depth header value is negative', () => {
+    it('returns depth -1 sentinel when header is -1 (unknown persisted depth)', () => {
+      expect(getEventChainContext(internalRequest({ [EVENT_CHAIN_DEPTH_HEADER]: '-1' }))).toEqual({
+        depth: -1,
+      });
+    });
+
+    it('returns undefined when depth header value is negative other than -1', () => {
       expect(
-        getEventChainContext(internalRequest({ [EVENT_CHAIN_DEPTH_HEADER]: '-1' }))
+        getEventChainContext(internalRequest({ [EVENT_CHAIN_DEPTH_HEADER]: '-2' }))
       ).toBeUndefined();
     });
 

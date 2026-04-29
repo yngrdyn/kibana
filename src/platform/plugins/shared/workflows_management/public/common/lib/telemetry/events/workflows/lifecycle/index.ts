@@ -211,14 +211,14 @@ const workflowCreatedSchema: RootSchema<ReportWorkflowCreatedActionParams> = {
   hasTriggerWorkflowEventsAllow: {
     type: 'boolean',
     _meta: {
-      description: 'Whether any trigger sets on.workflowEvents: allow',
+      description: 'Whether any trigger sets on.workflowEvents: allow-all',
       optional: false,
     },
   },
   hasTriggerWorkflowEventsAvoidLoop: {
     type: 'boolean',
     _meta: {
-      description: 'Whether any trigger explicitly sets on.workflowEvents: avoidLoop',
+      description: 'Whether any trigger explicitly sets on.workflowEvents: avoid-loop',
       optional: false,
     },
   },

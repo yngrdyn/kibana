@@ -10,14 +10,14 @@
 import type { WorkflowEventsValue } from '@kbn/workflows';
 
 /**
- * Resolves `on.workflowEvents` the same way event-driven scheduling does: unknown or omitted -> `avoidLoop`.
+ * Resolves `on.workflowEvents` the same way event-driven scheduling does: unknown or omitted -> `avoid-loop`.
  */
 export function resolveWorkflowEventsModeFromOn(
   on: Record<string, unknown> | null | undefined
 ): WorkflowEventsValue {
   const raw = on?.workflowEvents;
-  if (raw === 'ignore' || raw === 'allow' || raw === 'avoidLoop') {
+  if (raw === 'ignore' || raw === 'allow-all' || raw === 'avoid-loop') {
     return raw;
   }
-  return 'avoidLoop';
+  return 'avoid-loop';
 }

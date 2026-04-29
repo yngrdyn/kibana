@@ -25,12 +25,12 @@ function onBlockFromTriggerJson(trigger: Record<string, unknown>): Record<string
 }
 
 describe('getTriggerOnChainOptionPairs', () => {
-  it('returns workflowEvents pair when set to allow', () => {
+  it('returns workflowEvents pair when set to allow-all', () => {
     const doc = parseDocument(
       `triggers:
   - type: example.loopTrigger
     on:
-      workflowEvents: allow
+      workflowEvents: allow-all
 `
     );
     const [first] = getTriggerNodes(doc);
@@ -43,7 +43,7 @@ describe('getTriggerOnChainOptionPairs', () => {
       return;
     }
     expect(isScalar(pair.key) && pair.key.value).toBe('workflowEvents');
-    expect(isScalar(pair.value) && pair.value.value).toBe('allow');
+    expect(isScalar(pair.value) && pair.value.value).toBe('allow-all');
   });
 
   it('returns workflowEvents pair when set to ignore', () => {
@@ -67,12 +67,12 @@ describe('getTriggerOnChainOptionPairs', () => {
     expect(isScalar(pair.value) && pair.value.value).toBe('ignore');
   });
 
-  it('returns workflowEvents pair when set to avoidLoop', () => {
+  it('returns workflowEvents pair when set to avoid-loop', () => {
     const doc = parseDocument(
       `triggers:
   - type: example.loopTrigger
     on:
-      workflowEvents: avoidLoop
+      workflowEvents: avoid-loop
 `
     );
     const [first] = getTriggerNodes(doc);
@@ -84,7 +84,7 @@ describe('getTriggerOnChainOptionPairs', () => {
     if (!pair) {
       return;
     }
-    expect(isScalar(pair.value) && pair.value.value).toBe('avoidLoop');
+    expect(isScalar(pair.value) && pair.value.value).toBe('avoid-loop');
   });
 
   it('returns no pair when workflowEvents is an unknown string', () => {
@@ -115,12 +115,12 @@ describe('getTriggerOnChainOptionPairs', () => {
       condition: 'event.foo: *'
 `,
     },
-  ])('$name: no pairs; omitted workflowEvents defaults to avoidLoop', ({ yaml }) => {
+  ])('$name: no pairs; omitted workflowEvents defaults to avoid-loop', ({ yaml }) => {
     const doc = parseDocument(yaml);
     const [first] = getTriggerNodes(doc);
     expect(first).toBeDefined();
     expect(getTriggerOnChainOptionPairs(first.node)).toHaveLength(0);
     const triggerJson = first.node.toJSON() as Record<string, unknown>;
-    expect(resolveWorkflowEventsModeFromOn(onBlockFromTriggerJson(triggerJson))).toBe('avoidLoop');
+    expect(resolveWorkflowEventsModeFromOn(onBlockFromTriggerJson(triggerJson))).toBe('avoid-loop');
   });
 });

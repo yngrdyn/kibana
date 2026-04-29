@@ -307,10 +307,10 @@ workflows_management/
 
 Registered (non-built-in) triggers may set optional flags under `triggers[].on` in YAML:
 
-- **`workflowEvents`**: One of **`ignore`**, **`avoidLoop`**, or **`allow`** (string). Controls how the workflow is scheduled when the trigger event was emitted from a workflow-attributed chain:
+- **`workflowEvents`**: One of **`ignore`**, **`avoid-loop`**, or **`allow-all`** (string). Controls how the workflow is scheduled when the trigger event was emitted from a workflow-attributed chain:
   - **`ignore`**: Do not schedule when the emit is workflow-attributed; user or domain-originated emits (no chain context) still run the workflow.
-  - **`avoidLoop`**: Schedule on workflow-attributed emits, but skip if this workflow id is already on the event chain (cycle guard). **Omitted defaults to `avoidLoop`** at runtime.
-  - **`allow`**: Schedule without the cycle guard; **`maxEventChainDepth`** from the execution engine config still applies.
+  - **`avoid-loop`**: Schedule on workflow-attributed emits, but skip if this workflow id is already on the event chain (cycle guard). **Omitted defaults to `avoid-loop`** at runtime.
+  - **`allow-all`**: Schedule without the cycle guard; **`maxEventChainDepth`** from the execution engine config still applies.
 
 ### Testing
 

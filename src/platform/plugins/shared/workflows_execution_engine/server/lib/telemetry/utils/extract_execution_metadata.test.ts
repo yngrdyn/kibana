@@ -540,7 +540,8 @@ describe('extractEventChainVisitedWorkflowIdsFromExecution', () => {
       extractEventChainVisitedWorkflowIdsFromExecution(
         createMockWorkflowExecution({
           context: { event: { eventChainVisitedWorkflowIds: ['wf-a', 'wf-b'] } },
-        })
+        }),
+        10
       )
     ).toEqual(['wf-a', 'wf-b']);
   });
@@ -551,15 +552,16 @@ describe('extractEventChainVisitedWorkflowIdsFromExecution', () => {
         createMockWorkflowExecution({
           eventChainVisitedWorkflowIds: ['root-a'],
           context: { event: { eventChainVisitedWorkflowIds: ['ctx-b'] } },
-        })
+        }),
+        10
       )
     ).toEqual(['root-a']);
   });
 
   it('returns empty array when missing', () => {
-    expect(extractEventChainVisitedWorkflowIdsFromExecution(createMockWorkflowExecution())).toEqual(
-      []
-    );
+    expect(
+      extractEventChainVisitedWorkflowIdsFromExecution(createMockWorkflowExecution(), 10)
+    ).toEqual([]);
   });
 
   it('truncates visited ids to maxCount (matches maxEventChainDepth cap)', () => {

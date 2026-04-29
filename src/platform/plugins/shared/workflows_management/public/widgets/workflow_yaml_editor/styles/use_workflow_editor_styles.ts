@@ -104,7 +104,7 @@ const editorStyleMap = {
         },
       },
 
-      // Custom trigger `on.workflowEvents` (ignore / allow / avoidLoop)
+      // Custom trigger `on.workflowEvents` (ignore / allow-all / avoid-loop)
       '.workflow-trigger-on-chain-glyph': {
         '&:before': {
           content: '""',

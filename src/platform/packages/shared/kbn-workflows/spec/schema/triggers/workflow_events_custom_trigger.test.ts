@@ -12,8 +12,8 @@ import { getTriggerSchema } from '.';
 describe('custom trigger on.workflowEvents', () => {
   const triggerSchema = getTriggerSchema(['cases.updated']);
 
-  it('accepts ignore, allow, and avoidLoop', () => {
-    for (const workflowEvents of ['ignore', 'allow', 'avoidLoop'] as const) {
+  it('accepts ignore, allow-all, and avoid-loop', () => {
+    for (const workflowEvents of ['ignore', 'allow-all', 'avoid-loop'] as const) {
       const result = triggerSchema.safeParse({
         type: 'cases.updated',
         on: { workflowEvents },

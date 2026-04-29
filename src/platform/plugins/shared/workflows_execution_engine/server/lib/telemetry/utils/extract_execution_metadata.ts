@@ -14,7 +14,6 @@ import type {
   WorkflowExecutionEventDispatchMetadata,
 } from '@kbn/workflows';
 import type { WorkflowYaml } from '@kbn/workflows/spec/schema';
-import { DEFAULT_MAX_EVENT_CHAIN_DEPTH } from '../../../config';
 import { parseDuration } from '../../../utils';
 
 /**
@@ -384,7 +383,7 @@ export function normalizeEventChainVisitedWorkflowIds(raw: unknown, maxCount: nu
 export function mergeEmitterWorkflowIntoEventChainVisited(
   prev: string[],
   emitterWorkflowId: string | undefined,
-  maxCount: number = DEFAULT_MAX_EVENT_CHAIN_DEPTH
+  maxCount: number
 ): string[] {
   const cap = Math.max(1, maxCount);
   const base = prev
@@ -443,12 +442,9 @@ export function extractEventChainDepthFromExecution(
   );
 }
 
-/**
- * Reads visited workflow ids for event-chain cycle detection (root field preferred, then context.event).
- */
 export function extractEventChainVisitedWorkflowIdsFromExecution(
   workflowExecution: EsWorkflowExecution,
-  maxCount: number = DEFAULT_MAX_EVENT_CHAIN_DEPTH
+  maxCount: number
 ): string[] {
   const withRoot = workflowExecution as EsWorkflowExecution & {
     eventChainVisitedWorkflowIds?: unknown;

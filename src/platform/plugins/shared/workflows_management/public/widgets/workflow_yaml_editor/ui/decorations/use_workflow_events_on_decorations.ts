@@ -86,12 +86,15 @@ function glyphHoverForWorkflowEvents(mode: string): { value: string } {
       ),
     };
   }
-  if (mode === 'allow') {
+  if (mode === 'allow-all') {
     return {
-      value: i18n.translate('workflows.workflowDetail.yamlEditor.workflowEventsAllowGlyphTooltip', {
-        defaultMessage:
-          'workflowEvents: allow — this workflow may run on workflow-emitted events without the event-chain cycle guard. Max event chain depth still applies; use only when intentional.',
-      }),
+      value: i18n.translate(
+        'workflows.workflowDetail.yamlEditor.workflowEventsAllowAllGlyphTooltip',
+        {
+          defaultMessage:
+            'workflowEvents: allow-all — this workflow may run on workflow-emitted events without the event-chain cycle guard. Max event chain depth still applies; use only when intentional.',
+        }
+      ),
     };
   }
   return {
@@ -99,7 +102,7 @@ function glyphHoverForWorkflowEvents(mode: string): { value: string } {
       'workflows.workflowDetail.yamlEditor.workflowEventsAvoidLoopGlyphTooltip',
       {
         defaultMessage:
-          'workflowEvents: avoidLoop — run on workflow-emitted events but skip scheduling if this workflow is already on the event chain (loop guard). Omitted defaults to avoidLoop.',
+          'workflowEvents: avoid-loop — run on workflow-emitted events but skip scheduling if this workflow is already on the event chain (loop guard). Omitted defaults to avoid-loop.',
       }
     ),
   };
@@ -135,7 +138,7 @@ export const useWorkflowEventsOnDecorations = ({
             const mode =
               isScalar(pair.value) && typeof pair.value.value === 'string'
                 ? pair.value.value
-                : 'avoidLoop';
+                : 'avoid-loop';
 
             decorations.push({
               range: new monaco.Range(

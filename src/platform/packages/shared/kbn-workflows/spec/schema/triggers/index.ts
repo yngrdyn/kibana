@@ -27,7 +27,7 @@ export const TriggerSchema = z.discriminatedUnion('type', [
 ]);
 
 /** Allowed values for `on.workflowEvents` on custom (event-driven) triggers. */
-const WORKFLOW_EVENTS_VALUES = ['ignore', 'allow', 'avoidLoop'] as const;
+const WORKFLOW_EVENTS_VALUES = ['ignore', 'allow-all', 'avoid-loop'] as const;
 export type WorkflowEventsValue = (typeof WORKFLOW_EVENTS_VALUES)[number];
 export const WORKFLOW_EVENTS_VALUES_SET = new Set<string>(WORKFLOW_EVENTS_VALUES);
 export const WorkflowEventsSchema = z.enum(WORKFLOW_EVENTS_VALUES);
@@ -39,8 +39,8 @@ const CustomTriggerOnSchema = z
     /**
      * How this trigger responds when the event was emitted from a workflow-attributed chain:
      * `ignore` — do not schedule;
-     * `avoidLoop`— schedule with cycle guard (default when omitted);
-     * `allow` — schedule without cycle guard (max chain depth still applies).
+     * `avoid-loop` — schedule with cycle guard (default when omitted);
+     * `allow-all` — schedule without cycle guard (max chain depth still applies).
      */
     workflowEvents: WorkflowEventsSchema.optional(),
   })
