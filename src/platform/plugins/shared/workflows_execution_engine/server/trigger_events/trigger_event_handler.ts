@@ -440,24 +440,23 @@ export class TriggerEventHandler {
       return { outcome: 'skipped', reason: 'depth' };
     }
 
+    const nextVisitedForPayload = buildNextVisitedWorkflowIds(
+      eventChainContext,
+      maxEventChainDepth
+    );
+
     if (workflowEventsMode !== 'allow-all') {
-      const nextVisited = buildNextVisitedWorkflowIds(eventChainContext, maxEventChainDepth);
-      if (nextVisited.includes(workflow.id)) {
+      if (nextVisitedForPayload.includes(workflow.id)) {
         this.logger.warn(
           `Event chain cycle guard skipped scheduling workflow ${
             workflow.id
-          } for trigger ${triggerId} in space ${spaceId}; workflow already in chain [${nextVisited.join(
+          } for trigger ${triggerId} in space ${spaceId}; workflow already in chain [${nextVisitedForPayload.join(
             ', '
           )}]. Set on.workflowEvents: allow-all on this trigger to allow repeats.`
         );
         return { outcome: 'skipped', reason: 'cycle' };
       }
     }
-
-    const nextVisitedForPayload = buildNextVisitedWorkflowIds(
-      eventChainContext,
-      maxEventChainDepth
-    );
 
     return {
       outcome: 'scheduled',
