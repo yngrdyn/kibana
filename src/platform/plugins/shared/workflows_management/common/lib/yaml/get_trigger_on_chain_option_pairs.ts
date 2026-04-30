@@ -11,8 +11,19 @@ import type { Pair, Scalar, YAMLMap } from 'yaml';
 import { isMap, isPair, isScalar } from 'yaml';
 import { WORKFLOW_EVENTS_VALUES_SET } from '@kbn/workflows';
 
+/**
+ * Recognize the `triggers[].on` map key. Default parser schema is YAML 1.2 (`yaml` package), so plain `on`
+ * stays a string. With `%YAML 1.1`, plain `on`, `yes`, and `y` all resolve to boolean `true`; only source `on`
+ * should match (avoids false positives on `yes:` / `y:` keys).
+ */
 function isOnMapKey(key: Scalar): boolean {
-  return key.value === 'on' || key.value === true;
+  if (key.value === 'on') {
+    return true;
+  }
+  if (key.value === true && typeof key.source === 'string') {
+    return key.source.toLowerCase() === 'on';
+  }
+  return false;
 }
 
 /**

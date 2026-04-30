@@ -67,6 +67,37 @@ describe('getTriggerOnChainOptionPairs', () => {
     expect(isScalar(pair.value) && pair.value.value).toBe('ignore');
   });
 
+  it('under %YAML 1.1 still finds on when plain on is resolved to boolean true', () => {
+    const doc = parseDocument(
+      `%YAML 1.1
+---
+triggers:
+  - type: example.loopTrigger
+    on:
+      workflowEvents: ignore
+`
+    );
+    const [first] = getTriggerNodes(doc);
+    expect(first).toBeDefined();
+    const pairs = getTriggerOnChainOptionPairs(first.node);
+    expect(pairs).toHaveLength(1);
+  });
+
+  it('under %YAML 1.1 does not treat yes (also boolean true) as the on map', () => {
+    const doc = parseDocument(
+      `%YAML 1.1
+---
+triggers:
+  - type: example.loopTrigger
+    yes:
+      workflowEvents: ignore
+`
+    );
+    const [first] = getTriggerNodes(doc);
+    expect(first).toBeDefined();
+    expect(getTriggerOnChainOptionPairs(first.node)).toHaveLength(0);
+  });
+
   it('returns workflowEvents pair when set to avoid-loop', () => {
     const doc = parseDocument(
       `triggers:
