@@ -23,6 +23,7 @@ import {
   type EventChainContext,
   getEmitterWorkflowExecutionIdFromRequest,
   getEventChainContext,
+  getEventChainDepthFromHeaders,
 } from './event_context/event_chain_context';
 import { initializeTriggerEventsClient, writeTriggerEvent } from './event_logs';
 import { classifyWorkflowTriggerMatch } from './filter_workflows_by_trigger_condition';
@@ -79,6 +80,29 @@ function nextScheduledEventChainDepth(context: EventChainContext | undefined): n
   const d = context?.depth;
   const parentDepth = d === undefined || d < 0 ? 0 : d;
   return parentDepth + 1;
+}
+
+function isKnownNonNegativeEventChainDepth(depth: number | undefined): depth is number {
+  return depth !== undefined && depth >= 0;
+}
+
+function warnOnEmitterDepthHeaderPersistedMismatch(params: {
+  logger: Logger;
+  executionId: string;
+  headerDepth: number | undefined;
+  persistedDepth: number | undefined;
+}): void {
+  const { logger, executionId, headerDepth, persistedDepth } = params;
+  if (
+    !isKnownNonNegativeEventChainDepth(headerDepth) ||
+    !isKnownNonNegativeEventChainDepth(persistedDepth) ||
+    headerDepth === persistedDepth
+  ) {
+    return;
+  }
+  logger.warn(
+    `[workflows:eventChain] event-chain depth header (${headerDepth}) does not match persisted depth (${persistedDepth}) for emitter execution ${executionId}; using persisted chain from the execution document.`
+  );
 }
 
 function isWorkflowSourcedChainContext(context: EventChainContext | undefined): boolean {
@@ -268,7 +292,8 @@ export class TriggerEventHandler {
 
   private eventChainContextFromExecution(
     doc: EsWorkflowExecution,
-    maxEventChainDepth: number
+    maxEventChainDepth: number,
+    persistedDepth: number | undefined
   ): EventChainContext {
     const baseVisited = extractEventChainVisitedWorkflowIdsFromExecution(doc, maxEventChainDepth);
     const visitedWorkflowIds = mergeEmitterWorkflowIntoEventChainVisited(
@@ -277,7 +302,7 @@ export class TriggerEventHandler {
       maxEventChainDepth
     );
     return {
-      depth: extractEventChainDepthFromExecution(doc) ?? -1,
+      depth: persistedDepth ?? -1,
       sourceExecutionId: doc.id,
       ...(visitedWorkflowIds.length > 0 ? { visitedWorkflowIds } : {}),
     };
@@ -300,7 +325,20 @@ export class TriggerEventHandler {
       if (!doc?.workflowId) {
         return undefined;
       }
-      const context = this.eventChainContextFromExecution(doc, maxEventChainDepth);
+
+      const persistedDepth = extractEventChainDepthFromExecution(doc);
+      const headerDepth = request.isInternalApiRequest
+        ? getEventChainDepthFromHeaders(request.headers)
+        : undefined;
+
+      warnOnEmitterDepthHeaderPersistedMismatch({
+        logger: this.logger,
+        executionId,
+        headerDepth,
+        persistedDepth,
+      });
+
+      const context = this.eventChainContextFromExecution(doc, maxEventChainDepth, persistedDepth);
       this.logger.debug(
         `[workflows:eventChain] restored chain from emitter execution: executionId=${executionId} context=${JSON.stringify(
           context

@@ -15,6 +15,12 @@ export { X_ELASTIC_INTERNAL_ORIGIN_REQUEST };
 const MAX_VISITED_IDS_IN_HEADER = 128;
 
 /**
+ * Max base64url header length before decode. Rejects abuse / accidental megabyte headers;
+ * 64 KiB fits worst-case JSON for {@link MAX_VISITED_IDS_IN_HEADER} long workflow ids within typical proxy limits.
+ */
+const MAX_VISITED_IDS_HEADER_BYTES = 65536;
+
+/**
  * Context attached to the request when a workflow runs, so that when code
  * in that workflow emits an event (e.g. via emitEvent), we can infer the
  * event-chain depth and enforce a cap to prevent infinite loops.
@@ -99,6 +105,9 @@ function getHeaderValue(headers: KibanaRequest['headers'], headerName: string): 
 }
 
 function parseVisitedWorkflowIdsFromHeader(encoded: string): string[] | undefined {
+  if (encoded.length > MAX_VISITED_IDS_HEADER_BYTES) {
+    return undefined;
+  }
   try {
     const json = Buffer.from(encoded, 'base64url').toString('utf8');
     const parsed: unknown = JSON.parse(json);
@@ -121,8 +130,17 @@ function parseVisitedWorkflowIdsFromHeader(encoded: string): string[] | undefine
 }
 
 function encodeVisitedWorkflowIdsForHeader(ids: string[]): string {
-  const capped = ids.slice(0, MAX_VISITED_IDS_IN_HEADER);
-  return Buffer.from(JSON.stringify(capped), 'utf8').toString('base64url');
+  const emptyEncoded = Buffer.from(JSON.stringify([]), 'utf8').toString('base64url');
+  let sliceEnd = Math.min(ids.length, MAX_VISITED_IDS_IN_HEADER);
+  while (sliceEnd > 0) {
+    const capped = ids.slice(0, sliceEnd);
+    const encoded = Buffer.from(JSON.stringify(capped), 'utf8').toString('base64url');
+    if (encoded.length <= MAX_VISITED_IDS_HEADER_BYTES) {
+      return encoded;
+    }
+    sliceEnd -= 1;
+  }
+  return emptyEncoded;
 }
 
 function parseDepthFromHeaders(headers: KibanaRequest['headers']): number | undefined {
@@ -138,6 +156,12 @@ function parseDepthFromHeaders(headers: KibanaRequest['headers']): number | unde
     return -1;
   }
   return depth >= 0 ? depth : undefined;
+}
+
+export function getEventChainDepthFromHeaders(
+  headers: KibanaRequest['headers']
+): number | undefined {
+  return parseDepthFromHeaders(headers);
 }
 
 function parseSourceExecutionIdFromHeaders(headers: KibanaRequest['headers']): string | undefined {

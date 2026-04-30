@@ -38,6 +38,7 @@ export {
   X_ELASTIC_INTERNAL_ORIGIN_REQUEST,
   getEmitterWorkflowExecutionIdFromRequest,
   getEventChainContext,
+  getEventChainDepthFromHeaders,
   getOutboundEventChainHeaders,
   setWorkflowEventChainContext,
 } from './event_chain_context';

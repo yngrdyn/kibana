@@ -14,6 +14,7 @@ import {
   EVENT_CHAIN_SOURCE_EXECUTION_HEADER,
   EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER,
   getEventChainContext,
+  getEventChainDepthFromHeaders,
   getOutboundEventChainHeaders,
   setWorkflowEventChainContext,
 } from './event_chain_context';
@@ -135,6 +136,29 @@ describe('event_chain_context', () => {
         getEventChainContext(internalRequest({ [EVENT_CHAIN_DEPTH_HEADER]: ['3', '5'] }))
       ).toEqual({ depth: 3 });
     });
+
+    it('ignores visited-workflows header when base64url value exceeds byte cap (no decode)', () => {
+      const oversized = 'A'.repeat(65537);
+      expect(
+        getEventChainContext(
+          internalRequest({
+            [EVENT_CHAIN_DEPTH_HEADER]: '1',
+            [EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER]: oversized,
+          })
+        )
+      ).toEqual({ depth: 1 });
+    });
+
+    it('getEventChainDepthFromHeaders mirrors depth header parsing', () => {
+      expect(
+        getEventChainDepthFromHeaders(internalRequest({ [EVENT_CHAIN_DEPTH_HEADER]: '4' }).headers)
+      ).toBe(4);
+      expect(
+        getEventChainDepthFromHeaders(
+          internalRequest({ [EVENT_CHAIN_DEPTH_HEADER]: 'invalid' }).headers
+        )
+      ).toBeUndefined();
+    });
   });
 
   describe('external requests (no x-elastic-internal-origin)', () => {
@@ -204,6 +228,27 @@ describe('event_chain_context', () => {
         ).toString('base64url'),
         [EVENT_CHAIN_EMITTER_EXECUTION_ID_HEADER]: 'exec-uuid',
       });
+    });
+
+    it('encodes visited ids so the header stays within the byte cap', () => {
+      const longId = 'w'.repeat(600);
+      const request = {} as KibanaRequest;
+      setWorkflowEventChainContext(request, {
+        depth: 0,
+        visitedWorkflowIds: Array.from({ length: 128 }, () => longId),
+      });
+      const outbound = getOutboundEventChainHeaders(request);
+      const visitedHeader = outbound[EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER];
+      expect(typeof visitedHeader).toBe('string');
+      expect(visitedHeader!.length).toBeLessThanOrEqual(65536);
+      const parsed = getEventChainContext(
+        internalRequest({
+          [EVENT_CHAIN_DEPTH_HEADER]: '0',
+          [EVENT_CHAIN_VISITED_WORKFLOW_IDS_HEADER]: visitedHeader!,
+        })
+      );
+      expect(parsed?.visitedWorkflowIds?.length).toBeGreaterThan(0);
+      expect(parsed?.visitedWorkflowIds?.length).toBeLessThanOrEqual(128);
     });
   });
 

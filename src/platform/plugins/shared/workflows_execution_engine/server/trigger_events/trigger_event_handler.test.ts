@@ -7,9 +7,9 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { Logger } from '@kbn/core/server';
+import type { KibanaRequest, Logger } from '@kbn/core/server';
 import { coreMock } from '@kbn/core/server/mocks';
-import type { WorkflowDetailDto } from '@kbn/workflows';
+import type { EsWorkflowExecution, WorkflowDetailDto } from '@kbn/workflows';
 import type { WorkflowRepository } from '@kbn/workflows/server';
 import { TriggerEventHandler, type TriggerEventHandlerDeps } from './trigger_event_handler';
 
@@ -39,11 +39,17 @@ jest.mock('@kbn/workflows/server', () => ({
 const mockGetEventChainContext = jest.fn().mockReturnValue(undefined);
 const mockGetEmitterWorkflowExecutionIdFromRequest = jest.fn().mockReturnValue(undefined);
 
-jest.mock('./event_context/event_chain_context', () => ({
-  getEventChainContext: (...args: unknown[]) => mockGetEventChainContext(...args),
-  getEmitterWorkflowExecutionIdFromRequest: (...args: unknown[]) =>
-    mockGetEmitterWorkflowExecutionIdFromRequest(...args),
-}));
+jest.mock('./event_context/event_chain_context', () => {
+  const actual = jest.requireActual<typeof import('./event_context/event_chain_context')>(
+    './event_context/event_chain_context'
+  );
+  return {
+    ...actual,
+    getEventChainContext: (...args: unknown[]) => mockGetEventChainContext(...args),
+    getEmitterWorkflowExecutionIdFromRequest: (...args: unknown[]) =>
+      mockGetEmitterWorkflowExecutionIdFromRequest(...args),
+  };
+});
 
 jest.mock('../lib/telemetry/workflow_execution_telemetry_client', () => ({
   WorkflowExecutionTelemetryClient: jest.fn().mockImplementation(() => ({
@@ -396,5 +402,75 @@ describe('TriggerEventHandler', () => {
         }),
       })
     );
+  });
+
+  it('warns when emitter execution persisted depth disagrees with depth header on internal requests', async () => {
+    mockGetEventChainContext.mockReturnValue(undefined);
+    mockGetEmitterWorkflowExecutionIdFromRequest.mockReturnValue('exec-emit');
+    mockGetWorkflowExecutionById.mockResolvedValue({
+      id: 'exec-emit',
+      workflowId: 'wf-emitter',
+      eventChainDepth: 2,
+    } as unknown as EsWorkflowExecution);
+
+    const scheduleWorkflow = jest.fn().mockResolvedValue({ workflowExecutionId: 'exec-new' });
+    const deps = createDeps({
+      scheduleWorkflow,
+      workflowRepository: createWorkflowRepositoryMock([
+        createMockWorkflow({ id: 'wf-subscriber' }),
+      ]),
+    });
+    const handler = new TriggerEventHandler(deps);
+
+    const request = {
+      isInternalApiRequest: true,
+      headers: { 'x-kibana-event-chain-depth': '5' },
+    } as unknown as KibanaRequest;
+
+    await handler.handleEvent({
+      triggerId: 'cases.updated',
+      payload: { caseId: '1' },
+      request,
+    });
+
+    expect(deps.logger.warn).toHaveBeenCalledWith(
+      expect.stringMatching(/depth header \(5\).*persisted depth \(2\)/)
+    );
+    expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not warn about depth mismatch when header matches persisted emitter execution depth', async () => {
+    mockGetEventChainContext.mockReturnValue(undefined);
+    mockGetEmitterWorkflowExecutionIdFromRequest.mockReturnValue('exec-emit');
+    mockGetWorkflowExecutionById.mockResolvedValue({
+      id: 'exec-emit',
+      workflowId: 'wf-emitter',
+      eventChainDepth: 3,
+    } as unknown as EsWorkflowExecution);
+
+    const scheduleWorkflow = jest.fn().mockResolvedValue({ workflowExecutionId: 'exec-new' });
+    const deps = createDeps({
+      scheduleWorkflow,
+      workflowRepository: createWorkflowRepositoryMock([
+        createMockWorkflow({ id: 'wf-subscriber' }),
+      ]),
+    });
+    const handler = new TriggerEventHandler(deps);
+
+    const request = {
+      isInternalApiRequest: true,
+      headers: { 'x-kibana-event-chain-depth': '3' },
+    } as unknown as KibanaRequest;
+
+    await handler.handleEvent({
+      triggerId: 'cases.updated',
+      payload: { caseId: '1' },
+      request,
+    });
+
+    expect(deps.logger.warn).not.toHaveBeenCalledWith(
+      expect.stringMatching(/does not match persisted depth/)
+    );
+    expect(scheduleWorkflow).toHaveBeenCalledTimes(1);
   });
 });
