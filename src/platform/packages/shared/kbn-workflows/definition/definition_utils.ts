@@ -195,10 +195,9 @@ const countSiblingStepNames = (steps: ReadonlyArray<WorkflowStep>): Map<string, 
   return nameCounts;
 };
 
-/** Depth-first walk of all named steps, including nested container subtrees. */
-export const visitNestedSteps = <TStep extends WorkflowStep>(
-  steps: ReadonlyArray<TStep>,
-  visitor: (entry: VisitNestedStepEntry<TStep>) => void,
+const visitNestedStepsImpl = (
+  steps: ReadonlyArray<WorkflowStep>,
+  visitor: (entry: VisitNestedStepEntry) => void,
   options: VisitNestedStepsOptions = {}
 ): void => {
   const { parentPath = '', requireValidName = false } = options;
@@ -217,13 +216,28 @@ export const visitNestedSteps = <TStep extends WorkflowStep>(
 
       for (const { pathSuffix, steps: childSteps } of collectNestedStepGroups(step)) {
         const childParentPath = pathSuffix ? `${path}${pathSuffix}` : path;
-        visitNestedSteps(childSteps as ReadonlyArray<TStep>, visitor, {
+        visitNestedStepsImpl(childSteps, visitor, {
           ...options,
           parentPath: childParentPath,
         });
       }
     }
   }
+};
+
+/** Depth-first walk of all named steps, including nested container subtrees. */
+export const visitNestedSteps = <TStep extends WorkflowStep>(
+  steps: ReadonlyArray<TStep>,
+  visitor: (entry: VisitNestedStepEntry<TStep>) => void,
+  options: VisitNestedStepsOptions = {}
+): void => {
+  visitNestedStepsImpl(
+    steps,
+    (entry) => {
+      visitor({ step: entry.step as unknown as TStep, path: entry.path, name: entry.name });
+    },
+    options
+  );
 };
 
 /** Strip nested step trees so container entries compare only their own config fields. */
