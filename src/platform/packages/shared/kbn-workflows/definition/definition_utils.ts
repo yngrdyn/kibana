@@ -217,7 +217,7 @@ export const visitNestedSteps = <TStep extends WorkflowStep>(
 
       for (const { pathSuffix, steps: childSteps } of collectNestedStepGroups(step)) {
         const childParentPath = pathSuffix ? `${path}${pathSuffix}` : path;
-        visitNestedSteps(childSteps, visitor, {
+        visitNestedSteps(childSteps as ReadonlyArray<TStep>, visitor, {
           ...options,
           parentPath: childParentPath,
         });
