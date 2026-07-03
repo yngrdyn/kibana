@@ -439,7 +439,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       return;
     }
 
-    const yamlToValidate = editor.getModel()?.getValue() ?? validationYaml;
     let didWaitForYamlSchema = false;
     const model = editor.getModel();
 
