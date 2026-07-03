@@ -18,6 +18,7 @@ import { getWorkflowZodSchema } from '../../../common/schema';
 import { performComputation } from '../../entities/workflows/store/workflow_detail/utils/computation';
 import { triggerSchemas } from '../../trigger_schemas';
 import type { YamlValidationResult } from '../validate_workflow_yaml/model/types';
+import { useWorkflowJsonSchema } from '../validate_workflow_yaml/model/use_workflow_json_schema';
 
 jest.mock('./apply_workflow_yaml_validation_to_editor', () => {
   const actual = jest.requireActual('./apply_workflow_yaml_validation_to_editor');
@@ -61,6 +62,11 @@ const mockApplyValidation =
   applyWorkflowYamlValidationToEditorModule.applyWorkflowYamlValidationToEditor as jest.Mock;
 const mockApplyHighlights =
   applyWorkflowYamlValidationToEditorModule.applyValidationHighlightsToEditor as jest.Mock;
+const mockUseWorkflowJsonSchema = useWorkflowJsonSchema as jest.Mock;
+
+const mockWorkflowJsonSchema = { type: 'object' };
+const getActiveEditor = (): monaco.editor.IStandaloneCodeEditor => mockEditor;
+const configureDiffEditors = jest.fn();
 
 const sampleCustomError: YamlValidationResult = {
   id: 'custom-error',
@@ -93,6 +99,10 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
   beforeEach(() => {
     jest.clearAllMocks();
     markerChangeListener = undefined;
+    mockUseWorkflowJsonSchema.mockReturnValue({
+      jsonSchema: mockWorkflowJsonSchema,
+      uri: 'file:///workflow-schema.json',
+    });
 
     const yaml = 'name: test-workflow\n';
     const computed = performComputation(yaml);
@@ -126,7 +136,7 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
 
     const { result } = renderHook(() =>
       useWorkflowChangeHistoryPreviewValidation({
-        getActiveEditor: () => mockEditor,
+        getActiveEditor,
         validationDecorationsRef,
         validationYaml: editorModel.getValue(),
         highlightValidationErrors: true,
@@ -134,7 +144,7 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
         editorRef: { current: mockEditor },
         diffEditorRef: { current: null },
         compareModeRef,
-        configureDiffEditors: jest.fn(),
+        configureDiffEditors,
       })
     );
 
@@ -209,7 +219,7 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
 
     const { result } = renderHook(() =>
       useWorkflowChangeHistoryPreviewValidation({
-        getActiveEditor: () => mockEditor,
+        getActiveEditor,
         validationDecorationsRef,
         validationYaml: editorModel.getValue(),
         highlightValidationErrors: true,
@@ -217,7 +227,7 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
         editorRef: { current: mockEditor },
         diffEditorRef: { current: null },
         compareModeRef,
-        configureDiffEditors: jest.fn(),
+        configureDiffEditors,
       })
     );
 

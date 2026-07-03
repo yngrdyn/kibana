@@ -48,14 +48,15 @@ export const WorkflowChangeHistoryPreviewFooter = ({
       data-test-subj="workflowChangeHistoryPreviewFooter"
     >
       {highlightValidationErrors ? (
-        <WorkflowYamlValidationAccordion
-          isMounted={isEditorMounted}
-          isLoading={showValidationLoading}
-          error={null}
-          validationErrors={showValidationLoading ? null : validationResults}
-          onErrorClick={onValidationErrorClick}
-          css={styles.validationAccordion}
-        />
+        <div css={styles.validationAccordion}>
+          <WorkflowYamlValidationAccordion
+            isMounted={isEditorMounted}
+            isLoading={showValidationLoading}
+            error={null}
+            validationErrors={showValidationLoading ? null : validationResults}
+            onErrorClick={onValidationErrorClick}
+          />
+        </div>
       ) : (
         <div css={styles.footerBarSpacer} aria-hidden={true} />
       )}
