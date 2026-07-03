@@ -11,13 +11,13 @@ import type YAML from 'yaml';
 import { parseDocument } from 'yaml';
 import { monaco } from '@kbn/code-editor';
 import type { z } from '@kbn/zod/v4';
-import { filterMonacoYamlMarkers } from '../validate_workflow_yaml/lib/filter_monaco_yaml_markers';
-import { formatMonacoYamlMarker } from '../validate_workflow_yaml/lib/format_monaco_yaml_marker';
-import type { YamlValidationResult } from '../validate_workflow_yaml/model/types';
 import {
   getSeverityString,
   type MarkerSeverity,
 } from '../../widgets/workflow_yaml_editor/lib/utils';
+import { filterMonacoYamlMarkers } from '../validate_workflow_yaml/lib/filter_monaco_yaml_markers';
+import { formatMonacoYamlMarker } from '../validate_workflow_yaml/lib/format_monaco_yaml_marker';
+import type { YamlValidationResult } from '../validate_workflow_yaml/model/types';
 
 export const collectYamlSchemaValidationResults = (
   model: monaco.editor.ITextModel,
@@ -55,4 +55,7 @@ export const collectYamlSchemaValidationResults = (
 export const mergeWorkflowYamlValidationResults = (
   customResults: YamlValidationResult[],
   yamlSchemaResults: YamlValidationResult[]
-): YamlValidationResult[] => [...customResults.filter((result) => result.owner !== 'yaml'), ...yamlSchemaResults];
+): YamlValidationResult[] => [
+  ...customResults.filter((result) => result.owner !== 'yaml'),
+  ...yamlSchemaResults,
+];
