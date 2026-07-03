@@ -8,6 +8,7 @@
  */
 
 import type { MutableRefObject } from 'react';
+import type { Document } from 'yaml';
 import { monaco } from '@kbn/code-editor';
 import type { ComputedData } from '../../entities/workflows/store/workflow_detail/types';
 import { createMarkersAndDecorations } from '../validate_workflow_yaml/lib/create_yaml_validation_markers_and_decorations';
@@ -20,6 +21,7 @@ import {
 
 export interface ApplyWorkflowYamlValidationResult {
   validationResults: YamlValidationResult[];
+  yamlDocument: Document | null;
 }
 
 const clearEditorValidation = (
@@ -31,26 +33,61 @@ const clearEditorValidation = (
   decorationsCollectionRef.current = null;
 };
 
+export interface ApplyValidationHighlightsOptions {
+  omitMarginDecorations?: boolean;
+}
+
+export interface ApplyWorkflowYamlValidationOptions {
+  /** When true, only compute custom validation results; caller merges and applies highlights. */
+  skipApplyingHighlights?: boolean;
+}
+
+export const applyValidationHighlightsToEditor = (
+  editor: monaco.editor.IStandaloneCodeEditor,
+  validationResults: YamlValidationResult[],
+  decorationsCollectionRef: MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>,
+  options?: ApplyValidationHighlightsOptions
+): void => {
+  const model = editor.getModel();
+  if (!model) {
+    return;
+  }
+
+  const highlightableResults = validationResults.filter(
+    (result) => result.severity === 'error' || result.severity === 'warning'
+  );
+
+  const { markers, decorations } = createMarkersAndDecorations(highlightableResults, {
+    omitMarginDecorations: options?.omitMarginDecorations,
+    omitMarkersForOwners: ['yaml'],
+  });
+
+  monaco.editor.setModelMarkers(model, BATCHED_CUSTOM_MARKER_OWNER, markers);
+  decorationsCollectionRef.current?.clear();
+  decorationsCollectionRef.current = editor.createDecorationsCollection(decorations);
+};
+
 export const applyWorkflowYamlValidationFromComputed = (
   editor: monaco.editor.IStandaloneCodeEditor,
   yamlString: string,
   computed: ComputedData,
   highlightValidationErrors: boolean,
-  decorationsCollectionRef: MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>
+  decorationsCollectionRef: MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>,
+  options?: ApplyWorkflowYamlValidationOptions
 ): ApplyWorkflowYamlValidationResult => {
   const model = editor.getModel();
   if (!model) {
-    return { validationResults: [] };
+    return { validationResults: [], yamlDocument: null };
   }
 
   if (!highlightValidationErrors) {
     clearEditorValidation(model, decorationsCollectionRef);
-    return { validationResults: [] };
+    return { validationResults: [], yamlDocument: null };
   }
 
   if (!computed.yamlDocument || !computed.yamlLineCounter) {
     clearEditorValidation(model, decorationsCollectionRef);
-    return { validationResults: [] };
+    return { validationResults: [], yamlDocument: computed.yamlDocument ?? null };
   }
 
   const validationResults = runWorkflowYamlValidations({
@@ -63,15 +100,19 @@ export const applyWorkflowYamlValidationFromComputed = (
     workflowDefinition: computed.workflowDefinition ?? undefined,
   });
 
-  const { markers, decorations } = createMarkersAndDecorations(validationResults);
-  monaco.editor.setModelMarkers(model, BATCHED_CUSTOM_MARKER_OWNER, markers);
-  decorationsCollectionRef.current?.clear();
-  decorationsCollectionRef.current = editor.createDecorationsCollection(decorations);
+  const filteredResults = validationResults.filter(
+    (result) => result.severity === 'error' || result.severity === 'warning'
+  );
+
+  if (!options?.skipApplyingHighlights) {
+    applyValidationHighlightsToEditor(editor, filteredResults, decorationsCollectionRef, {
+      omitMarginDecorations: true,
+    });
+  }
 
   return {
-    validationResults: validationResults.filter(
-      (result) => result.severity === 'error' || result.severity === 'warning'
-    ),
+    validationResults: filteredResults,
+    yamlDocument: computed.yamlDocument,
   };
 };
 
@@ -80,16 +121,17 @@ export const applyWorkflowYamlValidationToEditor = async (
   yamlString: string,
   highlightValidationErrors: boolean,
   decorationsCollectionRef: MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: ApplyWorkflowYamlValidationOptions
 ): Promise<ApplyWorkflowYamlValidationResult> => {
   const model = editor.getModel();
   if (!model) {
-    return { validationResults: [] };
+    return { validationResults: [], yamlDocument: null };
   }
 
   if (!highlightValidationErrors) {
     clearEditorValidation(model, decorationsCollectionRef);
-    return { validationResults: [] };
+    return { validationResults: [], yamlDocument: null };
   }
 
   let computed: ComputedData;
@@ -97,13 +139,13 @@ export const applyWorkflowYamlValidationToEditor = async (
     computed = await getCachedWorkflowYamlComputationAsync(yamlString, signal);
   } catch (error) {
     if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
-      return { validationResults: [] };
+      return { validationResults: [], yamlDocument: null };
     }
     throw error;
   }
 
   if (signal?.aborted) {
-    return { validationResults: [] };
+    return { validationResults: [], yamlDocument: null };
   }
 
   return applyWorkflowYamlValidationFromComputed(
@@ -111,6 +153,7 @@ export const applyWorkflowYamlValidationToEditor = async (
     yamlString,
     computed,
     highlightValidationErrors,
-    decorationsCollectionRef
+    decorationsCollectionRef,
+    options
   );
 };

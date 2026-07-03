@@ -102,7 +102,10 @@ jest.mock('./use_workflow_change_history', () => ({
 }));
 
 jest.mock('./apply_workflow_yaml_validation_to_editor', () => ({
-  applyWorkflowYamlValidationToEditor: jest.fn(() => Promise.resolve({ validationResults: [] })),
+  applyWorkflowYamlValidationToEditor: jest.fn(() =>
+    Promise.resolve({ validationResults: [], yamlDocument: null })
+  ),
+  applyValidationHighlightsToEditor: jest.fn(),
 }));
 
 const { applyWorkflowYamlValidationToEditor } = jest.requireMock(
@@ -116,12 +119,15 @@ jest.mock('@kbn/code-editor', () => ({
       createModel: jest.fn(() => ({ dispose: jest.fn() })),
       create: jest.fn(() => ({
         dispose: jest.fn(),
+        layout: jest.fn(),
         getModel: jest.fn(() => ({ dispose: jest.fn() })),
+        updateOptions: jest.fn(),
         createDecorationsCollection: jest.fn(() => ({ clear: jest.fn() })),
       })),
       createDiffEditor: jest.fn(() => ({
         setModel: jest.fn(),
         dispose: jest.fn(),
+        layout: jest.fn(),
         updateOptions: jest.fn(),
         getLineChanges: jest.fn(() => [
           {
@@ -141,6 +147,7 @@ jest.mock('@kbn/code-editor', () => ({
         })),
       })),
       setModelMarkers: jest.fn(),
+      onDidChangeMarkers: jest.fn(() => ({ dispose: jest.fn() })),
     },
   },
 }));

@@ -21,7 +21,35 @@ jest.mock('@kbn/workflows-ui', () => ({
 }));
 
 jest.mock('./apply_workflow_yaml_validation_to_editor', () => ({
-  applyWorkflowYamlValidationToEditor: jest.fn(() => Promise.resolve({ validationResults: [] })),
+  applyWorkflowYamlValidationToEditor: jest.fn(() =>
+    Promise.resolve({ validationResults: [], yamlDocument: null })
+  ),
+  applyValidationHighlightsToEditor: jest.fn(),
+}));
+
+jest.mock('../validate_workflow_yaml/model/use_workflow_json_schema', () => ({
+  useWorkflowJsonSchema: jest.fn(() => ({
+    jsonSchema: { type: 'object' },
+    uri: 'file:///workflow-schema.json',
+  })),
+}));
+
+jest.mock('../../entities/connectors/model/use_available_connectors', () => ({
+  useAvailableConnectors: jest.fn(() => ({ connectorTypes: {} })),
+}));
+
+jest.mock('../../shared/ui/yaml_editor/yaml_language_service', () => ({
+  yamlLanguageService: {
+    update: jest.fn(() => Promise.resolve()),
+  },
+}));
+
+jest.mock('./collect_yaml_schema_validation_results', () => ({
+  collectYamlSchemaValidationResults: jest.fn(() => []),
+  mergeWorkflowYamlValidationResults: jest.fn(
+    (customResults: import('../validate_workflow_yaml/model/types').YamlValidationResult[]) =>
+      customResults
+  ),
 }));
 
 jest.mock('../../widgets/workflow_yaml_editor/ui/workflow_yaml_validation_accordion', () => ({
@@ -37,12 +65,15 @@ jest.mock('@kbn/code-editor', () => ({
       createModel: jest.fn((value: string) => ({ value, dispose: jest.fn() })),
       create: jest.fn(() => ({
         dispose: jest.fn(),
+        layout: jest.fn(),
         getModel: jest.fn(() => ({ dispose: jest.fn() })),
+        updateOptions: jest.fn(),
         createDecorationsCollection: jest.fn(() => ({ clear: jest.fn() })),
       })),
       createDiffEditor: jest.fn(() => ({
         setModel: jest.fn(),
         dispose: jest.fn(),
+        layout: jest.fn(),
         updateOptions: jest.fn(),
         getLineChanges: jest.fn(() => []),
         onDidUpdateDiff: jest.fn(() => ({ dispose: jest.fn() })),
@@ -54,6 +85,7 @@ jest.mock('@kbn/code-editor', () => ({
         })),
       })),
       setModelMarkers: jest.fn(),
+      onDidChangeMarkers: jest.fn(() => ({ dispose: jest.fn() })),
     },
   },
 }));

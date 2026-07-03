@@ -18,18 +18,23 @@ import type { YamlValidationResult } from '../validate_workflow_yaml/model/types
 /** Collapsed footer row height — matches the YAML editor validation accordion. */
 export const WORKFLOW_CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT = '48px';
 
+/** Space reserved for the fixed settings button (icon + right padding). */
+export const WORKFLOW_CHANGE_HISTORY_PREVIEW_SETTINGS_RESERVE_PX = 48;
+
 export interface WorkflowChangeHistoryPreviewFooterProps {
   validationResults: YamlValidationResult[];
   isEditorMounted: boolean;
+  isValidationLoading: boolean;
+  highlightValidationErrors: boolean;
   onValidationErrorClick?: (error: YamlValidationResult) => void;
-  settingsSlot: React.ReactNode;
 }
 
 export const WorkflowChangeHistoryPreviewFooter = ({
   validationResults,
   isEditorMounted,
+  isValidationLoading,
+  highlightValidationErrors,
   onValidationErrorClick,
-  settingsSlot,
 }: WorkflowChangeHistoryPreviewFooterProps): JSX.Element => {
   const styles = useMemoCss(componentStyles);
 
@@ -41,14 +46,18 @@ export const WorkflowChangeHistoryPreviewFooter = ({
       css={styles.footer}
       data-test-subj="workflowChangeHistoryPreviewFooter"
     >
-      <WorkflowYamlValidationAccordion
-        isMounted={isEditorMounted}
-        isLoading={false}
-        error={null}
-        validationErrors={validationResults}
-        onErrorClick={onValidationErrorClick}
-        extraAction={settingsSlot}
-      />
+      {highlightValidationErrors ? (
+        <WorkflowYamlValidationAccordion
+          isMounted={isEditorMounted}
+          isLoading={isValidationLoading}
+          error={null}
+          validationErrors={isValidationLoading ? null : validationResults}
+          onErrorClick={onValidationErrorClick}
+          css={styles.validationAccordion}
+        />
+      ) : (
+        <div css={styles.footerBarSpacer} aria-hidden={true} />
+      )}
     </EuiFlexGroup>
   );
 };
@@ -66,5 +75,15 @@ const componentStyles = {
         backgroundColor: euiTheme.colors.backgroundBaseSubdued,
         borderTop: euiTheme.border.thin,
       },
+    }),
+  footerBarSpacer: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      minHeight: WORKFLOW_CHANGE_HISTORY_PREVIEW_FOOTER_HEIGHT,
+      borderTop: euiTheme.border.thin,
+      backgroundColor: euiTheme.colors.backgroundBaseSubdued,
+    }),
+  validationAccordion: ({ euiTheme }: UseEuiTheme) =>
+    css({
+      paddingRight: `calc(${euiTheme.size.m} + ${WORKFLOW_CHANGE_HISTORY_PREVIEW_SETTINGS_RESERVE_PX}px)`,
     }),
 };
