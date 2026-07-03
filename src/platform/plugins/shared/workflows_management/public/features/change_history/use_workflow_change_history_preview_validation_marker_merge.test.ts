@@ -13,7 +13,6 @@ import { monaco } from '@kbn/code-editor';
 import * as applyWorkflowYamlValidationToEditorModule from './apply_workflow_yaml_validation_to_editor';
 import { collectYamlSchemaValidationResults } from './collect_yaml_schema_validation_results';
 import { useWorkflowChangeHistoryPreviewValidation } from './use_workflow_change_history_preview_validation';
-import { WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS } from './workflow_change_history_preview_constants';
 import type { WorkflowChangeHistoryCompareMode } from './workflow_change_history_preview_settings_popover';
 import { getWorkflowZodSchema } from '../../../common/schema';
 import { performComputation } from '../../entities/workflows/store/workflow_detail/utils/computation';
@@ -119,7 +118,6 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
   });
 
   it('merges real yaml schema markers with custom validation via collectYamlSchemaValidationResults', async () => {
-    jest.useFakeTimers();
     const workflowZodSchema = getWorkflowZodSchema({}, triggerSchemas.getRegisteredIds());
     const validationDecorationsRef = {
       current: null,
@@ -169,10 +167,6 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
       markerChangeListener?.([editorModel.uri]);
     });
 
-    act(() => {
-      jest.advanceTimersByTime(WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS);
-    });
-
     await waitFor(() => {
       expect(result.current.validationResults).toHaveLength(2);
       expect(result.current.validationResults.map((entry) => entry.owner)).toEqual([
@@ -195,7 +189,7 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
     expect(republishedYamlResults).toHaveLength(1);
   });
 
-  it('includes yaml schema markers on the first publish when markers exist before debounce', async () => {
+  it('includes yaml schema markers on the first publish when markers already exist', async () => {
     const validationDecorationsRef = {
       current: null,
     } as MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>;
