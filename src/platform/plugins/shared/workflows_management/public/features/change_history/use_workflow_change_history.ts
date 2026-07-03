@@ -7,9 +7,9 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef, type MutableRefObject } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import type { ChangeHistoryAdapter } from '@kbn/change-history-ui';
+import type { ChangeHistoryAdapter, ChangeHistoryPendingChange } from '@kbn/change-history-ui';
 import { useGlobalUiSetting } from '@kbn/kibana-react-plugin/public';
 import { WORKFLOWS_VERSIONING_SETTING_ID } from '@kbn/workflows/common/constants';
 import { useWorkflowsCapabilities } from '@kbn/workflows-ui';
@@ -30,9 +30,18 @@ export const useWorkflowChangeHistoryEnabled = (): boolean => {
   return isVersioningEnabled && canReadWorkflow;
 };
 
-export const useWorkflowChangeHistoryAdapter = (workflowId: string): ChangeHistoryAdapter => {
+export interface UseWorkflowChangeHistoryAdapterResult {
+  adapter: ChangeHistoryAdapter;
+  pendingChangeRef: MutableRefObject<ChangeHistoryPendingChange | undefined>;
+}
+
+export const useWorkflowChangeHistoryAdapter = (
+  workflowId: string
+): UseWorkflowChangeHistoryAdapterResult => {
   const dispatch = useDispatch<AppDispatch>();
   const { http } = useKibana().services;
+  const pendingChangeRef = useRef<ChangeHistoryPendingChange | undefined>();
+
   const onWorkflowRestored = useCallback(
     async (objectId: string) => {
       await dispatch(loadWorkflowThunk({ id: objectId || workflowId }));
@@ -40,10 +49,16 @@ export const useWorkflowChangeHistoryAdapter = (workflowId: string): ChangeHisto
     [dispatch, workflowId]
   );
 
-  return useMemo(
-    () => createWorkflowChangeHistoryAdapter(http, { onWorkflowRestored }),
+  const adapter = useMemo(
+    () =>
+      createWorkflowChangeHistoryAdapter(http, {
+        onWorkflowRestored,
+        getPendingChange: () => pendingChangeRef.current,
+      }),
     [http, onWorkflowRestored]
   );
+
+  return { adapter, pendingChangeRef };
 };
 
 export const useWorkflowChangeHistoryRestoreEligibility = (): boolean => {
