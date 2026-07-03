@@ -12,7 +12,7 @@ import {
   type PublicStepDefinition,
 } from '@kbn/workflows-extensions/public';
 
-export const casesWorkflowIcon = React.lazy(() =>
+export const casesWorkflowIcon: React.ComponentType = React.lazy(() =>
   import('@elastic/eui/es/components/icon/assets/briefcase').then(({ icon }) => ({
     default: icon,
   }))

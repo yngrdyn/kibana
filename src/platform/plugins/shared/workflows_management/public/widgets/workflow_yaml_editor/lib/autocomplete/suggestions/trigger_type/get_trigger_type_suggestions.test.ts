@@ -8,13 +8,25 @@
  */
 
 import { monaco } from '@kbn/monaco';
+import type { PublicTriggerDefinition } from '@kbn/workflows-extensions/public';
+import { z } from '@kbn/zod/v4';
 import {
   getBuiltInTriggerTypesFromSchema,
   getTriggerTypeSuggestions,
 } from './get_trigger_type_suggestions';
 
-const mockGetTriggerDefinitions = jest.fn(() => []);
-const mockGetTriggerDefinition = jest.fn(() => undefined);
+const mockEventSchema = z.object({});
+
+function mockTrigger(
+  definition: Omit<PublicTriggerDefinition, 'eventSchema'>
+): PublicTriggerDefinition {
+  return { ...definition, eventSchema: mockEventSchema };
+}
+
+const mockGetTriggerDefinitions = jest.fn((): PublicTriggerDefinition[] => []);
+const mockGetTriggerDefinition = jest.fn(
+  (_id: string): PublicTriggerDefinition | undefined => undefined
+);
 
 jest.mock('../../../../../../trigger_schemas', () => ({
   triggerSchemas: {
@@ -112,18 +124,18 @@ describe('get_trigger_type_suggestions', () => {
     describe('registered triggers', () => {
       beforeEach(() => {
         mockGetTriggerDefinitions.mockReturnValue([
-          {
+          mockTrigger({
             id: 'alerting.episodeAcked',
             title: 'Alerting - Episode acknowledged',
             description: 'Emitted when acknowledgement is removed from an alerting episode.',
             stability: 'tech_preview',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'cases.caseCreated',
             title: 'Cases - Case created',
             description: 'Emitted when a case is created.',
             stability: 'tech_preview',
-          },
+          }),
         ]);
       });
 
@@ -235,12 +247,12 @@ describe('get_trigger_type_suggestions', () => {
 
       it('should set sortText so built-in triggers sort before event-driven, each group alphabetical', () => {
         mockGetTriggerDefinitions.mockReturnValue([
-          {
+          mockTrigger({
             id: 'alerting.ruleCreated',
             title: 'Alerting - Rule created',
             description: 'When a rule is created.',
             stability: 'tech_preview',
-          },
+          }),
         ]);
 
         const result = getTriggerTypeSuggestions('', mockRange);

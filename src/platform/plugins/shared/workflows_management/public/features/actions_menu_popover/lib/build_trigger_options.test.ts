@@ -8,6 +8,8 @@
  */
 
 import type { EuiThemeComputed } from '@elastic/eui';
+import type { PublicTriggerDefinition } from '@kbn/workflows-extensions/public';
+import { z } from '@kbn/zod/v4';
 import {
   buildBuiltInTriggerOptions,
   buildRegisteredTriggerOptions,
@@ -15,6 +17,14 @@ import {
 } from './build_trigger_options';
 import { getExtensionStability } from '../../../widgets/workflow_yaml_editor/lib/get_stability_note';
 import { isActionGroup, isActionOption } from '../types';
+
+const mockEventSchema = z.object({});
+
+function mockTrigger(
+  definition: Omit<PublicTriggerDefinition, 'eventSchema'>
+): PublicTriggerDefinition {
+  return { ...definition, eventSchema: mockEventSchema };
+}
 
 jest.mock('../../../widgets/workflow_yaml_editor/lib/get_stability_note', () => ({
   getExtensionStability: jest.fn(() => 'tech_preview'),
@@ -77,24 +87,24 @@ describe('build_trigger_options', () => {
     it('groups triggers by namespace', () => {
       const result = buildRegisteredTriggerOptions(
         [
-          {
+          mockTrigger({
             id: 'cases.caseUpdated',
             title: 'Cases - Case updated',
             description: 'When a case is updated.',
             stability: 'tech_preview',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'alerting.ruleCreated',
             title: 'Alerting - Rule created',
             description: 'When a rule is created.',
             stability: 'tech_preview',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'alerting.ruleDeleted',
             title: 'Alerting - Rule deleted',
             description: 'When a rule is deleted.',
             stability: 'tech_preview',
-          },
+          }),
         ],
         mockEuiTheme
       );
@@ -121,30 +131,30 @@ describe('build_trigger_options', () => {
     it('sorts namespaces alphabetically by trigger id prefix', () => {
       const result = buildRegisteredTriggerOptions(
         [
-          {
+          mockTrigger({
             id: 'workflows.failed',
             title: 'Workflow failed',
             description: 'When a workflow fails.',
             stability: 'stable',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'alerting.ruleCreated',
             title: 'Alerting - Rule created',
             description: 'When a rule is created.',
             stability: 'tech_preview',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'cases.caseCreated',
             title: 'Cases - Case created',
             description: 'When a case is created.',
             stability: 'tech_preview',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'cases.caseUpdated',
             title: 'Cases - Case updated',
             description: 'When a case is updated.',
             stability: 'tech_preview',
-          },
+          }),
         ],
         mockEuiTheme
       );
@@ -159,18 +169,18 @@ describe('build_trigger_options', () => {
     it('derives namespace group labels from shared trigger title prefixes', () => {
       const result = buildRegisteredTriggerOptions(
         [
-          {
+          mockTrigger({
             id: 'my-plugin.eventOne',
             title: 'My Plugin - Event one',
             description: 'First event.',
             stability: 'tech_preview',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'my-plugin.eventTwo',
             title: 'My Plugin - Event two',
             description: 'Second event.',
             stability: 'tech_preview',
-          },
+          }),
         ],
         mockEuiTheme
       );
@@ -187,18 +197,18 @@ describe('build_trigger_options', () => {
     it('falls back to a humanized namespace when trigger titles do not share a prefix', () => {
       const result = buildRegisteredTriggerOptions(
         [
-          {
+          mockTrigger({
             id: 'workflows.failed',
             title: 'Workflow failed',
             description: 'When a workflow fails.',
             stability: 'stable',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'workflows.completed',
             title: 'Workflow completed',
             description: 'When a workflow completes.',
             stability: 'stable',
-          },
+          }),
         ],
         mockEuiTheme
       );
@@ -214,12 +224,12 @@ describe('build_trigger_options', () => {
     it('does not group a namespace that has only one trigger', () => {
       const result = buildRegisteredTriggerOptions(
         [
-          {
+          mockTrigger({
             id: 'workflows.failed',
             title: 'Workflow execution failed',
             description: 'When a workflow execution fails.',
             stability: 'tech_preview',
-          },
+          }),
         ],
         mockEuiTheme
       );
@@ -231,12 +241,12 @@ describe('build_trigger_options', () => {
     it('sets stability on registered trigger options', () => {
       const result = buildRegisteredTriggerOptions(
         [
-          {
+          mockTrigger({
             id: 'cases.caseUpdated',
             title: 'Case updated',
             description: 'When a case is updated.',
             stability: 'tech_preview',
-          },
+          }),
         ],
         mockEuiTheme
       );
@@ -253,12 +263,12 @@ describe('build_trigger_options', () => {
     it('returns flat options for triggers without a namespace', () => {
       const result = buildRegisteredTriggerOptions(
         [
-          {
+          mockTrigger({
             id: 'customTrigger',
             title: 'Custom trigger',
             description: 'Legacy trigger id.',
             stability: 'tech_preview',
-          },
+          }),
         ],
         mockEuiTheme
       );
@@ -270,24 +280,24 @@ describe('build_trigger_options', () => {
     it('places namespace-less triggers after namespaced groups', () => {
       const result = buildRegisteredTriggerOptions(
         [
-          {
+          mockTrigger({
             id: 'customTrigger',
             title: 'Custom trigger',
             description: 'Legacy trigger id.',
             stability: 'tech_preview',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'cases.caseCreated',
             title: 'Cases - Case created',
             description: 'When a case is created.',
             stability: 'tech_preview',
-          },
-          {
+          }),
+          mockTrigger({
             id: 'cases.caseUpdated',
             title: 'Cases - Case updated',
             description: 'When a case is updated.',
             stability: 'tech_preview',
-          },
+          }),
         ],
         mockEuiTheme
       );
