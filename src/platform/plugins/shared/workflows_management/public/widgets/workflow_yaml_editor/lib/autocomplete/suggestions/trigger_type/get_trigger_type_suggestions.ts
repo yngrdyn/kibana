@@ -37,7 +37,7 @@ function matchesTriggerTypePrefix(item: TriggerSuggestionItem, typePrefix: strin
   const normalizedLabel = item.label.toLowerCase();
 
   if (normalizedPrefix.includes('.')) {
-    return normalizedType.startsWith(normalizedPrefix) || normalizedType.includes(normalizedPrefix);
+    return normalizedType.includes(normalizedPrefix);
   }
 
   return normalizedType.includes(normalizedPrefix) || normalizedLabel.includes(normalizedPrefix);
@@ -88,7 +88,7 @@ export function getTriggerTypeSuggestions(
     const isEventDriven = !isTriggerType(triggerType.type);
     const sortPrefix = isEventDriven ? '1_' : '0_';
     suggestions.push({
-      label: triggerType.label,
+      label: triggerType.type,
       kind: triggerType.icon,
       insertText: snippetText,
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
@@ -96,7 +96,7 @@ export function getTriggerTypeSuggestions(
       documentation: triggerType.description,
       filterText: triggerType.type,
       sortText: `!${sortPrefix}${triggerType.type}`,
-      detail: triggerType.type,
+      detail: triggerType.label,
       preselect: false,
     });
   });
