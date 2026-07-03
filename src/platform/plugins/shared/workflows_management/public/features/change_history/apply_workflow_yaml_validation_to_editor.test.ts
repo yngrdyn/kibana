@@ -122,7 +122,7 @@ describe('applyWorkflowYamlValidationToEditor', () => {
       decorationsRef
     );
 
-    expect(validationResults.some((result) => result.message.includes('duplicate_step'))).toBe(
+    expect(validationResults.some((result) => result.message?.includes('duplicate_step'))).toBe(
       true
     );
 

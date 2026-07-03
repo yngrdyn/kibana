@@ -25,7 +25,15 @@ export const collectYamlSchemaValidationResults = (
   workflowZodSchema: z.ZodSchema
 ): YamlValidationResult[] => {
   const yamlDocumentForFormatting = yamlDocument ?? parseDocument(model.getValue());
-  const markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: 'yaml' });
+  const modelUri = model.uri.toString();
+  let markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: 'yaml' });
+
+  if (markers.length === 0) {
+    markers = monaco.editor
+      .getModelMarkers({ owner: 'yaml' })
+      .filter((marker) => marker.resource.toString() === modelUri);
+  }
+
   const filtered = filterMonacoYamlMarkers(markers, model, yamlDocumentForFormatting);
 
   return filtered.map((marker) => {

@@ -64,5 +64,6 @@ export function useWorkflowsMonacoTheme() {
         'diffEditor.unchangedRegionForeground': euiTheme.colors.textSubdued,
       },
     });
+    monaco.editor.setTheme(WORKFLOWS_MONACO_EDITOR_THEME);
   }, [themeBase, euiTheme]);
 }

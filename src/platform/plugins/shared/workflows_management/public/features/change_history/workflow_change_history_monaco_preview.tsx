@@ -34,6 +34,7 @@ import { WorkflowChangeHistoryPreviewSettingsPopover } from './workflow_change_h
 import { buildWorkflowChangeHistoryUnifiedDiffLayoutStyles } from './workflow_change_history_unified_diff_layout';
 import {
   getWorkflowValidationDisplayOptions,
+  WORKFLOW_CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,
   WORKFLOW_CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS,
   WORKFLOW_CHANGE_HISTORY_PREVIEW_MONACO_OPTIONS,
   WORKFLOW_CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS,
@@ -62,7 +63,8 @@ const configureDiffEditors = (
   compareMode: WorkflowChangeHistoryCompareMode,
   highlightValidationErrors: boolean
 ): void => {
-  const sharedChildOptions: monaco.editor.IEditorOptions = {
+  const sharedChildOptions: monaco.editor.IEditorOptions & monaco.editor.IGlobalEditorOptions = {
+    ...WORKFLOW_CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS,
     glyphMargin: false,
     folding: false,
     ...getWorkflowValidationDisplayOptions(highlightValidationErrors),
@@ -460,7 +462,7 @@ const componentStyles = {
         borderRadius: '2px',
       },
     }),
-  editor: ({ euiTheme }: UseEuiTheme) =>
+  editor: (themeContext: UseEuiTheme) =>
     css({
       flex: '1 1 0',
       minHeight: 0,
@@ -470,7 +472,7 @@ const componentStyles = {
       display: 'flex',
       flexDirection: 'column',
       // Monaco scrollbars default to z-index 11; keep them below floating overlays.
-      ...buildWorkflowChangeHistoryUnifiedDiffLayoutStyles({ euiTheme }),
+      ...buildWorkflowChangeHistoryUnifiedDiffLayoutStyles(themeContext),
       '& .monaco-editor .scrollbar': {
         zIndex: 1,
       },

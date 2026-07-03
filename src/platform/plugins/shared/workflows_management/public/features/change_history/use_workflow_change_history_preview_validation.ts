@@ -10,7 +10,6 @@
 import type { SchemasSettings } from 'monaco-yaml';
 import type { MutableRefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import useDebounce from 'react-use/lib/useDebounce';
 import type { Document } from 'yaml';
 import { monaco } from '@kbn/code-editor';
 import {
@@ -21,8 +20,8 @@ import {
   collectYamlSchemaValidationResults,
   mergeWorkflowYamlValidationResults,
 } from './collect_yaml_schema_validation_results';
-import { waitForYamlSchemaMarkersAfterUpdate } from './wait_for_yaml_schema_markers_after_update';
-import { WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS } from './workflow_change_history_preview_constants';
+import { waitForPreviewYamlSchemaMarkers } from './wait_for_yaml_schema_markers_after_update';
+import { WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS } from './workflow_change_history_preview_constants';
 import type { WorkflowChangeHistoryCompareMode } from './workflow_change_history_preview_settings_popover';
 import { getWorkflowZodSchema } from '../../../common/schema';
 import { useAvailableConnectors } from '../../entities/connectors/model/use_available_connectors';
@@ -30,6 +29,7 @@ import { triggerSchemas } from '../../trigger_schemas';
 import { navigateToErrorPosition } from '../../widgets/workflow_yaml_editor/lib/utils';
 import { getWorkflowValidationDisplayOptions } from '../../widgets/workflow_yaml_editor/lib/workflow_monaco_layout_options';
 import type { YamlValidationResult } from '../validate_workflow_yaml/model/types';
+import { validationResultFingerprint } from '../validate_workflow_yaml/model/types';
 import { useWorkflowJsonSchema } from '../validate_workflow_yaml/model/use_workflow_json_schema';
 
 export interface UseWorkflowChangeHistoryPreviewValidationParams {
@@ -54,6 +54,34 @@ export interface UseWorkflowChangeHistoryPreviewValidationResult {
   handleValidationErrorClick: (error: YamlValidationResult) => void;
 }
 
+const validationResultsFingerprint = (results: YamlValidationResult[]): string =>
+  results.map(validationResultFingerprint).sort().join('\n');
+
+const getYamlOwnerMarkersFingerprint = (model: monaco.editor.ITextModel): string => {
+  const modelUri = model.uri.toString();
+  let markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: 'yaml' });
+
+  if (markers.length === 0) {
+    markers = monaco.editor
+      .getModelMarkers({ owner: 'yaml' })
+      .filter((marker) => marker.resource.toString() === modelUri);
+  }
+
+  return markers
+    .map(
+      (marker) =>
+        `${marker.startLineNumber}:${marker.startColumn}:${marker.endLineNumber}:${marker.endColumn}:${marker.severity}:${marker.message}`
+    )
+    .sort()
+    .join('\n');
+};
+
+const modelHasYamlOwnerMarkers = (model: monaco.editor.ITextModel): boolean =>
+  getYamlOwnerMarkersFingerprint(model).length > 0;
+
+const getPreviewSchemasFingerprint = (schemas: SchemasSettings[]): string =>
+  JSON.stringify(schemas);
+
 export const useWorkflowChangeHistoryPreviewValidation = ({
   getActiveEditor,
   validationDecorationsRef,
@@ -65,16 +93,28 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   compareModeRef,
   configureDiffEditors,
 }: UseWorkflowChangeHistoryPreviewValidationParams): UseWorkflowChangeHistoryPreviewValidationResult => {
-  const [validationResults, setValidationResults] = useState<YamlValidationResult[]>([]);
+  const [customValidationResults, setCustomValidationResults] = useState<YamlValidationResult[]>(
+    []
+  );
+  const [yamlSchemaResults, setYamlSchemaResults] = useState<YamlValidationResult[]>([]);
   const [isValidationLoading, setIsValidationLoading] = useState(false);
   const [hasInitialValidationPass, setHasInitialValidationPass] = useState(false);
   const hasInitialValidationPassRef = useRef(false);
   const customValidationResultsRef = useRef<YamlValidationResult[]>([]);
+  const yamlSchemaResultsRef = useRef<YamlValidationResult[]>([]);
   const computedYamlDocumentRef = useRef<Document | null>(null);
   const validationAbortControllerRef = useRef<AbortController | null>(null);
-  const markerRepublishTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAppliedHighlightsFingerprintRef = useRef('');
+  const lastPublishedYamlFingerprintRef = useRef('');
+  const lastYamlMarkersFingerprintRef = useRef('');
+  const markerSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isApplyingHighlightsRef = useRef(false);
   const wasHighlightEnabledRef = useRef(false);
+  const highlightValidationErrorsRef = useRef(highlightValidationErrors);
+  highlightValidationErrorsRef.current = highlightValidationErrors;
   const completedInitialPassWithoutYamlSchemaRef = useRef(false);
+  const previousValidationYamlRef = useRef(validationYaml);
+  const registeredPreviewSchemasFingerprintRef = useRef('');
 
   const { jsonSchema: workflowJsonSchema, uri: workflowSchemaUri } = useWorkflowJsonSchema({
     loose: false,
@@ -85,6 +125,9 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       getWorkflowZodSchema(connectorsData?.connectorTypes ?? {}, triggerSchemas.getRegisteredIds()),
     [connectorsData?.connectorTypes]
   );
+  const workflowZodSchemaRef = useRef(workflowZodSchema);
+  workflowZodSchemaRef.current = workflowZodSchema;
+
   const monacoYamlSchemas = useMemo((): SchemasSettings[] => {
     if (!workflowSchemaUri || !workflowJsonSchema) {
       return [];
@@ -101,6 +144,11 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
 
   const monacoYamlSchemasRef = useRef(monacoYamlSchemas);
   monacoYamlSchemasRef.current = monacoYamlSchemas;
+
+  const validationResults = useMemo(
+    () => mergeWorkflowYamlValidationResults(customValidationResults, yamlSchemaResults),
+    [customValidationResults, yamlSchemaResults]
+  );
 
   const syncValidationDisplay = useCallback(
     (highlight: boolean) => {
@@ -133,10 +181,10 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     );
   }, [getActiveEditor, validationDecorationsRef, validationYaml]);
 
-  const clearScheduledMarkerRepublish = useCallback(() => {
-    if (markerRepublishTimeoutRef.current) {
-      clearTimeout(markerRepublishTimeoutRef.current);
-      markerRepublishTimeoutRef.current = null;
+  const clearScheduledMarkerSync = useCallback(() => {
+    if (markerSyncTimeoutRef.current) {
+      clearTimeout(markerSyncTimeoutRef.current);
+      markerSyncTimeoutRef.current = null;
     }
   }, []);
 
@@ -150,98 +198,172 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     setHasInitialValidationPass(false);
   }, []);
 
-  const publishValidationResults = useCallback(
-    (
-      customResults: YamlValidationResult[],
-      options?: { completeInitialPass?: boolean; force?: boolean }
-    ) => {
-      if (
-        !options?.force &&
-        !options?.completeInitialPass &&
-        !hasInitialValidationPassRef.current
-      ) {
-        return;
-      }
+  const resetValidationResultsState = useCallback(() => {
+    lastAppliedHighlightsFingerprintRef.current = '';
+    lastPublishedYamlFingerprintRef.current = '';
+    lastYamlMarkersFingerprintRef.current = '';
+    customValidationResultsRef.current = [];
+    yamlSchemaResultsRef.current = [];
+    computedYamlDocumentRef.current = null;
+    setCustomValidationResults([]);
+    setYamlSchemaResults([]);
+  }, []);
 
-      customValidationResultsRef.current = customResults;
-
-      const editor = getActiveEditor();
-      const model = editor?.getModel();
+  const syncYamlFooterFromEditor = useCallback(
+    (editor?: monaco.editor.IStandaloneCodeEditor | null) => {
+      const activeEditor = editor ?? getActiveEditor();
+      const model = activeEditor?.getModel();
       if (!model) {
-        setValidationResults(customResults);
-        if (options?.completeInitialPass) {
-          completeInitialValidationPass();
-        }
         return;
       }
 
-      const yamlSchemaResults = collectYamlSchemaValidationResults(
-        model,
-        computedYamlDocumentRef.current,
-        workflowZodSchema
+      lastYamlMarkersFingerprintRef.current = getYamlOwnerMarkersFingerprint(model);
+      publishYamlSchemaResultsFromModelRef.current(model, activeEditor);
+    },
+    [getActiveEditor]
+  );
+
+  const applyMergedHighlightsIfNeeded = useCallback(
+    (editor: monaco.editor.IStandaloneCodeEditor) => {
+      if (!highlightValidationErrorsRef.current) {
+        return;
+      }
+
+      const mergedResults = mergeWorkflowYamlValidationResults(
+        customValidationResultsRef.current,
+        yamlSchemaResultsRef.current
       );
+      const highlightsFingerprint = validationResultsFingerprint(mergedResults);
 
-      const mergedResults = mergeWorkflowYamlValidationResults(customResults, yamlSchemaResults);
-
-      applyValidationHighlightsToEditor(editor, mergedResults, validationDecorationsRef, {
-        omitMarginDecorations: true,
-      });
-
-      setValidationResults(mergedResults);
-      if (options?.completeInitialPass) {
-        completeInitialValidationPass();
-      }
-    },
-    [completeInitialValidationPass, getActiveEditor, validationDecorationsRef, workflowZodSchema]
-  );
-
-  const finishInitialValidationPass = useCallback(() => {
-    completedInitialPassWithoutYamlSchemaRef.current = monacoYamlSchemasRef.current.length === 0;
-    publishValidationResults(customValidationResultsRef.current, {
-      completeInitialPass: true,
-      force: true,
-    });
-    setIsValidationLoading(false);
-  }, [publishValidationResults]);
-
-  const schedulePublishValidationResults = useCallback(
-    (customResults: YamlValidationResult[]) => {
-      if (!hasInitialValidationPassRef.current) {
+      if (highlightsFingerprint === lastAppliedHighlightsFingerprintRef.current) {
         return;
       }
 
-      clearScheduledMarkerRepublish();
+      lastAppliedHighlightsFingerprintRef.current = highlightsFingerprint;
+      isApplyingHighlightsRef.current = true;
 
-      markerRepublishTimeoutRef.current = setTimeout(() => {
-        if (!hasInitialValidationPassRef.current) {
-          return;
-        }
-
-        publishValidationResults(customResults);
-        markerRepublishTimeoutRef.current = null;
-      }, WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS);
+      try {
+        applyValidationHighlightsToEditor(editor, mergedResults, validationDecorationsRef, {
+          omitMarginDecorations: true,
+        });
+      } finally {
+        isApplyingHighlightsRef.current = false;
+      }
     },
-    [clearScheduledMarkerRepublish, publishValidationResults]
+    [validationDecorationsRef]
   );
 
-  const runValidationRef = useRef<() => Promise<void>>(async () => undefined);
+  const publishYamlSchemaResultsFromModel = useCallback(
+    (model: monaco.editor.ITextModel, editor?: monaco.editor.IStandaloneCodeEditor | null) => {
+      if (isApplyingHighlightsRef.current) {
+        return;
+      }
 
-  runValidationRef.current = async () => {
+      try {
+        const nextYamlSchemaResults = collectYamlSchemaValidationResults(
+          model,
+          computedYamlDocumentRef.current,
+          workflowZodSchemaRef.current
+        );
+        const nextFingerprint = validationResultsFingerprint(nextYamlSchemaResults);
+
+        if (nextFingerprint !== lastPublishedYamlFingerprintRef.current) {
+          lastPublishedYamlFingerprintRef.current = nextFingerprint;
+          lastYamlMarkersFingerprintRef.current = getYamlOwnerMarkersFingerprint(model);
+          yamlSchemaResultsRef.current = nextYamlSchemaResults;
+          setYamlSchemaResults(nextYamlSchemaResults);
+        }
+
+        const activeEditor = editor ?? getActiveEditor();
+        if (activeEditor) {
+          applyMergedHighlightsIfNeeded(activeEditor);
+        }
+      } catch {
+        // Best-effort marker collection for partial YAML in the diff preview.
+      }
+    },
+    [applyMergedHighlightsIfNeeded, getActiveEditor]
+  );
+
+  const publishYamlSchemaResultsFromModelRef = useRef(publishYamlSchemaResultsFromModel);
+  publishYamlSchemaResultsFromModelRef.current = publishYamlSchemaResultsFromModel;
+
+  const schedulePublishYamlSchemaResultsFromModel = useCallback(
+    (model: monaco.editor.ITextModel) => {
+      clearScheduledMarkerSync();
+      publishYamlSchemaResultsFromModelRef.current(model);
+    },
+    [clearScheduledMarkerSync]
+  );
+
+  const schedulePublishYamlSchemaResultsFromModelRef = useRef(
+    schedulePublishYamlSchemaResultsFromModel
+  );
+  schedulePublishYamlSchemaResultsFromModelRef.current = schedulePublishYamlSchemaResultsFromModel;
+
+  const finishInitialValidationPass = useCallback(
+    (options?: { didWaitForYamlSchema?: boolean }) => {
+      if (options?.didWaitForYamlSchema !== undefined) {
+        completedInitialPassWithoutYamlSchemaRef.current = !options.didWaitForYamlSchema;
+      } else {
+        completedInitialPassWithoutYamlSchemaRef.current =
+          monacoYamlSchemasRef.current.length === 0;
+      }
+
+      completeInitialValidationPass();
+      setIsValidationLoading(false);
+    },
+    [completeInitialValidationPass]
+  );
+
+  const waitForYamlSchemaMarkersOnModel = async (
+    model: monaco.editor.ITextModel,
+    schemas: SchemasSettings[],
+    signal: AbortSignal,
+    options: { listenerOnly?: boolean } = {}
+  ): Promise<boolean> => {
+    if (schemas.length === 0 || modelHasYamlOwnerMarkers(model)) {
+      return false;
+    }
+
+    const schemasFingerprint = getPreviewSchemasFingerprint(schemas);
+    const needsSchemaRegistration =
+      schemasFingerprint !== registeredPreviewSchemasFingerprintRef.current;
+
+    if (options.listenerOnly && !needsSchemaRegistration) {
+      return false;
+    }
+
+    await waitForPreviewYamlSchemaMarkers(model, schemas, signal, {
+      registerSchemas: needsSchemaRegistration,
+      maxWaitMs: needsSchemaRegistration
+        ? undefined
+        : WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS,
+    });
+
+    const registeredFingerprint = registeredPreviewSchemasFingerprintRef.current;
+    if (registeredFingerprint !== schemasFingerprint) {
+      registeredPreviewSchemasFingerprintRef.current = schemasFingerprint;
+    }
+
+    return true;
+  };
+
+  const runCustomValidationRef = useRef<() => Promise<void>>(async () => undefined);
+  const runValidationRef = useRef<() => Promise<void>>(async () => undefined);
+  const validationSequenceRef = useRef(0);
+
+  runCustomValidationRef.current = async () => {
     if (!isEditorMounted || !highlightValidationErrors) {
       return;
     }
 
-    validationAbortControllerRef.current?.abort();
+    const sequence = ++validationSequenceRef.current;
     const abortController = new AbortController();
     validationAbortControllerRef.current = abortController;
-    clearScheduledMarkerRepublish();
-    setIsValidationLoading(true);
 
     const editor = getActiveEditor();
     if (!editor || abortController.signal.aborted) {
-      if (validationAbortControllerRef.current === abortController) {
-        setIsValidationLoading(false);
-      }
       return;
     }
 
@@ -258,113 +380,220 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
           { skipApplyingHighlights: true }
         );
 
-      if (abortController.signal.aborted) {
+      if (abortController.signal.aborted || sequence !== validationSequenceRef.current) {
         return;
       }
 
-      customValidationResultsRef.current = nextValidationResults;
       computedYamlDocumentRef.current = yamlDocument;
+      customValidationResultsRef.current = nextValidationResults;
+      setCustomValidationResults(nextValidationResults);
 
-      const model = editor.getModel();
-      if (model && monacoYamlSchemasRef.current.length > 0) {
-        await waitForYamlSchemaMarkersAfterUpdate(
-          model,
-          monacoYamlSchemasRef.current,
-          abortController.signal
-        );
+      const activeModel = editor.getModel();
+      if (activeModel) {
+        publishYamlSchemaResultsFromModelRef.current(activeModel, editor);
+      } else {
+        applyMergedHighlightsIfNeeded(editor);
       }
-
-      if (abortController.signal.aborted) {
-        return;
-      }
-
-      finishInitialValidationPass();
     } catch (validationError) {
-      if (abortController.signal.aborted) {
-        return;
-      }
-
-      if (validationError instanceof DOMException && validationError.name === 'AbortError') {
+      if (
+        abortController.signal.aborted ||
+        sequence !== validationSequenceRef.current ||
+        (validationError instanceof DOMException && validationError.name === 'AbortError')
+      ) {
         return;
       }
 
       customValidationResultsRef.current = [];
+      setCustomValidationResults([]);
 
-      const model = editor.getModel();
-      if (model && monacoYamlSchemasRef.current.length > 0) {
-        try {
-          await waitForYamlSchemaMarkersAfterUpdate(
-            model,
-            monacoYamlSchemasRef.current,
-            abortController.signal
-          );
-        } catch (waitError) {
-          if (
-            abortController.signal.aborted ||
-            (waitError instanceof DOMException && waitError.name === 'AbortError')
-          ) {
-            return;
-          }
-          throw waitError;
-        }
+      const activeModel = editor.getModel();
+      if (activeModel) {
+        publishYamlSchemaResultsFromModelRef.current(activeModel, editor);
+      } else {
+        applyMergedHighlightsIfNeeded(editor);
       }
+    }
+  };
 
-      if (abortController.signal.aborted) {
+  runValidationRef.current = async () => {
+    if (!isEditorMounted || !highlightValidationErrors) {
+      return;
+    }
+
+    const sequence = ++validationSequenceRef.current;
+    validationAbortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    validationAbortControllerRef.current = abortController;
+    clearScheduledMarkerSync();
+    setIsValidationLoading(true);
+
+    const editor = getActiveEditor();
+    if (!editor) {
+      if (sequence === validationSequenceRef.current) {
+        finishInitialValidationPass();
+      }
+      return;
+    }
+
+    if (abortController.signal.aborted) {
+      return;
+    }
+
+    const yamlToValidate = editor.getModel()?.getValue() ?? validationYaml;
+    let didWaitForYamlSchema = false;
+    const model = editor.getModel();
+
+    if (model) {
+      publishYamlSchemaResultsFromModelRef.current(model, editor);
+    }
+
+    try {
+      if (model) {
+        didWaitForYamlSchema = await waitForYamlSchemaMarkersOnModel(
+          model,
+          monacoYamlSchemasRef.current,
+          abortController.signal,
+          {
+            listenerOnly: registeredPreviewSchemasFingerprintRef.current.length > 0,
+          }
+        );
+
+        if (abortController.signal.aborted || sequence !== validationSequenceRef.current) {
+          return;
+        }
+
+        publishYamlSchemaResultsFromModelRef.current(model, editor);
+      }
+    } catch (waitError) {
+      if (
+        abortController.signal.aborted ||
+        sequence !== validationSequenceRef.current ||
+        (waitError instanceof DOMException && waitError.name === 'AbortError')
+      ) {
         return;
       }
 
-      finishInitialValidationPass();
-    } finally {
-      if (
-        validationAbortControllerRef.current === abortController &&
-        abortController.signal.aborted
-      ) {
-        setIsValidationLoading(false);
-      }
+      throw waitError;
     }
+
+    if (abortController.signal.aborted || sequence !== validationSequenceRef.current) {
+      return;
+    }
+
+    finishInitialValidationPass({ didWaitForYamlSchema });
+
+    void runCustomValidationRef.current();
   };
 
   useEffect(
     () => () => {
       validationAbortControllerRef.current?.abort();
-      clearScheduledMarkerRepublish();
+      clearScheduledMarkerSync();
     },
-    [clearScheduledMarkerRepublish]
+    [clearScheduledMarkerSync]
   );
+
+  useEffect(() => {
+    if (!highlightValidationErrors || !isEditorMounted) {
+      return;
+    }
+
+    const editor = getActiveEditor();
+    const model = editor?.getModel();
+    if (!model) {
+      return;
+    }
+
+    const modelUri = model.uri?.toString();
+    if (!modelUri) {
+      return;
+    }
+
+    lastYamlMarkersFingerprintRef.current = getYamlOwnerMarkersFingerprint(model);
+    publishYamlSchemaResultsFromModelRef.current(model, editor);
+
+    const disposable = monaco.editor.onDidChangeMarkers((changedUris) => {
+      if (isApplyingHighlightsRef.current) {
+        return;
+      }
+
+      if (!changedUris.some((uri) => uri.toString() === modelUri)) {
+        return;
+      }
+
+      const yamlMarkersFingerprint = getYamlOwnerMarkersFingerprint(model);
+      if (yamlMarkersFingerprint === lastYamlMarkersFingerprintRef.current) {
+        return;
+      }
+
+      lastYamlMarkersFingerprintRef.current = yamlMarkersFingerprint;
+      schedulePublishYamlSchemaResultsFromModelRef.current(model);
+    });
+
+    return () => disposable.dispose();
+  }, [getActiveEditor, highlightValidationErrors, isEditorMounted, validationYaml]);
 
   useEffect(() => {
     if (!highlightValidationErrors) {
       wasHighlightEnabledRef.current = false;
       resetInitialValidationPass();
       completedInitialPassWithoutYamlSchemaRef.current = false;
-      clearScheduledMarkerRepublish();
+      resetValidationResultsState();
+      clearScheduledMarkerSync();
       validationAbortControllerRef.current?.abort();
-      customValidationResultsRef.current = [];
-      computedYamlDocumentRef.current = null;
-      setValidationResults([]);
       setIsValidationLoading(false);
       syncValidationDisplay(false);
       clearEditorValidation();
       return;
     }
 
+    const validationYamlChanged = previousValidationYamlRef.current !== validationYaml;
     const justEnabled = !wasHighlightEnabledRef.current;
     wasHighlightEnabledRef.current = true;
 
-    if (isEditorMounted) {
-      syncValidationDisplay(true);
-      if (justEnabled) {
-        clearScheduledMarkerRepublish();
-        void runValidationRef.current();
+    if (validationYamlChanged) {
+      previousValidationYamlRef.current = validationYaml;
+      validationAbortControllerRef.current?.abort();
+      clearScheduledMarkerSync();
+      resetValidationResultsState();
+      resetInitialValidationPass();
+    }
+
+    if (!isEditorMounted) {
+      if (!highlightValidationErrors) {
+        return;
       }
+      if (validationYamlChanged) {
+        setIsValidationLoading(true);
+      }
+      return;
+    }
+
+    syncValidationDisplay(true);
+
+    if (validationYamlChanged && !justEnabled) {
+      syncYamlFooterFromEditor();
+      finishInitialValidationPass({ didWaitForYamlSchema: false });
+      void runCustomValidationRef.current();
+      return;
+    }
+
+    if (justEnabled || !hasInitialValidationPassRef.current) {
+      setIsValidationLoading(true);
+      void runValidationRef.current();
     }
   }, [
     clearEditorValidation,
-    clearScheduledMarkerRepublish,
+    clearScheduledMarkerSync,
+    finishInitialValidationPass,
+    getActiveEditor,
     highlightValidationErrors,
     isEditorMounted,
     resetInitialValidationPass,
+    resetValidationResultsState,
     syncValidationDisplay,
+    syncYamlFooterFromEditor,
+    validationYaml,
   ]);
 
   useEffect(() => {
@@ -383,54 +612,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     void runValidationRef.current();
   }, [highlightValidationErrors, isEditorMounted, monacoYamlSchemas]);
 
-  useEffect(() => {
-    if (!highlightValidationErrors || !isEditorMounted) {
-      return;
-    }
-
-    const editor = getActiveEditor();
-    const model = editor?.getModel();
-    if (!model) {
-      return;
-    }
-
-    const modelUri = model.uri?.toString();
-    if (!modelUri) {
-      return;
-    }
-
-    const disposable = monaco.editor.onDidChangeMarkers((changedUris) => {
-      if (!hasInitialValidationPassRef.current) {
-        return;
-      }
-
-      if (!changedUris.some((uri) => uri.toString() === modelUri)) {
-        return;
-      }
-
-      schedulePublishValidationResults(customValidationResultsRef.current);
-    });
-
-    return () => disposable.dispose();
-  }, [
-    getActiveEditor,
-    highlightValidationErrors,
-    isEditorMounted,
-    schedulePublishValidationResults,
-  ]);
-
-  useDebounce(
-    () => {
-      if (!highlightValidationErrors || !isEditorMounted) {
-        return;
-      }
-
-      void runValidationRef.current();
-    },
-    WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS,
-    [isEditorMounted, validationYaml]
-  );
-
   const handleValidationErrorClick = useCallback(
     (error: YamlValidationResult) => {
       const editor = getActiveEditor();
@@ -446,7 +627,8 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   return {
     validationResults,
     isValidationLoading:
-      isValidationLoading || (highlightValidationErrors && !hasInitialValidationPass),
+      (isValidationLoading || (highlightValidationErrors && !hasInitialValidationPass)) &&
+      validationResults.length === 0,
     handleValidationErrorClick,
   };
 };

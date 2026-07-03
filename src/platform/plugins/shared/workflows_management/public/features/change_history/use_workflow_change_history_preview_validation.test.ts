@@ -18,16 +18,20 @@ import {
   collectYamlSchemaValidationResults,
   mergeWorkflowYamlValidationResults,
 } from './collect_yaml_schema_validation_results';
-import { useWorkflowChangeHistoryPreviewValidation } from './use_workflow_change_history_preview_validation';
-import { waitForYamlSchemaMarkersAfterUpdate } from './wait_for_yaml_schema_markers_after_update';
-import { WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS } from './workflow_change_history_preview_constants';
+import {
+  useWorkflowChangeHistoryPreviewValidation,
+  type UseWorkflowChangeHistoryPreviewValidationParams,
+} from './use_workflow_change_history_preview_validation';
+import { waitForPreviewYamlSchemaMarkers } from './wait_for_yaml_schema_markers_after_update';
 import type { WorkflowChangeHistoryCompareMode } from './workflow_change_history_preview_settings_popover';
 import { navigateToErrorPosition } from '../../widgets/workflow_yaml_editor/lib/utils';
 import type { YamlValidationResult } from '../validate_workflow_yaml/model/types';
 import { useWorkflowJsonSchema } from '../validate_workflow_yaml/model/use_workflow_json_schema';
 
-jest.mock('./wait_for_yaml_schema_markers_after_update', () => ({
-  waitForYamlSchemaMarkersAfterUpdate: jest.fn(() => Promise.resolve()),
+jest.mock('../../shared/ui/yaml_editor/yaml_language_service', () => ({
+  yamlLanguageService: {
+    update: jest.fn(() => Promise.resolve()),
+  },
 }));
 
 jest.mock('./apply_workflow_yaml_validation_to_editor', () => ({
@@ -37,15 +41,17 @@ jest.mock('./apply_workflow_yaml_validation_to_editor', () => ({
   applyValidationHighlightsToEditor: jest.fn(),
 }));
 
-jest.mock('./collect_yaml_schema_validation_results', () => ({
-  collectYamlSchemaValidationResults: jest.fn(() => []),
-  mergeWorkflowYamlValidationResults: jest.fn(
-    (customResults: YamlValidationResult[], yamlResults: YamlValidationResult[]) => [
-      ...customResults,
-      ...yamlResults,
-    ]
-  ),
-}));
+jest.mock('./collect_yaml_schema_validation_results', () => {
+  const actual = jest.requireActual('./collect_yaml_schema_validation_results');
+  return {
+    ...actual,
+    collectYamlSchemaValidationResults: jest.fn(() => []),
+    mergeWorkflowYamlValidationResults: jest.fn(
+      (customResults: YamlValidationResult[], yamlResults: YamlValidationResult[]) =>
+        actual.mergeWorkflowYamlValidationResults(customResults, yamlResults)
+    ),
+  };
+});
 
 jest.mock('../validate_workflow_yaml/model/use_workflow_json_schema', () => ({
   useWorkflowJsonSchema: jest.fn(() => ({
@@ -58,26 +64,46 @@ jest.mock('../../entities/connectors/model/use_available_connectors', () => ({
   useAvailableConnectors: jest.fn(() => ({ connectorTypes: {} })),
 }));
 
+jest.mock('./wait_for_yaml_schema_markers_after_update', () => ({
+  waitForPreviewYamlSchemaMarkers: jest.fn(async (_model, schemas: unknown[]) => {
+    const { yamlLanguageService } = jest.requireMock(
+      '../../shared/ui/yaml_editor/yaml_language_service'
+    ) as { yamlLanguageService: { update: jest.Mock } };
+
+    if (schemas.length > 0) {
+      await yamlLanguageService.update(schemas);
+    }
+  }),
+}));
+
 const mockApplyValidation = applyWorkflowYamlValidationToEditor as jest.Mock;
 const mockApplyHighlights = applyValidationHighlightsToEditor as jest.Mock;
 const mockCollectYamlResults = collectYamlSchemaValidationResults as jest.Mock;
-const mockWaitForYamlSchemaMarkersAfterUpdate = waitForYamlSchemaMarkersAfterUpdate as jest.Mock;
 const mockUseWorkflowJsonSchema = useWorkflowJsonSchema as jest.Mock;
+const mockWaitForPreviewYamlSchemaMarkers = waitForPreviewYamlSchemaMarkers as jest.Mock;
+
+const { yamlLanguageService } = jest.requireMock(
+  '../../shared/ui/yaml_editor/yaml_language_service'
+) as {
+  yamlLanguageService: { update: jest.Mock };
+};
+const mockYamlLanguageServiceUpdate = yamlLanguageService.update;
 
 let markerChangeListener: ((uris: monaco.Uri[]) => void) | undefined;
+let mockModelYaml = 'name: test\n';
 
 const mockEditor = {
   getModel: jest.fn(() => ({
-    getValue: () => 'name: test\n',
+    getValue: () => mockModelYaml,
     uri: { toString: () => 'inmemory://model/test.yaml' },
   })),
   updateOptions: jest.fn(),
-};
+} as unknown as monaco.editor.IStandaloneCodeEditor;
 
 const mockDiffEditor = {
   updateOptions: jest.fn(),
   getModifiedEditor: jest.fn(() => mockEditor),
-};
+} as unknown as monaco.editor.IStandaloneDiffEditor;
 
 jest.mock('../../widgets/workflow_yaml_editor/lib/utils', () => ({
   navigateToErrorPosition: jest.fn(),
@@ -91,9 +117,26 @@ jest.mock('@kbn/code-editor', () => ({
         return { dispose: jest.fn() };
       }),
       setModelMarkers: jest.fn(),
+      getModelMarkers: jest.fn(() => []),
     },
   },
 }));
+
+const { monaco: mockMonaco } = jest.requireMock('@kbn/code-editor') as {
+  monaco: { editor: { getModelMarkers: jest.Mock } };
+};
+const mockGetModelMarkers = mockMonaco.editor.getModelMarkers;
+
+const sampleYamlMarker = {
+  resource: { toString: () => 'inmemory://model/test.yaml' },
+  owner: 'yaml',
+  startLineNumber: 1,
+  startColumn: 1,
+  endLineNumber: 1,
+  endColumn: 5,
+  severity: 8,
+  message: 'Missing property "steps".',
+} as monaco.editor.IMarker;
 
 const sampleCustomError: YamlValidationResult = {
   id: 'custom-error',
@@ -122,12 +165,14 @@ const sampleYamlError: YamlValidationResult = {
 };
 
 const createHookParams = (
-  overrides: Partial<Parameters<typeof useWorkflowChangeHistoryPreviewValidation>[0]> = {}
-) => {
-  const editorRef = { current: mockEditor } as MutableRefObject<typeof mockEditor | null>;
-  const diffEditorRef = { current: mockDiffEditor } as MutableRefObject<
-    typeof mockDiffEditor | null
-  >;
+  overrides: Partial<UseWorkflowChangeHistoryPreviewValidationParams> = {}
+): UseWorkflowChangeHistoryPreviewValidationParams => {
+  const editorRef = {
+    current: mockEditor,
+  } as MutableRefObject<monaco.editor.IStandaloneCodeEditor | null>;
+  const diffEditorRef = {
+    current: mockDiffEditor,
+  } as MutableRefObject<monaco.editor.IStandaloneDiffEditor | null>;
   const compareModeRef = { current: 'unified' as WorkflowChangeHistoryCompareMode };
   const validationDecorationsRef = {
     current: null,
@@ -166,6 +211,8 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     markerChangeListener = undefined;
+    mockModelYaml = 'name: test\n';
+    mockGetModelMarkers.mockReturnValue([]);
     mockUseWorkflowJsonSchema.mockReturnValue({
       jsonSchema: { type: 'object' },
       uri: 'file:///workflow-schema.json',
@@ -267,7 +314,89 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
     expect(mockApplyValidation).not.toHaveBeenCalled();
   });
 
-  it('ignores marker changes before the initial validation pass completes', async () => {
+  it('clears stale validation results and re-runs when validationYaml changes', async () => {
+    mockApplyValidation.mockResolvedValue({
+      validationResults: [sampleCustomError],
+      yamlDocument: null,
+    });
+
+    const params = createHookParams({ highlightValidationErrors: true });
+    const { result, rerender } = renderHook(
+      (props) => useWorkflowChangeHistoryPreviewValidation(props),
+      { initialProps: params }
+    );
+
+    await waitFor(() => {
+      expect(mockApplyValidation).toHaveBeenCalledTimes(1);
+    });
+
+    await waitForValidationSettled(() => {
+      expect(result.current.validationResults).toHaveLength(1);
+    });
+
+    mockApplyValidation.mockClear();
+    mockApplyValidation.mockResolvedValue({
+      validationResults: [],
+      yamlDocument: null,
+    });
+    mockCollectYamlResults.mockReturnValue([]);
+
+    mockModelYaml = 'name: valid\n';
+    rerender({ ...params, validationYaml: 'name: valid\n' });
+
+    await waitForValidationSettled(() => {
+      expect(result.current.validationResults).toEqual([]);
+      expect(result.current.isValidationLoading).toBe(false);
+    });
+
+    expect(mockApplyValidation).toHaveBeenCalledTimes(1);
+    expect(mockApplyValidation).toHaveBeenCalledWith(
+      mockEditor,
+      'name: valid\n',
+      true,
+      params.validationDecorationsRef,
+      expect.any(AbortSignal),
+      { skipApplyingHighlights: true }
+    );
+  });
+
+  it('reuses existing yaml markers without waiting for schema registration on subsequent runs', async () => {
+    mockGetModelMarkers.mockReturnValue([]);
+
+    const params = createHookParams({ highlightValidationErrors: true });
+    const { rerender } = renderHook((props) => useWorkflowChangeHistoryPreviewValidation(props), {
+      initialProps: params,
+    });
+
+    await waitFor(() => {
+      expect(mockApplyValidation).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockWaitForPreviewYamlSchemaMarkers).toHaveBeenCalledTimes(1);
+    expect(mockWaitForPreviewYamlSchemaMarkers).toHaveBeenCalledWith(
+      expect.objectContaining({ getValue: expect.any(Function) }),
+      expect.any(Array),
+      expect.any(AbortSignal),
+      expect.objectContaining({ registerSchemas: true })
+    );
+
+    mockApplyValidation.mockClear();
+    mockWaitForPreviewYamlSchemaMarkers.mockClear();
+    mockCollectYamlResults.mockReturnValue([]);
+    mockGetModelMarkers.mockReturnValue([sampleYamlMarker]);
+
+    mockModelYaml = 'name: valid\n';
+    rerender({ ...params, validationYaml: 'name: valid\n' });
+
+    await waitFor(() => {
+      expect(mockApplyValidation).toHaveBeenCalledTimes(1);
+    });
+
+    expect(mockWaitForPreviewYamlSchemaMarkers).not.toHaveBeenCalled();
+    expect(mockCollectYamlResults).toHaveBeenCalled();
+  });
+
+  it('merges marker changes after the yaml phase while custom validation is still running', async () => {
     jest.useFakeTimers();
 
     let resolveValidation!: (value: {
@@ -281,20 +410,28 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
       resolveValidation = resolve;
     });
     mockApplyValidation.mockReturnValue(validationPromise);
+    mockCollectYamlResults.mockReturnValue([sampleYamlError]);
+    mockGetModelMarkers.mockReturnValue([sampleYamlMarker]);
 
     const params = createHookParams({ highlightValidationErrors: true });
     const { result } = renderHook(() => useWorkflowChangeHistoryPreviewValidation(params));
 
-    expect(result.current.isValidationLoading).toBe(true);
-    expect(result.current.validationResults).toEqual([]);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.isValidationLoading).toBe(false);
 
     act(() => {
       markerChangeListener?.([{ toString: () => 'inmemory://model/test.yaml' } as monaco.Uri]);
-      jest.advanceTimersByTime(WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS);
     });
 
-    expect(result.current.validationResults).toEqual([]);
-    expect(result.current.isValidationLoading).toBe(true);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.validationResults).toHaveLength(1);
+    expect(result.current.validationResults[0].owner).toBe('yaml');
 
     await act(async () => {
       resolveValidation({ validationResults: [sampleCustomError], yamlDocument: null });
@@ -304,12 +441,11 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
     jest.useRealTimers();
 
     await waitForValidationSettled(() => {
-      expect(result.current.validationResults).toHaveLength(1);
-      expect(result.current.isValidationLoading).toBe(false);
+      expect(result.current.validationResults).toHaveLength(2);
     });
   });
 
-  it('merges yaml schema markers on the initial publish after debounce', async () => {
+  it('merges yaml schema markers on the initial publish', async () => {
     mockCollectYamlResults.mockReturnValue([sampleYamlError]);
 
     const params = createHookParams({ highlightValidationErrors: true });
@@ -335,7 +471,7 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
     });
   });
 
-  it('merges yaml schema markers after debounced marker changes', async () => {
+  it('merges yaml schema markers after marker changes', async () => {
     const params = createHookParams({ highlightValidationErrors: true });
     const { result } = renderHook(() => useWorkflowChangeHistoryPreviewValidation(params));
 
@@ -351,18 +487,11 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
 
     mockCollectYamlResults.mockReturnValue([sampleYamlError]);
     mockApplyHighlights.mockClear();
-
-    jest.useFakeTimers();
+    mockGetModelMarkers.mockReturnValue([sampleYamlMarker]);
 
     act(() => {
       markerChangeListener?.([{ toString: () => 'inmemory://model/test.yaml' } as monaco.Uri]);
     });
-
-    act(() => {
-      jest.advanceTimersByTime(WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS);
-    });
-
-    jest.useRealTimers();
 
     await waitForValidationSettled(() => {
       expect(mockCollectYamlResults).toHaveBeenCalled();
@@ -373,6 +502,60 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
       expect(result.current.validationResults).toHaveLength(2);
       expect(mockApplyHighlights).toHaveBeenCalled();
     });
+  });
+
+  it('publishes yaml markers immediately when switching versions without schema wait', async () => {
+    mockGetModelMarkers.mockReturnValue([]);
+    mockCollectYamlResults.mockReturnValue([sampleYamlError]);
+
+    const params = createHookParams({ highlightValidationErrors: true });
+    const { result, rerender } = renderHook(
+      (props) => useWorkflowChangeHistoryPreviewValidation(props),
+      { initialProps: params }
+    );
+
+    await waitFor(() => {
+      expect(mockApplyValidation).toHaveBeenCalledTimes(1);
+    });
+
+    mockApplyValidation.mockClear();
+    mockApplyValidation.mockReturnValue(new Promise(() => undefined));
+    mockWaitForPreviewYamlSchemaMarkers.mockClear();
+    mockCollectYamlResults.mockClear();
+    mockGetModelMarkers.mockReturnValue([sampleYamlMarker]);
+    mockCollectYamlResults.mockReturnValue([sampleYamlError]);
+
+    mockModelYaml = 'name: invalid\n';
+    rerender({ ...params, validationYaml: 'name: invalid\n' });
+
+    await waitForValidationSettled(() => {
+      expect(result.current.validationResults).toHaveLength(1);
+      expect(result.current.validationResults[0].owner).toBe('yaml');
+      expect(result.current.isValidationLoading).toBe(false);
+    });
+
+    expect(mockWaitForPreviewYamlSchemaMarkers).not.toHaveBeenCalled();
+    expect(mockCollectYamlResults).toHaveBeenCalled();
+  });
+
+  it('ignores marker changes that only affect custom highlight markers', async () => {
+    const params = createHookParams({ highlightValidationErrors: true });
+    renderHook(() => useWorkflowChangeHistoryPreviewValidation(params));
+
+    await waitFor(() => {
+      expect(mockApplyValidation).toHaveBeenCalled();
+    });
+
+    await flushAsyncValidationUpdates();
+
+    mockCollectYamlResults.mockClear();
+    mockGetModelMarkers.mockReturnValue([]);
+
+    act(() => {
+      markerChangeListener?.([{ toString: () => 'inmemory://model/test.yaml' } as monaco.Uri]);
+    });
+
+    expect(mockCollectYamlResults).not.toHaveBeenCalled();
   });
 
   it('navigates to the validation error position when a row is clicked', () => {
@@ -406,7 +589,7 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
       expect(result.current.isValidationLoading).toBe(false);
     });
 
-    expect(mockWaitForYamlSchemaMarkersAfterUpdate).not.toHaveBeenCalled();
+    expect(mockYamlLanguageServiceUpdate).not.toHaveBeenCalled();
 
     mockApplyValidation.mockClear();
     mockCollectYamlResults.mockReturnValue([sampleYamlError]);
@@ -418,7 +601,7 @@ describe('useWorkflowChangeHistoryPreviewValidation', () => {
       expect(mockApplyValidation).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockWaitForYamlSchemaMarkersAfterUpdate).toHaveBeenCalled();
+    expect(mockYamlLanguageServiceUpdate).toHaveBeenCalled();
 
     await waitForValidationSettled(() => {
       expect(mergeWorkflowYamlValidationResults).toHaveBeenCalledWith(

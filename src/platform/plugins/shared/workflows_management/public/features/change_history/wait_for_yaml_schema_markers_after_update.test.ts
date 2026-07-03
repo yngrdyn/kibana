@@ -7,11 +7,16 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import type { SchemasSettings } from 'monaco-yaml';
 import { monaco } from '@kbn/code-editor';
-import { waitForYamlSchemaMarkersAfterUpdate } from './wait_for_yaml_schema_markers_after_update';
+import {
+  waitForPreviewYamlSchemaMarkers,
+  waitForYamlSchemaMarkersAfterUpdate,
+} from './wait_for_yaml_schema_markers_after_update';
 import {
   WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS,
   WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS,
+  WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS,
 } from './workflow_change_history_preview_constants';
 
 jest.mock('../../shared/ui/yaml_editor/yaml_language_service', () => ({
@@ -26,8 +31,8 @@ const { yamlLanguageService } = jest.requireMock(
   yamlLanguageService: { update: jest.Mock };
 };
 
-const sampleSchemas = [
-  { fileMatch: ['*'], uri: 'file:///schema.json', schema: { type: 'object' } },
+const sampleSchemas: SchemasSettings[] = [
+  { fileMatch: ['*'], uri: 'file:///schema.json', schema: { type: 'object' as const } },
 ];
 
 describe('wait_for_yaml_schema_markers_after_update', () => {
@@ -141,5 +146,36 @@ describe('wait_for_yaml_schema_markers_after_update', () => {
     controller.abort();
 
     await expect(waitPromise).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('waits for markers without schema registration when registerSchemas is false', async () => {
+    const controller = new AbortController();
+    const waitPromise = waitForPreviewYamlSchemaMarkers(model, sampleSchemas, controller.signal, {
+      registerSchemas: false,
+    });
+
+    await Promise.resolve();
+    expect(yamlLanguageService.update).not.toHaveBeenCalled();
+
+    markerChangeListener?.([model.uri]);
+    jest.advanceTimersByTime(WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS);
+
+    await expect(waitPromise).resolves.toBeUndefined();
+  });
+
+  it('uses the shorter reuse max wait when schemas are not registered', async () => {
+    const controller = new AbortController();
+    let pending = true;
+    const waitPromise = waitForPreviewYamlSchemaMarkers(model, sampleSchemas, controller.signal, {
+      registerSchemas: false,
+    }).finally(() => {
+      pending = false;
+    });
+
+    await Promise.resolve();
+    jest.advanceTimersByTime(WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS);
+
+    await expect(waitPromise).resolves.toBeUndefined();
+    expect(pending).toBe(false);
   });
 });

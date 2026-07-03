@@ -12,21 +12,24 @@ import { monaco } from '@kbn/code-editor';
 import {
   WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS,
   WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS,
+  WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS,
 } from './workflow_change_history_preview_constants';
 import { yamlLanguageService } from '../../shared/ui/yaml_editor/yaml_language_service';
 
+export interface WaitForPreviewYamlSchemaMarkersOptions {
+  /** When false, only wait for monaco-yaml markers on the model (schemas already global). */
+  registerSchemas?: boolean;
+  maxWaitMs?: number;
+}
+
 /**
  * Waits for a post-update marker change on the model (debounced), or until
- * {@link WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS} elapses.
- *
- * Does not short-circuit on cached yaml markers — callers must run this only
- * after `yamlLanguageService.update` so we wait for the validation pass tied
- * to the current schema fingerprint, not markers left from a prior highlight
- * session. Late markers after max-wait are merged by the hook's republish listener.
+ * {@link maxWaitMs} elapses.
  */
-const waitForDebouncedMarkerSettle = (
+export const waitForYamlSchemaMarkersSettle = (
   model: monaco.editor.ITextModel,
-  signal: AbortSignal
+  signal: AbortSignal,
+  maxWaitMs: number = WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS
 ): Promise<void> =>
   new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -81,7 +84,7 @@ const waitForDebouncedMarkerSettle = (
     maxWaitTimeout = setTimeout(() => {
       cleanup();
       resolve();
-    }, WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS);
+    }, maxWaitMs);
   });
 
 /**
@@ -105,11 +108,58 @@ export const waitForYamlSchemaMarkersAfterUpdate = async (
     throw new DOMException('Aborted', 'AbortError');
   }
 
+  // Attach before update so synchronous marker writes during schema registration are not missed.
+  const settlePromise = waitForYamlSchemaMarkersSettle(
+    model,
+    signal,
+    WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS
+  );
+
   await yamlLanguageService.update(schemas);
 
   if (signal.aborted) {
     throw new DOMException('Aborted', 'AbortError');
   }
 
-  await waitForDebouncedMarkerSettle(model, signal);
+  await settlePromise;
+};
+
+/**
+ * Waits for yaml schema markers on a preview model. Registers schemas on first use;
+ * subsequent calls can reuse the global monaco-yaml instance without another update.
+ */
+export const waitForPreviewYamlSchemaMarkers = async (
+  model: monaco.editor.ITextModel,
+  schemas: SchemasSettings[],
+  signal: AbortSignal,
+  options: WaitForPreviewYamlSchemaMarkersOptions = {}
+): Promise<void> => {
+  if (schemas.length === 0) {
+    return;
+  }
+
+  if (signal.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
+
+  const registerSchemas = options.registerSchemas ?? true;
+  const maxWaitMs =
+    options.maxWaitMs ??
+    (registerSchemas
+      ? WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS
+      : WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS);
+
+  if (registerSchemas) {
+    const settlePromise = waitForYamlSchemaMarkersSettle(model, signal, maxWaitMs);
+    await yamlLanguageService.update(schemas);
+
+    if (signal.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+
+    await settlePromise;
+    return;
+  }
+
+  await waitForYamlSchemaMarkersSettle(model, signal, maxWaitMs);
 };

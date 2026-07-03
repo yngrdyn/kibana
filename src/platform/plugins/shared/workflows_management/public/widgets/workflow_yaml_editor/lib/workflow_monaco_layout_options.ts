@@ -71,10 +71,18 @@ export const getWorkflowValidationDisplayOptions = (
   hover: { enabled: highlightValidationErrors },
 });
 
+/** Global editor options applied to diff child editors via `updateOptions`. */
+export const WORKFLOW_CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS: Pick<
+  monaco.editor.IGlobalEditorOptions,
+  'tabSize' | 'insertSpaces'
+> = {
+  tabSize: 2,
+  insertSpaces: true,
+};
+
 /** Shared read-only diff defaults; do not reuse the editable-editor option bundle. */
 export const WORKFLOW_CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS: monaco.editor.IDiffEditorConstructionOptions =
   {
-    theme: WORKFLOWS_MONACO_EDITOR_THEME,
     readOnly: true,
     domReadOnly: true,
     contextmenu: false,
@@ -84,9 +92,7 @@ export const WORKFLOW_CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS: monaco.editor.IDi
     glyphMargin: false,
     folding: false,
     showFoldingControls: 'never',
-    tabSize: 2,
     lineNumbersMinChars: 2,
-    insertSpaces: true,
     fontSize: 14,
     lineHeight: 23,
     renderWhitespace: 'none',

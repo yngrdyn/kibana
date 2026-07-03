@@ -37,6 +37,7 @@ export const WorkflowChangeHistoryPreviewFooter = ({
   onValidationErrorClick,
 }: WorkflowChangeHistoryPreviewFooterProps): JSX.Element => {
   const styles = useMemoCss(componentStyles);
+  const showValidationLoading = isValidationLoading && validationResults.length === 0;
 
   return (
     <EuiFlexGroup
@@ -49,9 +50,9 @@ export const WorkflowChangeHistoryPreviewFooter = ({
       {highlightValidationErrors ? (
         <WorkflowYamlValidationAccordion
           isMounted={isEditorMounted}
-          isLoading={isValidationLoading}
+          isLoading={showValidationLoading}
           error={null}
-          validationErrors={isValidationLoading ? null : validationResults}
+          validationErrors={showValidationLoading ? null : validationResults}
           onErrorClick={onValidationErrorClick}
           css={styles.validationAccordion}
         />

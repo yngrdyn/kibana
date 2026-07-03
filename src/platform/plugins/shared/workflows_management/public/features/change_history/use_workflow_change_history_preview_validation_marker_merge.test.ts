@@ -46,6 +46,18 @@ jest.mock('../../shared/ui/yaml_editor/yaml_language_service', () => ({
   },
 }));
 
+jest.mock('./wait_for_yaml_schema_markers_after_update', () => ({
+  waitForPreviewYamlSchemaMarkers: jest.fn(async (_model, schemas: unknown[]) => {
+    const { yamlLanguageService } = jest.requireMock(
+      '../../shared/ui/yaml_editor/yaml_language_service'
+    ) as { yamlLanguageService: { update: jest.Mock } };
+
+    if (schemas.length > 0) {
+      await yamlLanguageService.update(schemas);
+    }
+  }),
+}));
+
 const mockApplyValidation =
   applyWorkflowYamlValidationToEditorModule.applyWorkflowYamlValidationToEditor as jest.Mock;
 const mockApplyHighlights =
@@ -132,19 +144,11 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
       expect(mockApplyValidation).toHaveBeenCalled();
     });
 
-    expect(result.current.validationResults).toEqual([]);
-    expect(result.current.isValidationLoading).toBe(true);
-
-    act(() => {
-      markerChangeListener?.([editorModel.uri]);
-      jest.advanceTimersByTime(WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS);
-    });
-
     await waitFor(() => {
       expect(result.current.validationResults).toHaveLength(1);
       expect(result.current.validationResults[0].owner).toBe('step-name-validation');
       expect(result.current.isValidationLoading).toBe(false);
-      expect(mockApplyHighlights).toHaveBeenCalledTimes(1);
+      expect(mockApplyHighlights).toHaveBeenCalled();
     });
 
     mockApplyHighlights.mockClear();
@@ -176,10 +180,10 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
         'yaml',
       ]);
       expect(result.current.validationResults[1].message).toContain('steps');
-      expect(mockApplyHighlights).toHaveBeenCalledTimes(2);
+      expect(mockApplyHighlights).toHaveBeenCalled();
     });
 
-    const mergedResults = mockApplyHighlights.mock.calls[1][1] as YamlValidationResult[];
+    const mergedResults = mockApplyHighlights.mock.calls.at(-1)?.[1] as YamlValidationResult[];
     expect(mergedResults).toHaveLength(2);
     expect(mergedResults.filter((entry) => entry.owner === 'yaml')).toHaveLength(1);
 
@@ -192,7 +196,6 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
   });
 
   it('includes yaml schema markers on the first publish when markers exist before debounce', async () => {
-    jest.useFakeTimers();
     const validationDecorationsRef = {
       current: null,
     } as MutableRefObject<monaco.editor.IEditorDecorationsCollection | null>;
@@ -226,14 +229,6 @@ describe('useWorkflowChangeHistoryPreviewValidation marker merge integration', (
 
     await waitFor(() => {
       expect(mockApplyValidation).toHaveBeenCalled();
-    });
-
-    expect(result.current.validationResults).toEqual([]);
-    expect(result.current.isValidationLoading).toBe(true);
-
-    act(() => {
-      markerChangeListener?.([editorModel.uri]);
-      jest.advanceTimersByTime(WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS);
     });
 
     await waitFor(() => {

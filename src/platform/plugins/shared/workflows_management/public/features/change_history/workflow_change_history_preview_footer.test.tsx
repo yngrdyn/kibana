@@ -25,7 +25,7 @@ jest.mock('../../widgets/workflow_yaml_editor/ui/workflow_yaml_validation_accord
     <div data-test-subj="workflowYamlEditorValidationErrorsList">
       {isLoading || validationErrors === null
         ? 'Initializing validation...'
-        : validationErrors.length === 0
+        : !validationErrors || validationErrors.length === 0
         ? 'No validation errors'
         : `${validationErrors.length} error(s)`}
     </div>
@@ -61,15 +61,23 @@ const renderFooter = (
   );
 
 describe('WorkflowChangeHistoryPreviewFooter', () => {
-  it('shows initializing state while validation is loading', () => {
+  it('shows initializing state while validation is loading and no results exist yet', () => {
+    renderFooter({
+      isValidationLoading: true,
+      validationResults: [],
+    });
+
+    expect(screen.getByText('Initializing validation...')).toBeInTheDocument();
+  });
+
+  it('shows validation results while a background re-validation is in progress', () => {
     renderFooter({
       isValidationLoading: true,
       validationResults: [sampleError],
     });
 
-    expect(screen.getByText('Initializing validation...')).toBeInTheDocument();
-    expect(screen.queryByText('No validation errors')).not.toBeInTheDocument();
-    expect(screen.queryByText('1 error(s)')).not.toBeInTheDocument();
+    expect(screen.getByText('1 error(s)')).toBeInTheDocument();
+    expect(screen.queryByText('Initializing validation...')).not.toBeInTheDocument();
   });
 
   it('shows validation results after loading completes', () => {

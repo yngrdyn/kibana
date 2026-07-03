@@ -17,3 +17,9 @@ export const WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS = 150;
  * listener (may briefly show an empty accordion on very slow clients).
  */
 export const WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS = 3000;
+
+/**
+ * Shorter max wait when global monaco-yaml schemas are already registered and we only
+ * need the worker to validate a newly mounted preview model (version switch).
+ */
+export const WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS = 400;
