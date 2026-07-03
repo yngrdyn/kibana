@@ -9,17 +9,20 @@
 
 import { useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
-import type { ChangeHistoryListItemChanges, ChangeHistoryPendingChange } from '@kbn/change-history-ui';
+import type {
+  ChangeHistoryListItemChanges,
+  ChangeHistoryPendingChange,
+} from '@kbn/change-history-ui';
 
 import { computeWorkflowYamlChanges } from './compute_workflow_yaml_changes';
 import { WORKFLOW_UNSAVED_CHANGE_ID } from './constants';
+import { toWorkflowChangeHistorySnapshot } from './map_workflow_history_item';
 import { UNSAVED_CHANGES_ACTION, UNSAVED_CHANGES_ACTOR } from './translations';
 import {
   selectHasChanges,
   selectWorkflow,
   selectYamlString,
 } from '../../entities/workflows/store/workflow_detail/selectors';
-import { toWorkflowChangeHistorySnapshot } from './map_workflow_history_item';
 
 export interface WorkflowPendingChangeMetadata {
   hasUnsavedChanges: boolean;

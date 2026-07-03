@@ -13,8 +13,8 @@ import type { ChangeHistoryAdapter, ChangeHistoryPendingChange } from '@kbn/chan
 import { ChangeHistoryProvider } from '@kbn/change-history-ui';
 import type { WorkflowDetailDto } from '@kbn/workflows';
 
-import { WorkflowChangeHistoryPendingChangeSync } from './workflow_change_history_pending_change_sync';
 import { WORKFLOW_UNSAVED_CHANGE_ID } from './constants';
+import { WorkflowChangeHistoryPendingChangeSync } from './workflow_change_history_pending_change_sync';
 import { createMockStore } from '../../entities/workflows/store/__mocks__/store.mock';
 import { setWorkflow, setYamlString } from '../../entities/workflows/store/workflow_detail/slice';
 import { TestWrapper } from '../../shared/test_utils';

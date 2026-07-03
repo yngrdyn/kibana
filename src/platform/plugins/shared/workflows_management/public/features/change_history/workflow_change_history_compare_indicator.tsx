@@ -53,9 +53,7 @@ const VersionBadge = ({
   if (badgeLabel) {
     return (
       <EuiBadge
-        color={
-          badgeColor === 'warning' ? euiTheme.colors.backgroundLightWarning : 'hollow'
-        }
+        color={badgeColor === 'warning' ? euiTheme.colors.backgroundLightWarning : 'hollow'}
         css={versionBadgeStyle}
         data-test-subj={testSubj}
       >

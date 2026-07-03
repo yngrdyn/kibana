@@ -51,12 +51,20 @@ export function ChangeHistoryModal(): JSX.Element | null {
   const lastReportedChangeIdBySourceRef = useRef<
     Partial<Record<ChangeHistorySelectionSource, string>>
   >({});
-  const { items, total, pendingChange, isLoading, isFetchingFirstPage, isLoadingMore, error, loadMore } =
-    useChangeHistoryList({
-      adapter,
-      objectId,
-      enabled: isOpen,
-    });
+  const {
+    items,
+    total,
+    pendingChange,
+    isLoading,
+    isFetchingFirstPage,
+    isLoadingMore,
+    error,
+    loadMore,
+  } = useChangeHistoryList({
+    adapter,
+    objectId,
+    enabled: isOpen,
+  });
 
   const reportChangeSelected = useCallback(
     (item: ChangeHistoryListItem, selectionSource: ChangeHistorySelectionSource) => {
@@ -149,8 +157,7 @@ export function ChangeHistoryModal(): JSX.Element | null {
   );
 
   const currentChange = useMemo(
-    () =>
-      findCommittedChangeHistoryListItem(items) ?? findCurrentChangeHistoryListItem(items),
+    () => findCommittedChangeHistoryListItem(items) ?? findCurrentChangeHistoryListItem(items),
     [items]
   );
   const restoreConfirmChange = useMemo(

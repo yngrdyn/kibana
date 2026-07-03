@@ -44,9 +44,12 @@ export const PREVIOUS_VERSION_LABEL = i18n.translate(
   }
 );
 
-export const SELECTED_VERSION_LABEL = i18n.translate('workflows.changeHistory.selectedVersionLabel', {
-  defaultMessage: 'Selected version:',
-});
+export const SELECTED_VERSION_LABEL = i18n.translate(
+  'workflows.changeHistory.selectedVersionLabel',
+  {
+    defaultMessage: 'Selected version:',
+  }
+);
 
 export const UNSAVED_CHANGES_ACTION = i18n.translate(
   'workflows.changeHistory.unsavedChangesAction',

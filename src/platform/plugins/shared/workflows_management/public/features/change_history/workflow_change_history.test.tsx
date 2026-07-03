@@ -12,12 +12,12 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import React from 'react';
 import { ChangeHistoryTelemetryEventTypes } from '@kbn/change-history-ui';
 import type { WorkflowDetailDto } from '@kbn/workflows';
+import { WORKFLOW_UNSAVED_CHANGE_ID } from './constants';
+import { UNSAVED_CHANGES_ACTION } from './translations';
 import {
   WorkflowChangeHistoryListItem,
   WorkflowChangeHistoryProvider,
 } from './workflow_change_history';
-import { WORKFLOW_UNSAVED_CHANGE_ID } from './constants';
-import { UNSAVED_CHANGES_ACTION } from './translations';
 import { INTERNAL_API_VERSION } from '../../../common/lib/api_constants';
 import {
   WORKFLOW_CHANGE_HISTORY_DATASET,
@@ -404,7 +404,9 @@ describe('WorkflowChangeHistoryListItem', () => {
     await openHistoryModal();
 
     await waitFor(() => {
-      expect(screen.getByTestId(`changeHistoryItem-${WORKFLOW_UNSAVED_CHANGE_ID}`)).toBeInTheDocument();
+      expect(
+        screen.getByTestId(`changeHistoryItem-${WORKFLOW_UNSAVED_CHANGE_ID}`)
+      ).toBeInTheDocument();
     });
 
     const unsavedItem = screen.getByTestId(`changeHistoryItem-${WORKFLOW_UNSAVED_CHANGE_ID}`);
@@ -412,7 +414,9 @@ describe('WorkflowChangeHistoryListItem', () => {
     expect(
       within(unsavedItem).getByTestId('workflowChangeHistoryUnsavedChangesBadge')
     ).toHaveTextContent('Unsaved changes');
-    expect(within(unsavedItem).queryByTestId('workflowChangeHistoryVersionBadge')).not.toBeInTheDocument();
+    expect(
+      within(unsavedItem).queryByTestId('workflowChangeHistoryVersionBadge')
+    ).not.toBeInTheDocument();
 
     await selectHistoryItem('evt-current');
 
@@ -444,7 +448,9 @@ describe('WorkflowChangeHistoryListItem', () => {
     await openHistoryModal();
 
     await waitFor(() => {
-      expect(screen.getByTestId(`changeHistoryItem-${WORKFLOW_UNSAVED_CHANGE_ID}`)).toBeInTheDocument();
+      expect(
+        screen.getByTestId(`changeHistoryItem-${WORKFLOW_UNSAVED_CHANGE_ID}`)
+      ).toBeInTheDocument();
     });
 
     await waitFor(() => {
@@ -462,7 +468,9 @@ describe('WorkflowChangeHistoryListItem', () => {
     expect(screen.getByTestId('workflowChangeHistoryCompareSplitCurrentBadge')).toHaveTextContent(
       UNSAVED_CHANGES_ACTION
     );
-    expect(screen.getByTestId('workflowChangeHistoryCompareSplitBaselineBadge')).toHaveTextContent('v3');
+    expect(screen.getByTestId('workflowChangeHistoryCompareSplitBaselineBadge')).toHaveTextContent(
+      'v3'
+    );
   });
 
   it('warns when restoring with unsaved workflow changes', async () => {
