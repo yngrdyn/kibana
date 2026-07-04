@@ -25,7 +25,6 @@ import {
   WorkflowChangeHistoryAction,
 } from '../../common/lib/workflow_change_history/constants';
 import { getWorkflowZodSchema } from '../../common/schema';
-import { WorkflowChangeHistoryDisabledError } from '../lib/workflow_change_history_disabled_error';
 import { WorkflowHistoryEventNotFoundError } from '../lib/workflow_history_event_not_found_error';
 import type { WorkflowProperties } from '../storage/workflow_storage';
 
@@ -137,7 +136,6 @@ describe('WorkflowCrudService.restoreWorkflowVersion', () => {
 
     const deps = {
       changeHistoryService,
-      workflowVersioningEnabled: true,
       ...restOverrides,
     } as WorkflowCrudDeps;
 
@@ -231,19 +229,6 @@ describe('WorkflowCrudService.restoreWorkflowVersion', () => {
     await expect(
       service.restoreWorkflowVersion('wf-1', 'event-v3', 'default', request)
     ).rejects.toThrow(InvalidYamlSchemaError);
-  });
-
-  it('throws when versioning is disabled', async () => {
-    const { service } = makeService({
-      workflowVersioningEnabled: false,
-      changeHistoryService: {
-        getHistory: jest.fn(),
-      },
-    });
-
-    await expect(
-      service.restoreWorkflowVersion('wf-1', 'event-v3', 'default', request)
-    ).rejects.toThrow(WorkflowChangeHistoryDisabledError);
   });
 });
 
@@ -351,7 +336,6 @@ describe('WorkflowCrudService.restoreWorkflowVersion integration', () => {
       validationService,
       getCoreStart: () => ({} as CoreStart),
       changeHistoryService,
-      workflowVersioningEnabled: true,
     };
 
     client.search.mockResolvedValue({

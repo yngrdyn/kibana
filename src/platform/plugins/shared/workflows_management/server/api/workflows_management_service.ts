@@ -210,15 +210,7 @@ export class WorkflowsService {
       esClient: this.esClient,
     });
 
-    const workflowVersioningEnabled = true;
-
-    if (workflowVersioningEnabled) {
-      await this.initializeChangeHistoryService(coreStart);
-    } else {
-      this.logger.debug(
-        'Workflow version history is disabled; skipping change-history data stream init'
-      );
-    }
+    await this.initializeChangeHistoryService(coreStart);
 
     this.crudService = new WorkflowCrudService({
       logger: this.logger,
@@ -231,7 +223,6 @@ export class WorkflowsService {
       validationService: this.validationService,
       getCoreStart: () => this.coreStart,
       changeHistoryService: this.changeHistoryService,
-      workflowVersioningEnabled,
     });
 
     this.managedWorkflowsService = new ManagedWorkflowsService({
@@ -282,7 +273,6 @@ export class WorkflowsService {
         changeHistoryService: this.changeHistoryService,
         getWorkflowSource: (workflowId, sid) =>
           this.crudService.getWorkflowDocumentSource(workflowId, sid, { includeGlobal: true }),
-        workflowVersioningEnabled: true,
       },
       { workflowId: id, spaceId, ...options }
     );

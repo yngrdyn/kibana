@@ -132,7 +132,6 @@ describe('WorkflowsService (facade)', () => {
   };
 
   beforeEach(() => {
-    mockedReadWorkflowVersioningEnabled.mockResolvedValue(true);
     MockedWorkflowChangeHistoryService.mockImplementation(
       () =>
         ({

@@ -115,7 +115,7 @@ export class WorkflowCrudService {
   constructor(private readonly deps: WorkflowCrudDeps) {}
 
   isWorkflowVersioningEnabled(): boolean {
-    return this.deps.workflowVersioningEnabled;
+    return true;
   }
 
   async logWorkflowChangesAfterWrite(params: {
@@ -127,10 +127,6 @@ export class WorkflowCrudService {
     correlationId?: string;
     restoreMetadata?: WorkflowRestoreMetadata;
   }): Promise<void> {
-    if (!this.deps.workflowVersioningEnabled) {
-      return;
-    }
-
     const changeHistoryService = this.deps.changeHistoryService;
     const scopedChangeHistory = params.request
       ? changeHistoryService.asScoped(params.request)
@@ -140,7 +136,7 @@ export class WorkflowCrudService {
       workflows: params.workflows,
       changeHistoryService,
       scopedChangeHistory,
-      workflowVersioningEnabled: this.deps.workflowVersioningEnabled,
+      workflowVersioningEnabled: true,
       action: params.action,
       spaceId: params.spaceId,
       timestamp: params.timestamp,
@@ -913,10 +909,7 @@ export class WorkflowCrudService {
     spaceId: string,
     request: KibanaRequest
   ): Promise<RestoreWorkflowVersionResponseDto> {
-    assertWorkflowChangeHistoryEnabled(
-      this.deps.changeHistoryService,
-      this.deps.workflowVersioningEnabled
-    );
+    assertWorkflowChangeHistoryEnabled(this.deps.changeHistoryService);
 
     const history = await this.deps.changeHistoryService.getHistory(spaceId, workflowId, {
       additionalFilters: [{ term: { 'event.id': eventId } }],
