@@ -559,7 +559,6 @@ export class WorkflowsExecutionEnginePlugin
                 defaultTriggeredBy: 'scheduled',
                 authenticatedUser: executedBy,
                 now: workflowCreatedAt,
-                workflowVersioningEnabled: true,
                 maxEventChainDepth: this.config.eventDriven.maxChainDepth,
                 getConcurrencyGroupKey: (execution) =>
                   this.getConcurrencyGroupKey(
@@ -702,7 +701,6 @@ export class WorkflowsExecutionEnginePlugin
     }): Promise<WorkflowExecutionForInputRendering> => {
       return buildWorkflowExecutionDocument({
         ...args,
-        workflowVersioningEnabled: true,
         maxEventChainDepth: this.config.eventDriven.maxChainDepth,
         getConcurrencyGroupKey: (execution) =>
           this.getConcurrencyGroupKey(

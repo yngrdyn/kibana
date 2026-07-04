@@ -18,8 +18,6 @@ import { selectWorkflow } from '../../entities/workflows/store/workflow_detail/s
 import { loadWorkflowThunk } from '../../entities/workflows/store/workflow_detail/thunks/load_workflow_thunk';
 import { useKibana } from '../../hooks/use_kibana';
 
-export const useWorkflowVersioningEnabled = (): boolean => true;
-
 export const useWorkflowChangeHistoryEnabled = (): boolean => {
   const { canReadWorkflow } = useWorkflowsCapabilities();
 
