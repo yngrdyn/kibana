@@ -37,7 +37,6 @@ import type {
   WorkflowStatsDto,
 } from '@kbn/workflows';
 import type { ManagedWorkflowId } from '@kbn/workflows/managed';
-import { readWorkflowVersioningEnabled } from '@kbn/workflows/server';
 import type {
   ExecuteManagedWorkflowOptions,
   GetManagedWorkflowStatusOptions,
@@ -211,7 +210,7 @@ export class WorkflowsService {
       esClient: this.esClient,
     });
 
-    const workflowVersioningEnabled = await readWorkflowVersioningEnabled(coreStart, this.logger);
+    const workflowVersioningEnabled = true;
 
     if (workflowVersioningEnabled) {
       await this.initializeChangeHistoryService(coreStart);
@@ -283,7 +282,7 @@ export class WorkflowsService {
         changeHistoryService: this.changeHistoryService,
         getWorkflowSource: (workflowId, sid) =>
           this.crudService.getWorkflowDocumentSource(workflowId, sid, { includeGlobal: true }),
-        workflowVersioningEnabled: await readWorkflowVersioningEnabled(this.coreStart, this.logger),
+        workflowVersioningEnabled: true,
       },
       { workflowId: id, spaceId, ...options }
     );
