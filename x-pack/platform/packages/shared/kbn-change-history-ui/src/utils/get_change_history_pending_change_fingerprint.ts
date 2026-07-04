@@ -7,14 +7,17 @@
 
 import type { ChangeHistoryPendingChange } from '../types/change_history_pending_change';
 
+// Fold the running hash into 32-bit range without bitwise ops (eslint no-bitwise).
+const MOD = 2 ** 32;
+
 const hashString = (value: string): string => {
   let hash = 5381;
 
   for (let index = 0; index < value.length; index++) {
-    hash = (hash * 33) ^ value.charCodeAt(index);
+    hash = (hash * 33 + value.charCodeAt(index)) % MOD;
   }
 
-  return (hash >>> 0).toString(16);
+  return hash.toString(16);
 };
 
 const getSnapshotFingerprint = (snapshot: unknown): string => {

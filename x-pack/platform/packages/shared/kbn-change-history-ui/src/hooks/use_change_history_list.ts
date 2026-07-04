@@ -91,14 +91,18 @@ export const useChangeHistoryList = ({
   const pendingChange = resolveChangeHistoryPendingChange(adapter, supports.unsavedChanges);
   const pendingChangeFingerprint = getChangeHistoryPendingChangeFingerprint(pendingChange);
 
-  // pendingChange omitted from useMemo deps — fingerprint encodes snapshot/timestamp/count semantics.
   const itemsWithPendingChange = useMemo(() => {
-    if (!pendingChange) {
+    if (!pendingChangeFingerprint) {
       return items;
     }
 
-    return prependChangeHistoryPendingChange(items, pendingChange);
-  }, [items, pendingChangeFingerprint, supports.unsavedChanges]);
+    const pending = resolveChangeHistoryPendingChange(adapter, supports.unsavedChanges);
+    if (!pending) {
+      return items;
+    }
+
+    return prependChangeHistoryPendingChange(items, pending);
+  }, [adapter, items, pendingChangeFingerprint, supports.unsavedChanges]);
 
   const total = data?.pages[0]?.total ?? 0;
   const isFetchingFirstPage = isFetching && !isFetchingNextPage;
