@@ -14,7 +14,11 @@ import type { ChangeHistoryBadgeRenderFn, ChangeHistoryListItem } from '@kbn/cha
 import { getWorkflowChangeHistoryRowDisplay } from './get_workflow_change_history_row_display';
 import { VERSION_BADGE } from './translations';
 
-const WorkflowChangeHistoryBadge = ({ item }: { item: ChangeHistoryListItem }): JSX.Element | null => {
+const WorkflowChangeHistoryBadge = ({
+  item,
+}: {
+  item: ChangeHistoryListItem;
+}): JSX.Element | null => {
   const { euiTheme } = useEuiTheme();
   const display = getWorkflowChangeHistoryRowDisplay(item);
 

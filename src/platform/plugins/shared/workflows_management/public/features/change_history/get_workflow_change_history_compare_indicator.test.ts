@@ -9,8 +9,8 @@
 
 import type { ChangeHistoryCompareSpec } from '@kbn/change-history-ui';
 
-import { getWorkflowChangeHistoryCompareIndicator } from './get_workflow_change_history_compare_indicator';
 import { WORKFLOW_UNSAVED_CHANGE_ID } from './constants';
+import { getWorkflowChangeHistoryCompareIndicator } from './get_workflow_change_history_compare_indicator';
 import { UNSAVED_CHANGES_ACTION } from './translations';
 
 const makeChange = (id: string, version: number, isCurrent?: boolean) => ({
