@@ -56,6 +56,8 @@ jest.mock('./concurrency/concurrency_manager', () => ({
   })),
 }));
 
+import { checkLicense } from './lib/check_license';
+import { getAuthenticatedUser } from './lib/get_user';
 import { WorkflowsExecutionEnginePlugin } from './plugin';
 
 const makeGate = () => {
