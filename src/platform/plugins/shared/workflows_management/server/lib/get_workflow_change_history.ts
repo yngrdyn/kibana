@@ -34,7 +34,7 @@ export const assertWorkflowChangeHistoryEnabled = (
   changeHistoryService: IWorkflowChangeHistoryService
 ): void => {
   if (!changeHistoryService.isInitialized()) {
-    throw new WorkflowChangeHistoryDisabledError('Workflow version history is not available.');
+    throw new WorkflowChangeHistoryDisabledError();
   }
 };
 

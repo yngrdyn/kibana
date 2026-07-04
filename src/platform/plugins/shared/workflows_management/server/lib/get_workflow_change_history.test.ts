@@ -90,12 +90,19 @@ describe('get_workflow_change_history', () => {
       const { deps } = createDeps({ initialized: false });
 
       expect(() => assertWorkflowChangeHistoryEnabled(deps.changeHistoryService)).toThrow(
-        WorkflowChangeHistoryDisabledError
+        new WorkflowChangeHistoryDisabledError()
       );
     });
   });
 
   describe('getHistoryForWorkflow', () => {
+    it('throws when change history is not initialized', async () => {
+      const { deps } = createDeps({ initialized: false });
+
+      await expect(
+        getHistoryForWorkflow(deps, { workflowId: 'wf-1', spaceId: 'default' })
+      ).rejects.toThrow(new WorkflowChangeHistoryDisabledError());
+    });
     it('returns mapped history entries with page/perPage and matching version', async () => {
       const historyDocument = createHistoryDocument('event-1', 2);
       const { deps, changeHistoryService } = createDeps({

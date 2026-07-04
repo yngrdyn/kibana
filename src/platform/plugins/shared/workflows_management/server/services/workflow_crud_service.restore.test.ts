@@ -25,6 +25,7 @@ import {
   WorkflowChangeHistoryAction,
 } from '../../common/lib/workflow_change_history/constants';
 import { getWorkflowZodSchema } from '../../common/schema';
+import { WorkflowChangeHistoryDisabledError } from '../lib/workflow_change_history_disabled_error';
 import { WorkflowHistoryEventNotFoundError } from '../lib/workflow_history_event_not_found_error';
 import type { WorkflowProperties } from '../storage/workflow_storage';
 
@@ -229,6 +230,19 @@ describe('WorkflowCrudService.restoreWorkflowVersion', () => {
     await expect(
       service.restoreWorkflowVersion('wf-1', 'event-v3', 'default', request)
     ).rejects.toThrow(InvalidYamlSchemaError);
+  });
+
+  it('throws when change history is not initialized', async () => {
+    const { service } = makeService({
+      changeHistoryService: {
+        isInitialized: () => false,
+        getHistory: jest.fn(),
+      },
+    });
+
+    await expect(
+      service.restoreWorkflowVersion('wf-1', 'event-v3', 'default', request)
+    ).rejects.toThrow(new WorkflowChangeHistoryDisabledError());
   });
 });
 
