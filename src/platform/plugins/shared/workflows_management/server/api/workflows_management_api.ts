@@ -71,6 +71,7 @@ import type {
   SearchWorkflowExecutionsParams,
   WorkflowsService,
 } from './workflows_management_service';
+import { connectorParamsSchemaResolver } from '../../common/lib/connector_params_schema_resolver';
 import { formatWorkflowDiagnostic } from '../../common/lib/format_workflow_diagnostic';
 import { WorkflowChangeHistoryAction } from '../../common/lib/workflow_change_history/constants';
 import type {
