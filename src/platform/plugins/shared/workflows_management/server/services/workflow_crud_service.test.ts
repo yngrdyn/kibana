@@ -733,7 +733,7 @@ describe('WorkflowCrudService', () => {
 
       const result = await service.bulkCreateWorkflows([], 'default', request);
 
-      expect(result).toEqual({ created: [], failed: [] });
+      expect(result).toEqual({ created: [], failed: [], historyActionsById: {} });
       expect(client.bulk).not.toHaveBeenCalled();
     });
 
@@ -854,6 +854,60 @@ describe('WorkflowCrudService', () => {
           document: expect.objectContaining({ version: 4 }),
         })
       );
+    });
+
+    it('overwrite=true logs create for new ids and update for existing ids', async () => {
+      mockedLogWorkflowChanges.mockClear();
+      const scopedChangeHistory = { logBulk: jest.fn() };
+      const changeHistoryService = {
+        isInitialized: () => true,
+        asScoped: jest.fn().mockReturnValue(scopedChangeHistory),
+      };
+      const { deps, client } = makeDeps();
+      deps.changeHistoryService = changeHistoryService as any;
+
+      client.search
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-existing', { version: 1 }, 1, 1)],
+          },
+        })
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-existing', { version: 1 }, 1, 1)],
+          },
+        });
+      client.bulk.mockResolvedValue({
+        items: [{ index: { _id: 'wf-new', status: 200 } }],
+      });
+      client.index.mockResolvedValue({ result: 'updated', _seq_no: 2, _primary_term: 1 });
+
+      const service = new WorkflowCrudService(deps);
+      const result = await service.bulkCreateWorkflows(
+        [
+          { id: 'wf-existing', yaml: validYaml('Existing') },
+          { id: 'wf-new', yaml: validYaml('New') },
+        ],
+        'default',
+        request,
+        { overwrite: true }
+      );
+
+      expect(result.historyActionsById).toEqual({
+        'wf-new': WorkflowChangeHistoryAction.workflowCreate,
+        'wf-existing': WorkflowChangeHistoryAction.workflowUpdate,
+      });
+      expect(mockedLogWorkflowChanges).toHaveBeenCalledWith(
+        expect.objectContaining({
+          getAction: expect.any(Function),
+          correlationId: expect.any(String),
+          scopedChangeHistory,
+        })
+      );
+      const callArgs = mockedLogWorkflowChanges.mock.calls[0][0];
+      expect(callArgs.getAction).toBeDefined();
+      expect(callArgs.getAction!('wf-new')).toBe(WorkflowChangeHistoryAction.workflowCreate);
+      expect(callArgs.getAction!('wf-existing')).toBe(WorkflowChangeHistoryAction.workflowUpdate);
     });
 
     it('uses index (overwrite) vs create (no overwrite) based on the option flag', async () => {

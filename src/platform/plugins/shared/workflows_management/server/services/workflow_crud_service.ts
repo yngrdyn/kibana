@@ -110,6 +110,33 @@ interface ApplyWorkflowUpdateResult {
   timestamp: Date;
 }
 
+export interface BulkCreateWorkflowsResult {
+  created: WorkflowDetailDto[];
+  failed: BulkFailureEntry[];
+  historyActionsById: Record<string, WorkflowChangeHistoryActionType>;
+}
+
+type SuccessfullyWrittenBulkEntry = BulkWorkflowEntry & {
+  workflowData: WorkflowProperties;
+  existedBeforeWrite?: boolean;
+};
+
+const resolveBulkHistoryAction = (
+  entry: SuccessfullyWrittenBulkEntry,
+  overwrite: boolean
+): WorkflowChangeHistoryActionType =>
+  overwrite && entry.existedBeforeWrite
+    ? WorkflowChangeHistoryAction.workflowUpdate
+    : WorkflowChangeHistoryAction.workflowCreate;
+
+const toHistoryActionsById = (
+  entries: readonly SuccessfullyWrittenBulkEntry[],
+  overwrite: boolean
+): Record<string, WorkflowChangeHistoryActionType> =>
+  Object.fromEntries(
+    entries.map((entry) => [entry.id, resolveBulkHistoryAction(entry, overwrite)])
+  );
+
 export class WorkflowCrudService {
   private indexOccWriter?: OccWriter<WorkflowProperties>;
 
@@ -117,7 +144,8 @@ export class WorkflowCrudService {
 
   async logWorkflowChangesAfterWrite(params: {
     workflows: Array<{ id: string; document: WorkflowProperties }>;
-    action: WorkflowChangeHistoryActionType;
+    action?: WorkflowChangeHistoryActionType;
+    getAction?: (id: string) => WorkflowChangeHistoryActionType;
     spaceId: string;
     timestamp: string | Date;
     request?: KibanaRequest;
@@ -134,6 +162,7 @@ export class WorkflowCrudService {
       changeHistoryService,
       scopedChangeHistory,
       action: params.action,
+      getAction: params.getAction,
       spaceId: params.spaceId,
       timestamp: params.timestamp,
       correlationId: params.correlationId,
@@ -573,7 +602,7 @@ export class WorkflowCrudService {
     spaceId: string,
     request: KibanaRequest,
     options?: { overwrite?: boolean }
-  ): Promise<{ created: WorkflowDetailDto[]; failed: BulkFailureEntry[] }> {
+  ): Promise<BulkCreateWorkflowsResult> {
     const zodSchema = await this.deps.validationService.getWorkflowZodSchema(
       { loose: false },
       spaceId,
@@ -627,7 +656,7 @@ export class WorkflowCrudService {
     );
     failed.push(...failures);
 
-    const successfullyWritten: Array<BulkWorkflowEntry & { workflowData: WorkflowProperties }> = [];
+    const successfullyWritten: SuccessfullyWrittenBulkEntry[] = [];
 
     if (overwrite) {
       const overwriteResult = await this.executeBulkOverwrite(resolvedWorkflows, spaceId);
@@ -663,7 +692,7 @@ export class WorkflowCrudService {
 
           if (!operation?.error) {
             created.push(transformStorageDocumentToWorkflowDto(entry.id, entry.workflowData));
-            successfullyWritten.push(entry);
+            successfullyWritten.push({ ...entry, existedBeforeWrite: false });
           } else {
             const isVersionConflict = operation.status === OCC_CONFLICT_STATUS_CODE;
             const canRetry = isVersionConflict && entry.idSource === 'server-generated';
@@ -729,15 +758,17 @@ export class WorkflowCrudService {
       );
     }
 
+    const historyActionsById = toHistoryActionsById(successfullyWritten, overwrite);
+
     if (successfullyWritten.length > 0) {
       await this.logWorkflowChangesAfterWrite({
         workflows: successfullyWritten.map((entry) => ({
           id: entry.id,
           document: entry.workflowData,
         })),
-        action: overwrite
-          ? WorkflowChangeHistoryAction.workflowUpdate
-          : WorkflowChangeHistoryAction.workflowCreate,
+        ...(overwrite
+          ? { getAction: (id) => historyActionsById[id] }
+          : { action: WorkflowChangeHistoryAction.workflowCreate }),
         spaceId,
         timestamp: now,
         request,
@@ -745,7 +776,7 @@ export class WorkflowCrudService {
       });
     }
 
-    return { created, failed };
+    return { created, failed, historyActionsById };
   }
 
   private async applyWorkflowUpdate(
@@ -1058,11 +1089,11 @@ export class WorkflowCrudService {
   ): Promise<{
     created: WorkflowDetailDto[];
     failed: BulkFailureEntry[];
-    successfullyWritten: Array<BulkWorkflowEntry & { workflowData: WorkflowProperties }>;
+    successfullyWritten: SuccessfullyWrittenBulkEntry[];
   }> {
     const created: WorkflowDetailDto[] = [];
     const failed: BulkFailureEntry[] = [];
-    const successfullyWritten: Array<BulkWorkflowEntry & { workflowData: WorkflowProperties }> = [];
+    const successfullyWritten: SuccessfullyWrittenBulkEntry[] = [];
 
     if (entries.length === 0) {
       return { created, failed, successfullyWritten };
@@ -1096,7 +1127,7 @@ export class WorkflowCrudService {
 
         if (!operation?.error) {
           created.push(transformStorageDocumentToWorkflowDto(entry.id, document));
-          successfullyWritten.push({ ...entry, workflowData: document });
+          successfullyWritten.push({ ...entry, workflowData: document, existedBeforeWrite: false });
         } else {
           failed.push({
             index: entry.idx,
@@ -1119,7 +1150,7 @@ export class WorkflowCrudService {
             }),
           });
           created.push(transformStorageDocumentToWorkflowDto(entry.id, document));
-          successfullyWritten.push({ ...entry, workflowData: document });
+          successfullyWritten.push({ ...entry, workflowData: document, existedBeforeWrite: true });
         } catch (error) {
           failed.push({
             index: entry.idx,
