@@ -81,8 +81,9 @@ export const WORKFLOW_CHANGE_HISTORY_DIFF_GLOBAL_EDITOR_OPTIONS: Pick<
 };
 
 /** Shared read-only diff defaults; do not reuse the editable-editor option bundle. */
-export const WORKFLOW_CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS: monaco.editor.IDiffEditorConstructionOptions =
+export const WORKFLOW_CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptions =
   {
+    theme: WORKFLOWS_MONACO_EDITOR_THEME,
     readOnly: true,
     domReadOnly: true,
     contextmenu: false,

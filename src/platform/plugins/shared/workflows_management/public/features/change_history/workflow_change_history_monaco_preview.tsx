@@ -14,7 +14,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import type { ChangeHistoryDiffTelemetry } from '@kbn/change-history-ui';
 import { monaco } from '@kbn/code-editor';
 import { useMemoCss } from '@kbn/css-utils/public/use_memo_css';
-import { useWorkflowsMonacoTheme } from '@kbn/workflows-ui';
+import { useDefineWorkflowsMonacoTheme } from '@kbn/workflows-ui';
 import type { WorkflowChangeHistoryCompareIndicator } from './get_workflow_change_history_compare_indicator';
 import { useWorkflowChangeHistoryPreviewValidation } from './use_workflow_change_history_preview_validation';
 import {
@@ -48,7 +48,7 @@ const FLOATING_NAVIGATOR_BOTTOM = `calc(${WORKFLOW_CHANGE_HISTORY_PREVIEW_FOOTER
 const getDiffEditorOptions = (
   compareMode: WorkflowChangeHistoryCompareMode,
   highlightValidationErrors: boolean
-): monaco.editor.IDiffEditorConstructionOptions => ({
+): monaco.editor.IStandaloneDiffEditorConstructionOptions => ({
   ...WORKFLOW_CHANGE_HISTORY_DIFF_MONACO_BASE_OPTIONS,
   ...(compareMode === 'split'
     ? WORKFLOW_CHANGE_HISTORY_SPLIT_DIFF_EDITOR_OPTIONS
@@ -210,7 +210,7 @@ export const WorkflowChangeHistoryMonacoPreview = ({
     [diffTelemetry]
   );
 
-  useWorkflowsMonacoTheme();
+  useDefineWorkflowsMonacoTheme();
 
   useEffect(() => {
     if (!diffTelemetry || !useDiffEditor || baselineYaml == null) {

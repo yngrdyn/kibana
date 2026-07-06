@@ -19,6 +19,7 @@ import {
   mergeWorkflowYamlValidationResults,
 } from './collect_yaml_schema_validation_results';
 import {
+  getPreviewSchemasFingerprint,
   useWorkflowChangeHistoryPreviewValidation,
   type UseWorkflowChangeHistoryPreviewValidationParams,
 } from './use_workflow_change_history_preview_validation';
@@ -206,6 +207,29 @@ const waitForValidationSettled = async (assertion: () => void): Promise<void> =>
     await waitFor(assertion);
   });
 };
+
+describe('getPreviewSchemasFingerprint', () => {
+  it('fingerprints schema registration by uri only', () => {
+    const schemas = [
+      { fileMatch: ['*'], uri: 'file:///workflow-schema.json', schema: { type: 'object' as const } },
+    ];
+    const sameUriDifferentBody = [
+      {
+        fileMatch: ['*'],
+        uri: 'file:///workflow-schema.json',
+        schema: { type: 'string' as const },
+      },
+    ];
+
+    expect(getPreviewSchemasFingerprint(schemas)).toBe('file:///workflow-schema.json');
+    expect(getPreviewSchemasFingerprint(sameUriDifferentBody)).toBe(
+      'file:///workflow-schema.json'
+    );
+    expect(getPreviewSchemasFingerprint(schemas)).toBe(
+      getPreviewSchemasFingerprint(sameUriDifferentBody)
+    );
+  });
+});
 
 describe('useWorkflowChangeHistoryPreviewValidation', () => {
   beforeEach(() => {

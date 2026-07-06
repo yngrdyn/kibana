@@ -153,7 +153,7 @@ jest.mock('@kbn/code-editor', () => ({
 }));
 
 jest.mock('@kbn/workflows-ui', () => ({
-  useWorkflowsMonacoTheme: jest.fn(),
+  useDefineWorkflowsMonacoTheme: jest.fn(),
   WORKFLOWS_MONACO_EDITOR_THEME: 'workflows-theme',
 }));
 

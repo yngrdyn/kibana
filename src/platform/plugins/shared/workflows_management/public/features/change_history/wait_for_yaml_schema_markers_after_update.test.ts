@@ -9,10 +9,7 @@
 
 import type { SchemasSettings } from 'monaco-yaml';
 import { monaco } from '@kbn/code-editor';
-import {
-  waitForPreviewYamlSchemaMarkers,
-  waitForYamlSchemaMarkersAfterUpdate,
-} from './wait_for_yaml_schema_markers_after_update';
+import { waitForPreviewYamlSchemaMarkers } from './wait_for_yaml_schema_markers_after_update';
 import {
   WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS,
   WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS,
@@ -61,7 +58,7 @@ describe('wait_for_yaml_schema_markers_after_update', () => {
   it('skips work when schemas are empty', async () => {
     const controller = new AbortController();
 
-    await waitForYamlSchemaMarkersAfterUpdate(model, [], controller.signal);
+    await waitForPreviewYamlSchemaMarkers(model, [], controller.signal);
 
     expect(yamlLanguageService.update).not.toHaveBeenCalled();
   });
@@ -69,11 +66,9 @@ describe('wait_for_yaml_schema_markers_after_update', () => {
   it('updates schemas then waits for debounced marker change', async () => {
     const controller = new AbortController();
 
-    const waitPromise = waitForYamlSchemaMarkersAfterUpdate(
-      model,
-      sampleSchemas,
-      controller.signal
-    );
+    const waitPromise = waitForPreviewYamlSchemaMarkers(model, sampleSchemas, controller.signal, {
+      registerSchemas: true,
+    });
 
     await Promise.resolve();
     expect(yamlLanguageService.update).toHaveBeenCalledWith(sampleSchemas);
@@ -98,11 +93,9 @@ describe('wait_for_yaml_schema_markers_after_update', () => {
 
     const controller = new AbortController();
     let pending = true;
-    const waitPromise = waitForYamlSchemaMarkersAfterUpdate(
-      model,
-      sampleSchemas,
-      controller.signal
-    ).finally(() => {
+    const waitPromise = waitForPreviewYamlSchemaMarkers(model, sampleSchemas, controller.signal, {
+      registerSchemas: true,
+    }).finally(() => {
       pending = false;
     });
 
@@ -122,11 +115,9 @@ describe('wait_for_yaml_schema_markers_after_update', () => {
 
   it('resolves after max wait when no marker event fires', async () => {
     const controller = new AbortController();
-    const waitPromise = waitForYamlSchemaMarkersAfterUpdate(
-      model,
-      sampleSchemas,
-      controller.signal
-    );
+    const waitPromise = waitForPreviewYamlSchemaMarkers(model, sampleSchemas, controller.signal, {
+      registerSchemas: true,
+    });
 
     await Promise.resolve();
     jest.advanceTimersByTime(WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS);
@@ -136,11 +127,9 @@ describe('wait_for_yaml_schema_markers_after_update', () => {
 
   it('rejects when the signal is aborted during marker settle', async () => {
     const controller = new AbortController();
-    const waitPromise = waitForYamlSchemaMarkersAfterUpdate(
-      model,
-      sampleSchemas,
-      controller.signal
-    );
+    const waitPromise = waitForPreviewYamlSchemaMarkers(model, sampleSchemas, controller.signal, {
+      registerSchemas: true,
+    });
 
     await Promise.resolve();
     controller.abort();

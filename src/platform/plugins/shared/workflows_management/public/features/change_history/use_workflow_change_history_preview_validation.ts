@@ -79,8 +79,12 @@ const getYamlOwnerMarkersFingerprint = (model: monaco.editor.ITextModel): string
 const modelHasYamlOwnerMarkers = (model: monaco.editor.ITextModel): boolean =>
   getYamlOwnerMarkersFingerprint(model).length > 0;
 
-const getPreviewSchemasFingerprint = (schemas: SchemasSettings[]): string =>
-  JSON.stringify(schemas);
+export const getPreviewSchemasFingerprint = (schemas: SchemasSettings[]): string =>
+  schemas
+    .map((schema) => schema.uri)
+    .filter((uri): uri is string => Boolean(uri))
+    .sort()
+    .join('\n');
 
 export const useWorkflowChangeHistoryPreviewValidation = ({
   getActiveEditor,
@@ -107,7 +111,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   const lastAppliedHighlightsFingerprintRef = useRef('');
   const lastPublishedYamlFingerprintRef = useRef('');
   const lastYamlMarkersFingerprintRef = useRef('');
-  const markerSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isApplyingHighlightsRef = useRef(false);
   const wasHighlightEnabledRef = useRef(false);
   const highlightValidationErrorsRef = useRef(highlightValidationErrors);
@@ -180,13 +183,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       validationDecorationsRef
     );
   }, [getActiveEditor, validationDecorationsRef, validationYaml]);
-
-  const clearScheduledMarkerSync = useCallback(() => {
-    if (markerSyncTimeoutRef.current) {
-      clearTimeout(markerSyncTimeoutRef.current);
-      markerSyncTimeoutRef.current = null;
-    }
-  }, []);
 
   const completeInitialValidationPass = useCallback(() => {
     hasInitialValidationPassRef.current = true;
@@ -287,19 +283,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
 
   const publishYamlSchemaResultsFromModelRef = useRef(publishYamlSchemaResultsFromModel);
   publishYamlSchemaResultsFromModelRef.current = publishYamlSchemaResultsFromModel;
-
-  const schedulePublishYamlSchemaResultsFromModel = useCallback(
-    (model: monaco.editor.ITextModel) => {
-      clearScheduledMarkerSync();
-      publishYamlSchemaResultsFromModelRef.current(model);
-    },
-    [clearScheduledMarkerSync]
-  );
-
-  const schedulePublishYamlSchemaResultsFromModelRef = useRef(
-    schedulePublishYamlSchemaResultsFromModel
-  );
-  schedulePublishYamlSchemaResultsFromModelRef.current = schedulePublishYamlSchemaResultsFromModel;
 
   const finishInitialValidationPass = useCallback(
     (options?: { didWaitForYamlSchema?: boolean }) => {
@@ -424,7 +407,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     validationAbortControllerRef.current?.abort();
     const abortController = new AbortController();
     validationAbortControllerRef.current = abortController;
-    clearScheduledMarkerSync();
     setIsValidationLoading(true);
 
     const editor = getActiveEditor();
@@ -487,9 +469,8 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   useEffect(
     () => () => {
       validationAbortControllerRef.current?.abort();
-      clearScheduledMarkerSync();
     },
-    [clearScheduledMarkerSync]
+    []
   );
 
   useEffect(() => {
@@ -526,7 +507,7 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       }
 
       lastYamlMarkersFingerprintRef.current = yamlMarkersFingerprint;
-      schedulePublishYamlSchemaResultsFromModelRef.current(model);
+      publishYamlSchemaResultsFromModelRef.current(model);
     });
 
     return () => disposable.dispose();
@@ -538,7 +519,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       resetInitialValidationPass();
       completedInitialPassWithoutYamlSchemaRef.current = false;
       resetValidationResultsState();
-      clearScheduledMarkerSync();
       validationAbortControllerRef.current?.abort();
       setIsValidationLoading(false);
       syncValidationDisplay(false);
@@ -553,7 +533,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     if (validationYamlChanged) {
       previousValidationYamlRef.current = validationYaml;
       validationAbortControllerRef.current?.abort();
-      clearScheduledMarkerSync();
       resetValidationResultsState();
       resetInitialValidationPass();
     }
@@ -583,7 +562,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     }
   }, [
     clearEditorValidation,
-    clearScheduledMarkerSync,
     finishInitialValidationPass,
     getActiveEditor,
     highlightValidationErrors,

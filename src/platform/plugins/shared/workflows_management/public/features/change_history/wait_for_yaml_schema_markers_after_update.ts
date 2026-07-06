@@ -88,43 +88,6 @@ export const waitForYamlSchemaMarkersSettle = (
   });
 
 /**
- * Ensures monaco-yaml schema validation has settled on the model before the first
- * accordion publish. Prevents a transient "No validation errors" state when custom
- * validation finishes before async yaml schema markers are published.
- *
- * Schema registration runs here (single SSOT) — do not call `yamlLanguageService.update`
- * elsewhere in the preview validation path.
- */
-export const waitForYamlSchemaMarkersAfterUpdate = async (
-  model: monaco.editor.ITextModel,
-  schemas: SchemasSettings[],
-  signal: AbortSignal
-): Promise<void> => {
-  if (schemas.length === 0) {
-    return;
-  }
-
-  if (signal.aborted) {
-    throw new DOMException('Aborted', 'AbortError');
-  }
-
-  // Attach before update so synchronous marker writes during schema registration are not missed.
-  const settlePromise = waitForYamlSchemaMarkersSettle(
-    model,
-    signal,
-    WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS
-  );
-
-  await yamlLanguageService.update(schemas);
-
-  if (signal.aborted) {
-    throw new DOMException('Aborted', 'AbortError');
-  }
-
-  await settlePromise;
-};
-
-/**
  * Waits for yaml schema markers on a preview model. Registers schemas on first use;
  * subsequent calls can reuse the global monaco-yaml instance without another update.
  */
