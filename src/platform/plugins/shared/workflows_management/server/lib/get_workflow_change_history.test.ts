@@ -230,6 +230,38 @@ describe('get_workflow_change_history', () => {
       expect(changeHistoryService.getHistory).not.toHaveBeenCalled();
     });
 
+    it('allows pagination at the Elasticsearch max result window boundary', async () => {
+      const { deps, changeHistoryService } = createDeps();
+
+      await getHistoryForWorkflow(deps, {
+        workflowId: 'wf-1',
+        spaceId: 'default',
+        page: 100,
+        perPage: 100,
+      });
+
+      expect(deps.getWorkflowSource).toHaveBeenCalledWith('wf-1', 'default');
+      expect(changeHistoryService.getHistory).toHaveBeenCalledWith('default', 'wf-1', {
+        from: 9_900,
+        size: 100,
+      });
+    });
+
+    it('throws WorkflowHistoryPaginationError when from plus size exceeds the window', async () => {
+      const { deps, changeHistoryService } = createDeps();
+
+      await expect(
+        getHistoryForWorkflow(deps, {
+          workflowId: 'wf-1',
+          spaceId: 'default',
+          page: 1,
+          perPage: 10_001,
+        })
+      ).rejects.toThrow(new WorkflowHistoryPaginationError());
+
+      expect(changeHistoryService.getHistory).not.toHaveBeenCalled();
+    });
+
     it('returns empty list when no history exists', async () => {
       const { deps } = createDeps();
 

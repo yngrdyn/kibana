@@ -16,6 +16,7 @@ import { WorkflowNotFoundError } from '@kbn/workflows/common/errors';
 import type { SearchTriggerEventLogResult } from '@kbn/workflows-ui';
 import { WorkflowConflictError } from '@kbn/workflows-yaml';
 import { registerInternalRoutes } from '.';
+import { workflowHistoryQuerySchema } from './get_workflow_history';
 import { WORKFLOWS_EXECUTIONS_INDEX } from '../../../../common';
 import {
   WORKFLOW_CHANGE_HISTORY_UNAVAILABLE_MESSAGE,
@@ -737,6 +738,12 @@ describe('Internal Routes', () => {
     expect(response.ok).toHaveBeenCalledWith({
       body: { total: 3, disabled: 3, failures: [] },
     });
+  });
+
+  it('rejects non-integer workflow history page values at route validation', () => {
+    expect(() => workflowHistoryQuerySchema.validate({ page: 1.5 })).toThrow(
+      'page must be an integer'
+    );
   });
 
   it('should execute options list search with enforced space and step filters', async () => {

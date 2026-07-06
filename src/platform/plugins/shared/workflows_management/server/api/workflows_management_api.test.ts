@@ -49,6 +49,8 @@ describe('WorkflowsManagementApi', () => {
       restoreWorkflowVersion: jest.fn(),
       deleteWorkflows: jest.fn(),
       bulkCreateWorkflows: jest.fn(),
+      disableAllWorkflows: jest.fn(),
+      getHistoryForWorkflow: jest.fn(),
       validateWorkflow: jest.fn(),
       getWorkflowExecution: jest.fn(),
       markStepAsResponded: jest.fn(),
@@ -1252,6 +1254,40 @@ steps:
       expect(mockSmlLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining("Failed to create SML index for workflow 'wf-err'")
       );
+    });
+  });
+
+  describe('delegation', () => {
+    it('delegates disableAllWorkflows with spaceId and request', async () => {
+      mockWorkflowsService.disableAllWorkflows.mockResolvedValue({
+        total: 2,
+        disabled: 2,
+        failures: [],
+      });
+
+      const result = await api.disableAllWorkflows('my-space', mockRequest);
+
+      expect(mockWorkflowsService.disableAllWorkflows).toHaveBeenCalledWith(
+        'my-space',
+        mockRequest
+      );
+      expect(result).toEqual({ total: 2, disabled: 2, failures: [] });
+    });
+
+    it('delegates getHistoryForWorkflow with pagination options', async () => {
+      const history = { page: 2, perPage: 10, total: 1, items: [] };
+      mockWorkflowsService.getHistoryForWorkflow.mockResolvedValue(history);
+
+      const result = await api.getHistoryForWorkflow('wf-1', 'default', {
+        page: 2,
+        perPage: 10,
+      });
+
+      expect(mockWorkflowsService.getHistoryForWorkflow).toHaveBeenCalledWith('wf-1', 'default', {
+        page: 2,
+        perPage: 10,
+      });
+      expect(result).toBe(history);
     });
   });
 

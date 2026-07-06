@@ -13,6 +13,7 @@ import { OCC_CONFLICT_STATUS_CODE } from '@kbn/occ';
 import {
   bulkIndexWithOccRetry,
   type BulkOccIndexClient,
+  fetchOccHitsByIds,
   type OccWorkflowHit,
   toOccHit,
 } from './bulk_occ_index';
@@ -153,6 +154,23 @@ describe('bulkIndexWithOccRetry', () => {
       refresh: true,
     });
     expect(mutate).toHaveBeenCalledWith(makeOccHit('wf-1', 7, 2));
+  });
+
+  it('bumps document version when bumpVersion is enabled', async () => {
+    const client = makeClient();
+    client.bulk.mockResolvedValue(bulkResponse([bulkIndexItem('wf-1', 200)]));
+
+    await bulkIndexWithOccRetry({
+      client,
+      hits: [makeOccHit('wf-1', 7, 2, { version: 4 })],
+      mutate: (hit) => hit._source,
+      bumpVersion: true,
+      retryDelayMs: 0,
+    });
+
+    expectIndexOperation(client.bulk.mock.calls[0][0].operations[0], {
+      document: expect.objectContaining({ version: 5 }),
+    });
   });
 
   it('retries conflicts after refreshing OCC metadata and re-mutating', async () => {
@@ -357,5 +375,73 @@ describe('bulkIndexWithOccRetry', () => {
     expect(client.bulk.mock.calls[1][0].operations).toHaveLength(1);
     expectIndexOperation(client.bulk.mock.calls[1][0].operations[0], { _id: 'wf-2' });
     expect(client.search).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fetchOccHitsByIds', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('returns empty results without querying when ids is empty', async () => {
+    const client = makeClient();
+
+    const result = await fetchOccHitsByIds(client, []);
+
+    expect(result).toEqual({ refreshed: [], failures: [] });
+    expect(client.search).not.toHaveBeenCalled();
+  });
+
+  it('batch-reads ids with seq_no_primary_term and maps OCC metadata', async () => {
+    const client = makeClient();
+    client.search.mockResolvedValue({
+      hits: {
+        hits: [makeSearchHit('wf-1', 5, 2), makeSearchHit('wf-2', 9, 1)],
+      },
+    });
+
+    const result = await fetchOccHitsByIds(client, ['wf-1', 'wf-2']);
+
+    expect(client.search).toHaveBeenCalledWith({
+      query: { ids: { values: ['wf-1', 'wf-2'] } },
+      seq_no_primary_term: true,
+      size: 2,
+      track_total_hits: false,
+    });
+    expect(result.refreshed).toEqual([makeOccHit('wf-1', 5, 2), makeOccHit('wf-2', 9, 1)]);
+    expect(result.failures).toEqual([]);
+  });
+
+  it('records failures when refreshed hits are missing OCC metadata', async () => {
+    const client = makeClient();
+    client.search.mockResolvedValue({
+      hits: {
+        hits: [
+          {
+            _id: 'wf-1',
+            _source: makeSource('wf-1'),
+          },
+        ],
+      },
+    });
+
+    const result = await fetchOccHitsByIds(client, ['wf-1']);
+
+    expect(result.refreshed).toEqual([]);
+    expect(result.failures).toEqual([
+      { id: 'wf-1', error: 'Missing seq_no/primary_term for workflow wf-1' },
+    ]);
+  });
+
+  it('returns only hits present in the search response', async () => {
+    const client = makeClient();
+    client.search.mockResolvedValue({
+      hits: {
+        hits: [makeSearchHit('wf-1', 3, 1)],
+      },
+    });
+
+    const result = await fetchOccHitsByIds(client, ['wf-1', 'wf-missing']);
+
+    expect(result.refreshed).toEqual([makeOccHit('wf-1', 3, 1)]);
+    expect(result.failures).toEqual([]);
   });
 });

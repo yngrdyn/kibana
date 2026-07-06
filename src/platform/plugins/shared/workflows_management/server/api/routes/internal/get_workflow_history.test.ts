@@ -32,4 +32,16 @@ describe('workflowHistoryQuerySchema', () => {
       'per_page must be an integer'
     );
   });
+
+  it('rejects page values below 1', () => {
+    expect(() => workflowHistoryQuerySchema.validate({ page: 0 })).toThrow(
+      'Value must be equal to or greater than [1].'
+    );
+  });
+
+  it('rejects non-integer page values at the boundary', () => {
+    expect(() => workflowHistoryQuerySchema.validate({ page: 100.1 })).toThrow(
+      'page must be an integer'
+    );
+  });
 });
