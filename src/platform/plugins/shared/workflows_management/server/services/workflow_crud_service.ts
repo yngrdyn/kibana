@@ -1122,6 +1122,7 @@ export class WorkflowCrudService {
       }));
       const bulkResponse = await client.bulk({
         operations,
+        refresh: 'wait_for',
       });
 
       for (let itemIndex = 0; itemIndex < bulkResponse.items.length; itemIndex++) {

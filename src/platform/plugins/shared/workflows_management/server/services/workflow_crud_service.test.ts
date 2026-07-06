@@ -947,6 +947,7 @@ describe('WorkflowCrudService', () => {
             },
           },
         ],
+        refresh: 'wait_for',
       });
       const bulkOp = client.bulk.mock.calls[0][0].operations[0].index;
       expect(bulkOp).not.toHaveProperty('if_seq_no');
