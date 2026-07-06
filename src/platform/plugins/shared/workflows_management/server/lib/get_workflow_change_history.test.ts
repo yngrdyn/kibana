@@ -13,9 +13,11 @@ import { GLOBAL_WORKFLOW_SPACE_ID } from '@kbn/workflows/server';
 
 import {
   assertWorkflowChangeHistoryEnabled,
+  assertWorkflowHistoryPaginationWithinWindow,
   getHistoryForWorkflow,
 } from './get_workflow_change_history';
 import { WorkflowChangeHistoryDisabledError } from './workflow_change_history_disabled_error';
+import { WorkflowHistoryPaginationError } from './workflow_history_pagination_error';
 import type { IWorkflowChangeHistoryService } from '../services/workflow_change_history_types';
 
 const createHistoryDocument = (eventId: string, sequence: number): ChangeHistoryDocument => ({
@@ -91,6 +93,18 @@ describe('get_workflow_change_history', () => {
 
       expect(() => assertWorkflowChangeHistoryEnabled(deps.changeHistoryService)).toThrow(
         new WorkflowChangeHistoryDisabledError()
+      );
+    });
+  });
+
+  describe('assertWorkflowHistoryPaginationWithinWindow', () => {
+    it('allows pagination at the Elasticsearch max result window boundary', () => {
+      expect(() => assertWorkflowHistoryPaginationWithinWindow(100, 100)).not.toThrow();
+    });
+
+    it('throws when pagination exceeds the Elasticsearch max result window', () => {
+      expect(() => assertWorkflowHistoryPaginationWithinWindow(101, 100)).toThrow(
+        new WorkflowHistoryPaginationError()
       );
     });
   });
@@ -177,6 +191,22 @@ describe('get_workflow_change_history', () => {
       await expect(
         getHistoryForWorkflow(deps, { workflowId: 'missing', spaceId: 'default' })
       ).rejects.toBeInstanceOf(WorkflowNotFoundError);
+    });
+
+    it('throws WorkflowHistoryPaginationError before querying when page exceeds the result window', async () => {
+      const { deps, changeHistoryService } = createDeps();
+
+      await expect(
+        getHistoryForWorkflow(deps, {
+          workflowId: 'wf-1',
+          spaceId: 'default',
+          page: 101,
+          perPage: 100,
+        })
+      ).rejects.toThrow(new WorkflowHistoryPaginationError());
+
+      expect(deps.getWorkflowSource).not.toHaveBeenCalled();
+      expect(changeHistoryService.getHistory).not.toHaveBeenCalled();
     });
 
     it('returns empty list when no history exists', async () => {

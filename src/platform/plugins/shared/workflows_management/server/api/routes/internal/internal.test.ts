@@ -22,6 +22,10 @@ import {
   WorkflowChangeHistoryDisabledError,
 } from '../../../lib/workflow_change_history_disabled_error';
 import { WorkflowHistoryEventNotFoundError } from '../../../lib/workflow_history_event_not_found_error';
+import {
+  WORKFLOW_HISTORY_PAGINATION_EXCEEDED_MESSAGE,
+  WorkflowHistoryPaginationError,
+} from '../../../lib/workflow_history_pagination_error';
 import { ManagedWorkflowUpdateForbiddenError } from '../../managed_workflow_errors';
 import type { RouteDependencies } from '../types';
 
@@ -450,6 +454,36 @@ describe('Internal Routes', () => {
     expect(mockAudit.logWorkflowAccessed).toHaveBeenCalledWith(request, {
       id: 'wf-1',
       error: expect.any(WorkflowChangeHistoryDisabledError),
+    });
+  });
+
+  it('returns bad request when history pagination exceeds the result window', async () => {
+    mockApi.getHistoryForWorkflow.mockRejectedValue(new WorkflowHistoryPaginationError());
+
+    const response = httpServerMock.createResponseFactory();
+    const request = httpServerMock.createKibanaRequest({
+      params: { id: 'wf-1' },
+      query: { page: 101, per_page: 100 },
+    });
+
+    await routeHandlers[`GET:/internal/workflows/workflow/{id}/history`].handler(
+      mockContext,
+      request,
+      response
+    );
+
+    expect(mockApi.getHistoryForWorkflow).toHaveBeenCalledWith('wf-1', 'default', {
+      page: 101,
+      perPage: 100,
+    });
+    expect(response.badRequest).toHaveBeenCalledWith({
+      body: {
+        message: WORKFLOW_HISTORY_PAGINATION_EXCEEDED_MESSAGE,
+      },
+    });
+    expect(mockAudit.logWorkflowAccessed).toHaveBeenCalledWith(request, {
+      id: 'wf-1',
+      error: expect.any(WorkflowHistoryPaginationError),
     });
   });
 
