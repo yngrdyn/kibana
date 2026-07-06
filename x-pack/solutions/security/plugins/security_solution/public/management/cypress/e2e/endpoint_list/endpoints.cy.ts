@@ -131,7 +131,8 @@ describe.skip('Endpoints page', { tags: ['@ess', '@serverless'] }, () => {
     });
   });
 
-  describe('Endpoint reassignment', () => {
+  // Failing: See https://github.com/elastic/kibana/issues/206198
+  describe.skip('Endpoint reassignment', () => {
     let response: IndexedFleetEndpointPolicyResponse;
     let initialAgentData: Agent;
 
