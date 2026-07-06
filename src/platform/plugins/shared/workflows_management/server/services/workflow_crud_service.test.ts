@@ -819,6 +819,112 @@ describe('WorkflowCrudService', () => {
       );
     });
 
+    it('overwrite=true resurrects a soft-deleted tombstone in the same space', async () => {
+      const { deps, client } = makeDeps();
+      const tombstoneHit = occSearchHit(
+        'wf-deleted',
+        {
+          deleted_at: '2024-06-01T00:00:00.000Z' as unknown as null,
+          version: 3,
+          created_at: '2024-01-01T00:00:00.000Z',
+          createdBy: 'original-user',
+        },
+        5,
+        1
+      );
+
+      client.search
+        .mockResolvedValueOnce({ hits: { hits: [tombstoneHit] } })
+        .mockResolvedValueOnce({ hits: { hits: [tombstoneHit] } });
+      client.index.mockResolvedValue({ result: 'updated', _seq_no: 6, _primary_term: 1 });
+
+      const service = new WorkflowCrudService(deps);
+      const result = await service.bulkCreateWorkflows(
+        [{ id: 'wf-deleted', yaml: validYaml('Resurrected') }],
+        'default',
+        request,
+        { overwrite: true }
+      );
+
+      expect(result.created).toHaveLength(1);
+      expect(result.failed).toHaveLength(0);
+      expect(client.search).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          seq_no_primary_term: true,
+          query: {
+            bool: {
+              must: [
+                { ids: { values: ['wf-deleted'] } },
+                {
+                  bool: {
+                    should: [{ term: { spaceId: 'default' } }, { term: { spaceId: '*' } }],
+                    minimum_should_match: 1,
+                  },
+                },
+              ],
+              must_not: [],
+            },
+          },
+        })
+      );
+      expect(client.index).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'wf-deleted',
+          if_seq_no: 5,
+          if_primary_term: 1,
+          document: expect.objectContaining({
+            version: 4,
+            deleted_at: null,
+            created_at: '2024-01-01T00:00:00.000Z',
+            createdBy: 'original-user',
+          }),
+        })
+      );
+    });
+
+    it('overwrite=true overwrites a workflow id taken in another space via unscoped OCC metadata', async () => {
+      const { deps, client } = makeDeps();
+      const otherSpaceHit = occSearchHit(
+        'shared-id',
+        {
+          spaceId: 'space-a',
+          version: 2,
+          created_at: '2024-01-01T00:00:00.000Z',
+          createdBy: 'user-a',
+        },
+        3,
+        1
+      );
+
+      client.search.mockResolvedValueOnce({ hits: { hits: [otherSpaceHit] } });
+      client.index.mockResolvedValue({ result: 'updated', _seq_no: 4, _primary_term: 1 });
+
+      const service = new WorkflowCrudService(deps);
+      const result = await service.bulkCreateWorkflows(
+        [{ id: 'shared-id', yaml: validYaml('Taken Over') }],
+        'space-b',
+        request,
+        { overwrite: true }
+      );
+
+      expect(result.created).toHaveLength(1);
+      expect(result.failed).toHaveLength(0);
+      expect(client.search).toHaveBeenCalledTimes(1);
+      expect(client.index).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'shared-id',
+          if_seq_no: 3,
+          if_primary_term: 1,
+          document: expect.objectContaining({
+            spaceId: 'space-b',
+            version: 3,
+            created_at: '2024-01-01T00:00:00.000Z',
+            createdBy: 'user-a',
+          }),
+        })
+      );
+    });
+
     it('overwrite=true retries OCC conflicts for existing workflows', async () => {
       const { deps, client } = makeDeps();
       client.search

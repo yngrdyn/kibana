@@ -25,7 +25,7 @@ import type {
   WorkflowDetailDto,
   WorkflowYaml,
 } from '@kbn/workflows';
-import { buildWorkflowFilters } from '@kbn/workflows/server';
+import { buildWorkflowFilters, GLOBAL_WORKFLOW_SPACE_ID } from '@kbn/workflows/server';
 import type { WorkflowPartialDetailDto } from '@kbn/workflows/types/v1';
 
 import { InvalidYamlSchemaError, WorkflowConflictError } from '@kbn/workflows-yaml';
@@ -48,7 +48,7 @@ import type {
   WorkflowRestoreMetadata,
 } from '../../common/lib/workflow_change_history/types';
 import { getWorkflowZodSchema } from '../../common/schema';
-import { fetchOccHitsByIds } from '../api/lib/bulk_occ_index';
+import { fetchOccHitsByIds, type OccWorkflowHit } from '../api/lib/bulk_occ_index';
 import { extractBulkItemError } from '../api/lib/bulk_response_helpers';
 import { deleteWorkflows } from '../api/lib/workflow_deletion';
 import { disableAllWorkflows } from '../api/lib/workflow_disable_all';
@@ -1087,6 +1087,25 @@ export class WorkflowCrudService {
       logger: this.deps.logger,
     });
   }
+  private isExistingWorkflowInTargetSpace(hit: OccWorkflowHit, targetSpaceId: string): boolean {
+    const documentSpaceId = hit._source.spaceId;
+    return documentSpaceId === targetSpaceId || documentSpaceId === GLOBAL_WORKFLOW_SPACE_ID;
+  }
+
+  private buildBulkOverwriteDocument(
+    prepared: WorkflowProperties,
+    existing: WorkflowProperties
+  ): WorkflowProperties {
+    return applyWorkflowVersion(
+      {
+        ...prepared,
+        created_at: existing.created_at,
+        createdBy: existing.createdBy,
+      },
+      existing
+    );
+  }
+
   private async executeBulkOverwrite(
     entries: BulkWorkflowEntry[],
     spaceId: string
@@ -1111,7 +1130,25 @@ export class WorkflowCrudService {
     const occHitById = new Map(occHits.map((hit) => [hit._id, hit]));
 
     const newEntries = entries.filter((entry) => !occHitById.has(entry.id));
-    const updateEntries = entries.filter((entry) => occHitById.has(entry.id));
+    const existingEntries = entries.filter((entry) => occHitById.has(entry.id));
+    const inSpaceUpdateEntries: BulkWorkflowEntry[] = [];
+    const crossSpaceOverwriteEntries: Array<{ entry: BulkWorkflowEntry; occHit: OccWorkflowHit }> =
+      [];
+
+    for (const entry of existingEntries) {
+      const occHit = occHitById.get(entry.id);
+      if (occHit) {
+        if (this.isExistingWorkflowInTargetSpace(occHit, spaceId)) {
+          inSpaceUpdateEntries.push(entry);
+        } else {
+          crossSpaceOverwriteEntries.push({ entry, occHit });
+        }
+      }
+    }
+    const bulkOverwriteGetOptions: WorkflowDocumentGetOptions = {
+      includeDeleted: true,
+      includeGlobal: true,
+    };
 
     if (newEntries.length > 0) {
       const operations = newEntries.map((entry) => ({
@@ -1143,16 +1180,33 @@ export class WorkflowCrudService {
       }
     }
 
-    if (updateEntries.length > 0) {
-      for (const entry of updateEntries) {
+    if (inSpaceUpdateEntries.length > 0) {
+      for (const entry of inSpaceUpdateEntries) {
         const prepared = entry.workflowData;
         try {
           const document = await this.readModifyWriteWorkflowDocument(entry.id, spaceId, {
-            mutate: (existing) => ({
-              ...prepared,
-              created_at: existing.created_at,
-              createdBy: existing.createdBy,
-            }),
+            getOptions: bulkOverwriteGetOptions,
+            mutate: (existing) => this.buildBulkOverwriteDocument(prepared, existing),
+          });
+          created.push(transformStorageDocumentToWorkflowDto(entry.id, document));
+          successfullyWritten.push({ ...entry, workflowData: document, existedBeforeWrite: true });
+        } catch (error) {
+          failed.push({
+            index: entry.idx,
+            id: entry.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+
+    if (crossSpaceOverwriteEntries.length > 0) {
+      for (const { entry, occHit } of crossSpaceOverwriteEntries) {
+        try {
+          const document = await this.writeWorkflowDocumentWithOcc(entry.id, spaceId, {
+            document: this.buildBulkOverwriteDocument(entry.workflowData, occHit._source),
+            ifSeqNo: occHit.seqNo,
+            ifPrimaryTerm: occHit.primaryTerm,
           });
           created.push(transformStorageDocumentToWorkflowDto(entry.id, document));
           successfullyWritten.push({ ...entry, workflowData: document, existedBeforeWrite: true });
