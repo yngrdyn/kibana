@@ -460,12 +460,15 @@ export class WorkflowsManagementApi {
     return result;
   }
 
-  public async disableAllWorkflows(spaceId?: string): Promise<{
+  public async disableAllWorkflows(
+    spaceId?: string,
+    request?: KibanaRequest
+  ): Promise<{
     total: number;
     disabled: number;
     failures: Array<{ id: string; error: string }>;
   }> {
-    return this.workflowsService.disableAllWorkflows(spaceId);
+    return this.workflowsService.disableAllWorkflows(spaceId, request);
   }
 
   public async runWorkflow(

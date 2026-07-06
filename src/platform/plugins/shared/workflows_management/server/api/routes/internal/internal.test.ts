@@ -48,7 +48,9 @@ describe('Internal Routes', () => {
 
   let routeHandlers: Record<string, { handler: MockRouteHandler }>;
   let mockApi: {
-    disableAllWorkflows: jest.MockedFunction<(spaceId: string) => Promise<unknown>>;
+    disableAllWorkflows: jest.MockedFunction<
+      (spaceId: string, request: unknown) => Promise<unknown>
+    >;
     searchExecutionsView: jest.Mock;
     getHistoryForWorkflow: jest.Mock;
     restoreWorkflowVersion: jest.Mock;
@@ -731,7 +733,7 @@ describe('Internal Routes', () => {
 
     await routeHandlers[`POST:/internal/workflows/disable`].handler(mockContext, request, response);
 
-    expect(mockApi.disableAllWorkflows).toHaveBeenCalledWith('default');
+    expect(mockApi.disableAllWorkflows).toHaveBeenCalledWith('default', request);
     expect(response.ok).toHaveBeenCalledWith({
       body: { total: 3, disabled: 3, failures: [] },
     });

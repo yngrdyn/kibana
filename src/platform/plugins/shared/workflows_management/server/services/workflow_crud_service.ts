@@ -988,7 +988,10 @@ export class WorkflowCrudService {
     });
   }
 
-  async disableAllWorkflows(spaceId?: string): Promise<{
+  async disableAllWorkflows(
+    spaceId?: string,
+    request?: KibanaRequest
+  ): Promise<{
     total: number;
     disabled: number;
     failures: Array<{ id: string; error: string }>;
@@ -1007,6 +1010,7 @@ export class WorkflowCrudService {
         spaceId,
         timestamp: new Date(),
         correlationId: randomBytes(16).toString('hex'),
+        request,
       });
     }
 

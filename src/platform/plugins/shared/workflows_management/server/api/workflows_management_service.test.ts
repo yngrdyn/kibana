@@ -254,7 +254,7 @@ describe('WorkflowsService (facade)', () => {
       });
       await service.updateWorkflow('wf-1', { name: 'new' } as any, 'default', request);
       await service.deleteWorkflows(['wf-1'], 'default', { force: true });
-      await service.disableAllWorkflows('my-space');
+      await service.disableAllWorkflows('my-space', request);
 
       expect(crudSpies.getWorkflow).toHaveBeenCalledWith('wf-1', 'default', {
         includeDeleted: true,
@@ -279,7 +279,7 @@ describe('WorkflowsService (facade)', () => {
         request
       );
       expect(crudSpies.deleteWorkflows).toHaveBeenCalledWith(['wf-1'], 'default', { force: true });
-      expect(crudSpies.disableAllWorkflows).toHaveBeenCalledWith('my-space');
+      expect(crudSpies.disableAllWorkflows).toHaveBeenCalledWith('my-space', request);
     });
 
     it('reads soft-deleted workflows when gating workflow change history', async () => {

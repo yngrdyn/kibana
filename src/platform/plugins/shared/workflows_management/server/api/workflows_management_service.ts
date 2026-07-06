@@ -358,13 +358,16 @@ export class WorkflowsService {
    * Used when a user opts out of workflows by toggling the per-space UI setting
    * off, or when availability (license / config) requires a global bulk disable.
    */
-  public async disableAllWorkflows(spaceId?: string): Promise<{
+  public async disableAllWorkflows(
+    spaceId?: string,
+    request?: KibanaRequest
+  ): Promise<{
     total: number;
     disabled: number;
     failures: Array<{ id: string; error: string }>;
   }> {
     await this.ensureInitialized();
-    return this.crudService.disableAllWorkflows(spaceId);
+    return this.crudService.disableAllWorkflows(spaceId, request);
   }
 
   public async getWorkflowsSubscribedToTrigger(

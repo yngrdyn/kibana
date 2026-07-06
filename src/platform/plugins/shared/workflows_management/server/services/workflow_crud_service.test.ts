@@ -17,6 +17,7 @@ import { WorkflowCrudService } from './workflow_crud_service';
 import type { WorkflowExecutionQueryService } from './workflow_execution_query_service';
 import type { WorkflowValidationService } from './workflow_validation_service';
 import { WorkflowChangeHistoryAction } from '../../common/lib/workflow_change_history/constants';
+import { disableAllWorkflows as disableAllWorkflowsLib } from '../api/lib/workflow_disable_all';
 import * as workflowPrepare from '../api/lib/workflow_prepare';
 import { logWorkflowChanges } from '../lib/log_workflow_changes';
 import type { WorkflowProperties } from '../storage/workflow_storage';
@@ -25,8 +26,16 @@ jest.mock('../lib/log_workflow_changes', () => ({
   logWorkflowChanges: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../api/lib/workflow_disable_all', () => ({
+  disableAllWorkflows: jest.fn(),
+}));
+
 const mockedLogWorkflowChanges = logWorkflowChanges as jest.MockedFunction<
   typeof logWorkflowChanges
+>;
+
+const mockedDisableAllWorkflowsLib = disableAllWorkflowsLib as jest.MockedFunction<
+  typeof disableAllWorkflowsLib
 >;
 
 const makeSource = (overrides?: Partial<WorkflowProperties>): WorkflowProperties => ({
@@ -2017,6 +2026,74 @@ describe('WorkflowCrudService', () => {
       );
 
       applyYamlUpdateSpy.mockRestore();
+    });
+  });
+
+  describe('disableAllWorkflows', () => {
+    const request = { auth: { credentials: { username: 'alice' } } } as any;
+    const disabledWorkflow = { id: 'wf-1', document: makeSource({ enabled: false }) };
+
+    beforeEach(() => {
+      mockedDisableAllWorkflowsLib.mockReset();
+      mockedDisableAllWorkflowsLib.mockResolvedValue({
+        total: 1,
+        disabled: 1,
+        failures: [],
+        disabledWorkflows: [disabledWorkflow],
+      });
+    });
+
+    it('passes request to logWorkflowChangesAfterWrite when space-scoped', async () => {
+      const logSpy = jest
+        .spyOn(WorkflowCrudService.prototype, 'logWorkflowChangesAfterWrite')
+        .mockResolvedValue(undefined);
+      const { deps } = makeDeps();
+      const service = new WorkflowCrudService(deps);
+
+      await service.disableAllWorkflows('default', request);
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workflows: [disabledWorkflow],
+          spaceId: 'default',
+          request,
+        })
+      );
+
+      logSpy.mockRestore();
+    });
+
+    it('does not log history when spaceId is omitted', async () => {
+      const logSpy = jest
+        .spyOn(WorkflowCrudService.prototype, 'logWorkflowChangesAfterWrite')
+        .mockResolvedValue(undefined);
+      const { deps } = makeDeps();
+      const service = new WorkflowCrudService(deps);
+
+      await service.disableAllWorkflows();
+
+      expect(logSpy).not.toHaveBeenCalled();
+
+      logSpy.mockRestore();
+    });
+
+    it('omits request on history log when space-scoped but request is not provided', async () => {
+      const logSpy = jest
+        .spyOn(WorkflowCrudService.prototype, 'logWorkflowChangesAfterWrite')
+        .mockResolvedValue(undefined);
+      const { deps } = makeDeps();
+      const service = new WorkflowCrudService(deps);
+
+      await service.disableAllWorkflows('default');
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spaceId: 'default',
+          request: undefined,
+        })
+      );
+
+      logSpy.mockRestore();
     });
   });
 });
