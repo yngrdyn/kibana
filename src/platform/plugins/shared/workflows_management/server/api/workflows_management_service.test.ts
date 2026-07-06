@@ -141,6 +141,7 @@ describe('WorkflowsService (facade)', () => {
     );
     crudSpies = spyPrototype(WorkflowCrudService, [
       'getWorkflow',
+      'getWorkflowDocumentSource',
       'getWorkflowsByIds',
       'getWorkflowsSourceByIds',
       'createWorkflow',
@@ -279,6 +280,32 @@ describe('WorkflowsService (facade)', () => {
       );
       expect(crudSpies.deleteWorkflows).toHaveBeenCalledWith(['wf-1'], 'default', { force: true });
       expect(crudSpies.disableAllWorkflows).toHaveBeenCalledWith('my-space');
+    });
+
+    it('reads soft-deleted workflows when gating workflow change history', async () => {
+      const getHistory = jest.fn().mockResolvedValue({ total: 0, items: [] });
+      MockedWorkflowChangeHistoryService.mockImplementation(
+        () =>
+          ({
+            initialize: jest.fn().mockResolvedValue(undefined),
+            isInitialized: jest.fn().mockReturnValue(true),
+            getHistory,
+          } as unknown as WorkflowChangeHistoryService)
+      );
+
+      crudSpies.getWorkflowDocumentSource.mockResolvedValue({
+        spaceId: 'default',
+      } as never);
+
+      const service = await buildService();
+
+      await service.getHistoryForWorkflow('wf-1', 'default', { page: 1, perPage: 20 });
+
+      expect(crudSpies.getWorkflowDocumentSource).toHaveBeenCalledWith('wf-1', 'default', {
+        includeGlobal: true,
+        includeDeleted: true,
+      });
+      expect(getHistory).toHaveBeenCalledWith('default', 'wf-1', { from: 0, size: 20 });
     });
 
     it('delegates search-side reads to WorkflowSearchService', async () => {

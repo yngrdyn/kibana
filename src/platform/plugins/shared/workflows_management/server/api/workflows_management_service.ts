@@ -272,7 +272,10 @@ export class WorkflowsService {
       {
         changeHistoryService: this.changeHistoryService,
         getWorkflowSource: (workflowId, sid) =>
-          this.crudService.getWorkflowDocumentSource(workflowId, sid, { includeGlobal: true }),
+          this.crudService.getWorkflowDocumentSource(workflowId, sid, {
+            includeGlobal: true,
+            includeDeleted: true,
+          }),
       },
       { workflowId: id, spaceId, ...options }
     );

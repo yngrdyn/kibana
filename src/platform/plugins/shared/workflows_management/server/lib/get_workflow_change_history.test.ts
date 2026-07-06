@@ -193,6 +193,27 @@ describe('get_workflow_change_history', () => {
       ).rejects.toBeInstanceOf(WorkflowNotFoundError);
     });
 
+    it('returns history when the workflow source exists (including soft-deleted tombstones)', async () => {
+      const historyDocument = createHistoryDocument('event-1', 2);
+      const { deps, changeHistoryService } = createDeps({
+        workflowResult: {
+          ...workflow,
+          spaceId: 'default',
+        },
+        historyResult: { total: 1, items: [historyDocument] },
+      });
+
+      const result = await getHistoryForWorkflow(deps, {
+        workflowId: 'wf-1',
+        spaceId: 'default',
+      });
+
+      expect(deps.getWorkflowSource).toHaveBeenCalledWith('wf-1', 'default');
+      expect(result.total).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(changeHistoryService.getHistory).toHaveBeenCalled();
+    });
+
     it('throws WorkflowHistoryPaginationError before querying when page exceeds the result window', async () => {
       const { deps, changeHistoryService } = createDeps();
 
