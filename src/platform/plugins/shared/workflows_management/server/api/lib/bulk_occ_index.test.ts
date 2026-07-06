@@ -126,7 +126,7 @@ describe('bulkIndexWithOccRetry', () => {
     const client = makeClient();
     client.bulk.mockResolvedValue(bulkResponse([bulkIndexItem('wf-1', 200)]));
 
-    const mutate = jest.fn((source: WorkflowProperties) => ({ ...source, enabled: false }));
+    const mutate = jest.fn((hit: OccWorkflowHit) => ({ ...hit._source, enabled: false }));
     const result = await bulkIndexWithOccRetry({
       client,
       hits: [makeOccHit('wf-1', 7, 2)],
@@ -152,7 +152,7 @@ describe('bulkIndexWithOccRetry', () => {
       ],
       refresh: true,
     });
-    expect(mutate).toHaveBeenCalledWith(makeSource('wf-1'));
+    expect(mutate).toHaveBeenCalledWith(makeOccHit('wf-1', 7, 2));
   });
 
   it('retries conflicts after refreshing OCC metadata and re-mutating', async () => {
@@ -171,8 +171,8 @@ describe('bulkIndexWithOccRetry', () => {
       hits: { hits: [makeSearchHit('wf-1', 3, 1, { enabled: false })] },
     });
 
-    const mutate = jest.fn((source: WorkflowProperties) => ({
-      ...source,
+    const mutate = jest.fn((hit: OccWorkflowHit) => ({
+      ...hit._source,
       tags: ['patched'],
     }));
 
@@ -200,8 +200,8 @@ describe('bulkIndexWithOccRetry', () => {
       if_seq_no: 3,
       if_primary_term: 1,
     });
-    expect(mutate).toHaveBeenNthCalledWith(1, makeSource('wf-1'));
-    expect(mutate).toHaveBeenNthCalledWith(2, makeSource('wf-1', { enabled: false }));
+    expect(mutate).toHaveBeenNthCalledWith(1, makeOccHit('wf-1', 1));
+    expect(mutate).toHaveBeenNthCalledWith(2, makeOccHit('wf-1', 3, 1, { enabled: false }));
     expect(logger.debug).toHaveBeenCalledWith(
       expect.stringContaining('Bulk OCC conflict for 1 workflow(s)')
     );
@@ -224,7 +224,7 @@ describe('bulkIndexWithOccRetry', () => {
     const result = await bulkIndexWithOccRetry({
       client,
       hits: [makeOccHit('wf-1')],
-      mutate: (source) => source,
+      mutate: (hit) => hit._source,
       maxRetries: 1,
       retryDelayMs: 0,
     });
@@ -249,7 +249,7 @@ describe('bulkIndexWithOccRetry', () => {
     const result = await bulkIndexWithOccRetry({
       client,
       hits: [makeOccHit('wf-1')],
-      mutate: (source) => source,
+      mutate: (hit) => hit._source,
       retryDelayMs: 0,
     });
 
@@ -285,7 +285,7 @@ describe('bulkIndexWithOccRetry', () => {
     const result = await bulkIndexWithOccRetry({
       client,
       hits: [makeOccHit('wf-1')],
-      mutate: (source) => source,
+      mutate: (hit) => hit._source,
       retryDelayMs: 0,
     });
 
@@ -311,7 +311,7 @@ describe('bulkIndexWithOccRetry', () => {
     const result = await bulkIndexWithOccRetry({
       client,
       hits: [makeOccHit('wf-1'), makeOccHit('wf-2', 4, 1)],
-      mutate: (source) => source,
+      mutate: (hit) => hit._source,
       retryDelayMs: 0,
     });
 
@@ -341,7 +341,7 @@ describe('bulkIndexWithOccRetry', () => {
     const result = await bulkIndexWithOccRetry({
       client,
       hits: [makeOccHit('wf-1'), makeOccHit('wf-2', 3)],
-      mutate: (source) => ({ ...source, enabled: false }),
+      mutate: (hit) => ({ ...hit._source, enabled: false }),
       retryDelayMs: 0,
     });
 

@@ -47,6 +47,18 @@ const makeSource = (overrides?: Partial<WorkflowProperties>): WorkflowProperties
   ...overrides,
 });
 
+const occSearchHit = (
+  id: string,
+  sourceOverrides?: Partial<WorkflowProperties>,
+  seqNo = 5,
+  primaryTerm = 1
+) => ({
+  _id: id,
+  _source: makeSource(sourceOverrides),
+  _seq_no: seqNo,
+  _primary_term: primaryTerm,
+});
+
 const makeStorageClient = () => ({
   search: jest.fn(),
   index: jest.fn().mockResolvedValue({ result: 'created', _seq_no: 1, _primary_term: 1 }),
@@ -758,6 +770,92 @@ describe('WorkflowCrudService', () => {
       expect(result.failed[0].error).toMatch(/exists/);
     });
 
+    it('overwrite=true indexes existing workflows with OCC metadata', async () => {
+      const { deps, client } = makeDeps();
+      client.search
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-1', { version: 4 }, 7, 2)],
+          },
+        })
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-1', { version: 4 }, 7, 2)],
+          },
+        });
+      client.index.mockResolvedValue({ result: 'updated', _seq_no: 8, _primary_term: 2 });
+
+      const service = new WorkflowCrudService(deps);
+      await service.bulkCreateWorkflows(
+        [{ id: 'wf-1', yaml: validYaml('A') }],
+        'default',
+        request,
+        { overwrite: true }
+      );
+
+      expect(client.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          query: { ids: { values: ['wf-1'] } },
+          seq_no_primary_term: true,
+        })
+      );
+      expect(client.index).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'wf-1',
+          refresh: true,
+          if_seq_no: 7,
+          if_primary_term: 2,
+          document: expect.objectContaining({ version: 5 }),
+        })
+      );
+    });
+
+    it('overwrite=true retries OCC conflicts for existing workflows', async () => {
+      const { deps, client } = makeDeps();
+      client.search
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-1', { version: 2 }, 1, 1)],
+          },
+        })
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-1', { version: 2 }, 1, 1)],
+          },
+        })
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-1', { version: 3 }, 4, 1)],
+          },
+        });
+      const conflict = Object.assign(new Error('version conflict'), {
+        statusCode: 409,
+        meta: { statusCode: 409 },
+      });
+      client.index
+        .mockRejectedValueOnce(conflict)
+        .mockResolvedValueOnce({ result: 'updated', _seq_no: 5, _primary_term: 1 });
+
+      const service = new WorkflowCrudService(deps);
+      const result = await service.bulkCreateWorkflows(
+        [{ id: 'wf-1', yaml: validYaml('A') }],
+        'default',
+        request,
+        { overwrite: true }
+      );
+
+      expect(result.created).toHaveLength(1);
+      expect(result.failed).toEqual([]);
+      expect(client.index).toHaveBeenCalledTimes(2);
+      expect(client.index).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          if_seq_no: 4,
+          if_primary_term: 1,
+          document: expect.objectContaining({ version: 4 }),
+        })
+      );
+    });
+
     it('uses index (overwrite) vs create (no overwrite) based on the option flag', async () => {
       const { deps, client } = makeDeps();
       client.search.mockResolvedValue({ hits: { hits: [] } });
@@ -834,17 +932,16 @@ describe('WorkflowCrudService', () => {
       const { deps, client } = makeDeps();
       (deps as any).getTaskScheduler = () => taskScheduler;
 
-      client.bulk.mockResolvedValue({ items: [{ index: { _id: 'wf-1', status: 200 } }] });
-      // Pre-bulk read for overwrite version bump, then post-write re-read for scheduler sync.
+      client.index.mockResolvedValue({ result: 'updated', _seq_no: 8, _primary_term: 1 });
       client.search
         .mockResolvedValueOnce({
           hits: {
-            hits: [
-              {
-                _id: 'wf-1',
-                _source: makeSource({ version: 4 }),
-              },
-            ],
+            hits: [occSearchHit('wf-1', { version: 4 })],
+          },
+        })
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-1', { version: 4 })],
           },
         })
         .mockResolvedValueOnce({
@@ -884,16 +981,16 @@ describe('WorkflowCrudService', () => {
       const { deps, client } = makeDeps();
       (deps as any).getTaskScheduler = () => taskScheduler;
 
-      client.bulk.mockResolvedValue({ items: [{ index: { _id: 'wf-1', status: 200 } }] });
+      client.index.mockResolvedValue({ result: 'updated', _seq_no: 8, _primary_term: 1 });
       client.search
         .mockResolvedValueOnce({
           hits: {
-            hits: [
-              {
-                _id: 'wf-1',
-                _source: makeSource({ version: 2 }),
-              },
-            ],
+            hits: [occSearchHit('wf-1', { version: 2 })],
+          },
+        })
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-1', { version: 2 })],
           },
         })
         .mockResolvedValueOnce({
@@ -938,16 +1035,16 @@ describe('WorkflowCrudService', () => {
       const { deps, client } = makeDeps();
       (deps as any).getTaskScheduler = () => taskScheduler;
 
-      client.bulk.mockResolvedValue({ items: [{ index: { _id: 'wf-1', status: 200 } }] });
+      client.index.mockResolvedValue({ result: 'updated', _seq_no: 8, _primary_term: 1 });
       client.search
         .mockResolvedValueOnce({
           hits: {
-            hits: [
-              {
-                _id: 'wf-1',
-                _source: makeSource({ version: 1 }),
-              },
-            ],
+            hits: [occSearchHit('wf-1', { version: 1 })],
+          },
+        })
+        .mockResolvedValueOnce({
+          hits: {
+            hits: [occSearchHit('wf-1', { version: 1 })],
           },
         })
         .mockResolvedValueOnce({

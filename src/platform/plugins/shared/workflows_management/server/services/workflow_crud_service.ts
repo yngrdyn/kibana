@@ -48,6 +48,7 @@ import type {
   WorkflowRestoreMetadata,
 } from '../../common/lib/workflow_change_history/types';
 import { getWorkflowZodSchema } from '../../common/schema';
+import { fetchOccHitsByIds } from '../api/lib/bulk_occ_index';
 import { extractBulkItemError } from '../api/lib/bulk_response_helpers';
 import { deleteWorkflows } from '../api/lib/workflow_deletion';
 import { disableAllWorkflows } from '../api/lib/workflow_disable_all';
@@ -626,76 +627,70 @@ export class WorkflowCrudService {
     );
     failed.push(...failures);
 
-    // Walk the bulk response across up to TOCTOU_MAX_RETRIES + 1 attempts.
-    // Server-generated IDs that lose a concurrent `op_type: 'create'` race are
-    // re-resolved against the live index and retried so callers don't see spurious
-    // failures from races; user-supplied IDs are surfaced as conflicts because the
-    // caller picked the ID and rewriting it would violate their expectation.
-    let pending: BulkWorkflowEntry[] = resolvedWorkflows;
-    const seenIds = new Set<string>(resolvedWorkflows.map((vw) => vw.id));
-    const successfullyWritten: BulkWorkflowEntry[] = [];
+    const successfullyWritten: Array<BulkWorkflowEntry & { workflowData: WorkflowProperties }> = [];
 
-    for (let attempt = 0; attempt <= TOCTOU_MAX_RETRIES && pending.length > 0; attempt++) {
-      const entriesForBulk = overwrite
-        ? await Promise.all(
-            pending.map(async (entry) => {
-              const existing = await this.getWorkflowDocumentSource(entry.id, spaceId);
-              return {
-                ...entry,
-                workflowData: applyWorkflowVersion(entry.workflowData, existing ?? undefined),
-              };
-            })
-          )
-        : pending;
+    if (overwrite) {
+      const overwriteResult = await this.executeBulkOverwrite(resolvedWorkflows, spaceId);
+      created.push(...overwriteResult.created);
+      failed.push(...overwriteResult.failed);
+      successfullyWritten.push(...overwriteResult.successfullyWritten);
+    } else {
+      // Walk the bulk response across up to TOCTOU_MAX_RETRIES + 1 attempts.
+      // Server-generated IDs that lose a concurrent `op_type: 'create'` race are
+      // re-resolved against the live index and retried so callers don't see spurious
+      // failures from races; user-supplied IDs are surfaced as conflicts because the
+      // caller picked the ID and rewriting it would violate their expectation.
+      let pending: BulkWorkflowEntry[] = resolvedWorkflows;
+      const seenIds = new Set<string>(resolvedWorkflows.map((vw) => vw.id));
 
-      const bulkOperations = entriesForBulk.map((vw) =>
-        overwrite
-          ? { index: { _id: vw.id, document: vw.workflowData } }
-          : { create: { _id: vw.id, document: vw.workflowData } }
-      );
+      for (let attempt = 0; attempt <= TOCTOU_MAX_RETRIES && pending.length > 0; attempt++) {
+        const bulkOperations = pending.map((vw) => ({
+          create: { _id: vw.id, document: vw.workflowData },
+        }));
 
-      const bulkResponse = await this.deps.workflowStorage.getClient().bulk({
-        operations: bulkOperations,
-        refresh: 'wait_for',
-      });
+        const bulkResponse = await this.deps.workflowStorage.getClient().bulk({
+          operations: bulkOperations,
+          refresh: 'wait_for',
+        });
 
-      const toRetryBaseIds: string[] = [];
-      const toRetryEntries: BulkWorkflowEntry[] = [];
+        const toRetryBaseIds: string[] = [];
+        const toRetryEntries: BulkWorkflowEntry[] = [];
 
-      for (let itemIndex = 0; itemIndex < bulkResponse.items.length; itemIndex++) {
-        const item = bulkResponse.items[itemIndex];
-        const operation = item.index ?? item.create;
-        const entry = pending[itemIndex];
+        for (let itemIndex = 0; itemIndex < bulkResponse.items.length; itemIndex++) {
+          const item = bulkResponse.items[itemIndex];
+          const operation = item.create;
+          const entry = pending[itemIndex];
 
-        if (!operation?.error) {
-          created.push(transformStorageDocumentToWorkflowDto(entry.id, entry.workflowData));
-          successfullyWritten.push(entry);
-        } else {
-          const isVersionConflict = operation.status === OCC_CONFLICT_STATUS_CODE;
-          const canRetry = isVersionConflict && entry.idSource === 'server-generated';
-
-          if (canRetry && attempt < TOCTOU_MAX_RETRIES) {
-            toRetryBaseIds.push(entry.baseId);
-            toRetryEntries.push(entry);
+          if (!operation?.error) {
+            created.push(transformStorageDocumentToWorkflowDto(entry.id, entry.workflowData));
+            successfullyWritten.push(entry);
           } else {
-            failed.push({
-              index: entry.idx,
-              id: entry.id,
-              error: extractBulkItemError(operation.error),
-            });
+            const isVersionConflict = operation.status === OCC_CONFLICT_STATUS_CODE;
+            const canRetry = isVersionConflict && entry.idSource === 'server-generated';
+
+            if (canRetry && attempt < TOCTOU_MAX_RETRIES) {
+              toRetryBaseIds.push(entry.baseId);
+              toRetryEntries.push(entry);
+            } else {
+              failed.push({
+                index: entry.idx,
+                id: entry.id,
+                error: extractBulkItemError(operation.error),
+              });
+            }
           }
         }
-      }
 
-      if (toRetryEntries.length === 0) {
-        pending = [];
-        break;
-      }
+        if (toRetryEntries.length === 0) {
+          pending = [];
+          break;
+        }
 
-      const reResolved = await resolveUniqueWorkflowIds(toRetryBaseIds, seenIds, (candidateIds) =>
-        this.checkExistingIds(candidateIds)
-      );
-      pending = toRetryEntries.map((entry, i) => ({ ...entry, id: reResolved[i] }));
+        const reResolved = await resolveUniqueWorkflowIds(toRetryBaseIds, seenIds, (candidateIds) =>
+          this.checkExistingIds(candidateIds)
+        );
+        pending = toRetryEntries.map((entry, i) => ({ ...entry, id: reResolved[i] }));
+      }
     }
 
     const taskScheduler = this.deps.getTaskScheduler();
@@ -1057,6 +1052,87 @@ export class WorkflowCrudService {
       logger: this.deps.logger,
     });
   }
+  private async executeBulkOverwrite(
+    entries: BulkWorkflowEntry[],
+    spaceId: string
+  ): Promise<{
+    created: WorkflowDetailDto[];
+    failed: BulkFailureEntry[];
+    successfullyWritten: Array<BulkWorkflowEntry & { workflowData: WorkflowProperties }>;
+  }> {
+    const created: WorkflowDetailDto[] = [];
+    const failed: BulkFailureEntry[] = [];
+    const successfullyWritten: Array<BulkWorkflowEntry & { workflowData: WorkflowProperties }> = [];
+
+    if (entries.length === 0) {
+      return { created, failed, successfullyWritten };
+    }
+
+    const client = this.deps.workflowStorage.getClient();
+    const { refreshed: occHits } = await fetchOccHitsByIds(
+      client,
+      entries.map((entry) => entry.id)
+    );
+    const occHitById = new Map(occHits.map((hit) => [hit._id, hit]));
+
+    const newEntries = entries.filter((entry) => !occHitById.has(entry.id));
+    const updateEntries = entries.filter((entry) => occHitById.has(entry.id));
+
+    if (newEntries.length > 0) {
+      const operations = newEntries.map((entry) => ({
+        index: {
+          _id: entry.id,
+          document: applyWorkflowVersion(entry.workflowData, undefined),
+        },
+      }));
+      const bulkResponse = await client.bulk({
+        operations,
+      });
+
+      for (let itemIndex = 0; itemIndex < bulkResponse.items.length; itemIndex++) {
+        const operation = bulkResponse.items[itemIndex].index;
+        const entry = newEntries[itemIndex];
+        const document = operations[itemIndex].index.document;
+
+        if (!operation?.error) {
+          created.push(transformStorageDocumentToWorkflowDto(entry.id, document));
+          successfullyWritten.push({ ...entry, workflowData: document });
+        } else {
+          failed.push({
+            index: entry.idx,
+            id: entry.id,
+            error: extractBulkItemError(operation.error),
+          });
+        }
+      }
+    }
+
+    if (updateEntries.length > 0) {
+      for (const entry of updateEntries) {
+        const prepared = entry.workflowData;
+        try {
+          const document = await this.readModifyWriteWorkflowDocument(entry.id, spaceId, {
+            mutate: (existing) => ({
+              ...prepared,
+              created_at: existing.created_at,
+              createdBy: existing.createdBy,
+            }),
+          });
+          created.push(transformStorageDocumentToWorkflowDto(entry.id, document));
+          successfullyWritten.push({ ...entry, workflowData: document });
+        } catch (error) {
+          failed.push({
+            index: entry.idx,
+            id: entry.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+
+    return { created, failed, successfullyWritten };
+  }
+
   private async resolveAndDeduplicateBulkIds(
     validWorkflows: readonly BulkWorkflowEntry[],
     overwrite: boolean
