@@ -211,7 +211,11 @@ const waitForValidationSettled = async (assertion: () => void): Promise<void> =>
 describe('getPreviewSchemasFingerprint', () => {
   it('fingerprints schema registration by uri only', () => {
     const schemas = [
-      { fileMatch: ['*'], uri: 'file:///workflow-schema.json', schema: { type: 'object' as const } },
+      {
+        fileMatch: ['*'],
+        uri: 'file:///workflow-schema.json',
+        schema: { type: 'object' as const },
+      },
     ];
     const sameUriDifferentBody = [
       {
@@ -222,9 +226,7 @@ describe('getPreviewSchemasFingerprint', () => {
     ];
 
     expect(getPreviewSchemasFingerprint(schemas)).toBe('file:///workflow-schema.json');
-    expect(getPreviewSchemasFingerprint(sameUriDifferentBody)).toBe(
-      'file:///workflow-schema.json'
-    );
+    expect(getPreviewSchemasFingerprint(sameUriDifferentBody)).toBe('file:///workflow-schema.json');
     expect(getPreviewSchemasFingerprint(schemas)).toBe(
       getPreviewSchemasFingerprint(sameUriDifferentBody)
     );
