@@ -20,40 +20,12 @@ jest.mock('@kbn/workflows-ui', () => ({
   WORKFLOWS_MONACO_EDITOR_THEME: 'workflows-theme',
 }));
 
-jest.mock('./apply_workflow_yaml_validation_to_editor', () => ({
-  applyWorkflowYamlValidationToEditor: jest.fn(() =>
-    Promise.resolve({ validationResults: [], yamlDocument: null })
-  ),
-  applyValidationHighlightsToEditor: jest.fn(),
-}));
-
 jest.mock('./use_workflow_change_history_preview_validation', () => ({
   useWorkflowChangeHistoryPreviewValidation: jest.fn(() => ({
     validationResults: [],
     isValidationLoading: false,
     handleValidationErrorClick: jest.fn(),
   })),
-}));
-
-jest.mock('../validate_workflow_yaml/model/use_workflow_json_schema', () => ({
-  useWorkflowJsonSchema: jest.fn(() => ({
-    jsonSchema: { type: 'object' },
-    uri: 'file:///workflow-schema.json',
-  })),
-}));
-
-jest.mock('../../entities/connectors/model/use_available_connectors', () => ({
-  useAvailableConnectors: jest.fn(() => ({ connectorTypes: {} })),
-}));
-
-jest.mock('../../shared/ui/yaml_editor/yaml_language_service', () => ({
-  yamlLanguageService: {
-    update: jest.fn(() => Promise.resolve()),
-  },
-}));
-
-jest.mock('./collect_yaml_schema_validation_results', () => ({
-  collectYamlSchemaValidationResults: jest.fn(() => []),
 }));
 
 jest.mock('../../widgets/workflow_yaml_editor/ui/workflow_yaml_validation_accordion', () => ({

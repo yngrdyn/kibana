@@ -101,43 +101,13 @@ jest.mock('./use_workflow_change_history', () => ({
   useWorkflowChangeHistoryEnabled: jest.fn(),
 }));
 
-jest.mock('./apply_workflow_yaml_validation_to_editor', () => ({
-  applyWorkflowYamlValidationToEditor: jest.fn(() =>
-    Promise.resolve({ validationResults: [], yamlDocument: null })
-  ),
-  applyValidationHighlightsToEditor: jest.fn(),
-}));
-
-jest.mock('../validate_workflow_yaml/lib/use_workflow_yaml_validation_context', () => ({
-  useWorkflowYamlValidationContextRef: jest.fn(() => ({
-    current: {
-      connectorTypes: {},
-      connectorsManagementUrl: 'http://test/connectors',
-      workflows: { workflows: {}, totalWorkflows: 0 },
-      getPropertyHandler: () => undefined,
-      esqlCallbacks: {},
-    },
+jest.mock('./use_workflow_change_history_preview_validation', () => ({
+  useWorkflowChangeHistoryPreviewValidation: jest.fn(() => ({
+    validationResults: [],
+    isValidationLoading: false,
+    handleValidationErrorClick: jest.fn(),
   })),
 }));
-
-jest.mock('../validate_workflow_yaml/model/use_workflow_json_schema', () => ({
-  useWorkflowJsonSchema: jest.fn(() => ({
-    jsonSchema: { type: 'object' },
-    uri: 'file:///workflow-schema.json',
-  })),
-}));
-
-jest.mock('../../entities/connectors/model/use_available_connectors', () => ({
-  useAvailableConnectors: jest.fn(() => ({ connectorTypes: {} })),
-}));
-
-jest.mock('./wait_for_yaml_schema_markers_after_update', () => ({
-  waitForPreviewYamlSchemaMarkers: jest.fn(async () => undefined),
-}));
-
-const { applyWorkflowYamlValidationToEditor } = jest.requireMock(
-  './apply_workflow_yaml_validation_to_editor'
-);
 
 jest.mock('@kbn/code-editor', () => ({
   monaco: {
@@ -358,9 +328,6 @@ describe('WorkflowChangeHistoryListItem', () => {
     });
 
     expect(screen.getByTestId('workflowChangeHistoryMonacoPreview')).toBeInTheDocument();
-    await waitFor(() => {
-      expect(applyWorkflowYamlValidationToEditor).toHaveBeenCalled();
-    });
     expect(services.http.get).toHaveBeenCalledWith(
       expect.stringContaining('/internal/workflows/workflow/workflow-1/history'),
       expect.objectContaining({
