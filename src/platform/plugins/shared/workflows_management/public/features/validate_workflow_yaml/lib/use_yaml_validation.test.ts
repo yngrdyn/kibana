@@ -18,6 +18,20 @@ jest.mock('../../../widgets/workflow_yaml_editor/lib/esql_validation/validate_es
   validateEsqlSteps: (...args: unknown[]) => mockValidateEsqlSteps(...args),
 }));
 
+jest.mock('./use_workflow_yaml_validation_context', () => {
+  const mockValidationContext = {
+    connectorTypes: {},
+    connectorsManagementUrl: 'http://test/connectors',
+    workflows: { workflows: {}, totalWorkflows: 0 },
+    getPropertyHandler: () => undefined,
+    esqlCallbacks: {},
+  };
+
+  return {
+    useWorkflowYamlValidationContext: jest.fn(() => mockValidationContext),
+  };
+});
+
 jest.mock(
   '../../../widgets/workflow_yaml_editor/lib/esql_validation/use_workflow_esql_callbacks',
   () => ({

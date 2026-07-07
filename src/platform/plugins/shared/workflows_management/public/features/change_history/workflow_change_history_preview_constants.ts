@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-/** Debounce for yaml re-validation and monaco-yaml marker merge republish in history preview. */
+/** Debounce after monaco-yaml schema update before treating marker changes as settled. */
 export const WORKFLOW_CHANGE_HISTORY_VALIDATION_DEBOUNCE_MS = 150;
 
 /**

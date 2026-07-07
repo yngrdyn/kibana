@@ -7,6 +7,15 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+/**
+ * Change-history preview validation orchestration.
+ *
+ * Uses the same pipeline as the main workflow YAML editor:
+ * `collectFullWorkflowYamlValidationResults` (via `applyWorkflowYamlValidationToEditor`)
+ * plus Monaco YAML schema markers, merged with `mergeWorkflowYamlValidationResults`.
+ *
+ */
+
 import type { SchemasSettings } from 'monaco-yaml';
 import type { MutableRefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -20,6 +29,11 @@ import {
   collectYamlSchemaValidationResults,
   mergeWorkflowYamlValidationResults,
 } from './collect_yaml_schema_validation_results';
+import {
+  getPreviewSchemasFingerprint,
+  getYamlOwnerMarkersFingerprint,
+  modelHasYamlOwnerMarkers,
+} from './preview_yaml_validation_utils';
 import { waitForPreviewYamlSchemaMarkers } from './wait_for_yaml_schema_markers_after_update';
 import { WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS } from './workflow_change_history_preview_constants';
 import type { WorkflowChangeHistoryCompareMode } from './workflow_change_history_preview_settings_popover';
@@ -28,8 +42,11 @@ import { useAvailableConnectors } from '../../entities/connectors/model/use_avai
 import { triggerSchemas } from '../../trigger_schemas';
 import { navigateToErrorPosition } from '../../widgets/workflow_yaml_editor/lib/utils';
 import { getWorkflowValidationDisplayOptions } from '../../widgets/workflow_yaml_editor/lib/workflow_monaco_layout_options';
-import type { YamlValidationResult } from '../validate_workflow_yaml/model/types';
-import { validationResultFingerprint } from '../validate_workflow_yaml/model/types';
+import { useWorkflowYamlValidationContextRef } from '../validate_workflow_yaml/lib/use_workflow_yaml_validation_context';
+import {
+  validationResultsFingerprint,
+  type YamlValidationResult,
+} from '../validate_workflow_yaml/model/types';
 import { useWorkflowJsonSchema } from '../validate_workflow_yaml/model/use_workflow_json_schema';
 
 export interface UseWorkflowChangeHistoryPreviewValidationParams {
@@ -54,38 +71,6 @@ export interface UseWorkflowChangeHistoryPreviewValidationResult {
   handleValidationErrorClick: (error: YamlValidationResult) => void;
 }
 
-const validationResultsFingerprint = (results: YamlValidationResult[]): string =>
-  results.map(validationResultFingerprint).sort().join('\n');
-
-const getYamlOwnerMarkersFingerprint = (model: monaco.editor.ITextModel): string => {
-  const modelUri = model.uri.toString();
-  let markers = monaco.editor.getModelMarkers({ resource: model.uri, owner: 'yaml' });
-
-  if (markers.length === 0) {
-    markers = monaco.editor
-      .getModelMarkers({ owner: 'yaml' })
-      .filter((marker) => marker.resource.toString() === modelUri);
-  }
-
-  return markers
-    .map(
-      (marker) =>
-        `${marker.startLineNumber}:${marker.startColumn}:${marker.endLineNumber}:${marker.endColumn}:${marker.severity}:${marker.message}`
-    )
-    .sort()
-    .join('\n');
-};
-
-const modelHasYamlOwnerMarkers = (model: monaco.editor.ITextModel): boolean =>
-  getYamlOwnerMarkersFingerprint(model).length > 0;
-
-export const getPreviewSchemasFingerprint = (schemas: SchemasSettings[]): string =>
-  schemas
-    .map((schema) => schema.uri)
-    .filter((uri): uri is string => Boolean(uri))
-    .sort()
-    .join('\n');
-
 export const useWorkflowChangeHistoryPreviewValidation = ({
   getActiveEditor,
   validationDecorationsRef,
@@ -97,11 +82,11 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   compareModeRef,
   configureDiffEditors,
 }: UseWorkflowChangeHistoryPreviewValidationParams): UseWorkflowChangeHistoryPreviewValidationResult => {
-  const [customValidationResults, setCustomValidationResults] = useState<YamlValidationResult[]>(
-    []
-  );
-  const [yamlSchemaResults, setYamlSchemaResults] = useState<YamlValidationResult[]>([]);
+  const [publishedValidationResults, setPublishedValidationResults] = useState<
+    YamlValidationResult[]
+  >([]);
   const [isValidationLoading, setIsValidationLoading] = useState(false);
+  const isValidationLoadingRef = useRef(false);
   const [hasInitialValidationPass, setHasInitialValidationPass] = useState(false);
   const hasInitialValidationPassRef = useRef(false);
   const customValidationResultsRef = useRef<YamlValidationResult[]>([]);
@@ -115,6 +100,8 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   const wasHighlightEnabledRef = useRef(false);
   const highlightValidationErrorsRef = useRef(highlightValidationErrors);
   highlightValidationErrorsRef.current = highlightValidationErrors;
+  const validationYamlRef = useRef(validationYaml);
+  validationYamlRef.current = validationYaml;
   const completedInitialPassWithoutYamlSchemaRef = useRef(false);
   const previousValidationYamlRef = useRef(validationYaml);
   const registeredPreviewSchemasFingerprintRef = useRef('');
@@ -123,6 +110,7 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     loose: false,
   });
   const connectorsData = useAvailableConnectors();
+  const validationContextRef = useWorkflowYamlValidationContextRef();
   const workflowZodSchema = useMemo(
     () =>
       getWorkflowZodSchema(connectorsData?.connectorTypes ?? {}, triggerSchemas.getRegisteredIds()),
@@ -148,10 +136,26 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   const monacoYamlSchemasRef = useRef(monacoYamlSchemas);
   monacoYamlSchemasRef.current = monacoYamlSchemas;
 
-  const validationResults = useMemo(
-    () => mergeWorkflowYamlValidationResults(customValidationResults, yamlSchemaResults),
-    [customValidationResults, yamlSchemaResults]
-  );
+  const publishFooterValidationResults = useCallback(() => {
+    setPublishedValidationResults(
+      mergeWorkflowYamlValidationResults(
+        customValidationResultsRef.current,
+        yamlSchemaResultsRef.current
+      )
+    );
+  }, []);
+
+  const beginValidationRun = useCallback(() => {
+    isValidationLoadingRef.current = true;
+    setIsValidationLoading(true);
+    setPublishedValidationResults([]);
+  }, []);
+
+  const completeValidationRun = useCallback(() => {
+    isValidationLoadingRef.current = false;
+    setIsValidationLoading(false);
+    publishFooterValidationResults();
+  }, [publishFooterValidationResults]);
 
   const syncValidationDisplay = useCallback(
     (highlight: boolean) => {
@@ -180,9 +184,11 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       editor,
       validationYaml,
       false,
-      validationDecorationsRef
+      validationDecorationsRef,
+      undefined,
+      { validationContext: validationContextRef.current }
     );
-  }, [getActiveEditor, validationDecorationsRef, validationYaml]);
+  }, [getActiveEditor, validationContextRef, validationDecorationsRef, validationYaml]);
 
   const completeInitialValidationPass = useCallback(() => {
     hasInitialValidationPassRef.current = true;
@@ -201,23 +207,8 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     customValidationResultsRef.current = [];
     yamlSchemaResultsRef.current = [];
     computedYamlDocumentRef.current = null;
-    setCustomValidationResults([]);
-    setYamlSchemaResults([]);
+    setPublishedValidationResults([]);
   }, []);
-
-  const syncYamlFooterFromEditor = useCallback(
-    (editor?: monaco.editor.IStandaloneCodeEditor | null) => {
-      const activeEditor = editor ?? getActiveEditor();
-      const model = activeEditor?.getModel();
-      if (!model) {
-        return;
-      }
-
-      lastYamlMarkersFingerprintRef.current = getYamlOwnerMarkersFingerprint(model);
-      publishYamlSchemaResultsFromModelRef.current(model, activeEditor);
-    },
-    [getActiveEditor]
-  );
 
   const applyMergedHighlightsIfNeeded = useCallback(
     (editor: monaco.editor.IStandaloneCodeEditor) => {
@@ -249,6 +240,17 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     [validationDecorationsRef]
   );
 
+  const collectYamlSchemaResultsFromModel = useCallback(
+    (model: monaco.editor.ITextModel): YamlValidationResult[] => {
+      return collectYamlSchemaValidationResults(
+        model,
+        computedYamlDocumentRef.current,
+        workflowZodSchemaRef.current
+      );
+    },
+    []
+  );
+
   const publishYamlSchemaResultsFromModel = useCallback(
     (model: monaco.editor.ITextModel, editor?: monaco.editor.IStandaloneCodeEditor | null) => {
       if (isApplyingHighlightsRef.current) {
@@ -256,29 +258,33 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       }
 
       try {
-        const nextYamlSchemaResults = collectYamlSchemaValidationResults(
-          model,
-          computedYamlDocumentRef.current,
-          workflowZodSchemaRef.current
-        );
+        const nextYamlSchemaResults = collectYamlSchemaResultsFromModel(model);
         const nextFingerprint = validationResultsFingerprint(nextYamlSchemaResults);
 
         if (nextFingerprint !== lastPublishedYamlFingerprintRef.current) {
           lastPublishedYamlFingerprintRef.current = nextFingerprint;
           lastYamlMarkersFingerprintRef.current = getYamlOwnerMarkersFingerprint(model);
           yamlSchemaResultsRef.current = nextYamlSchemaResults;
-          setYamlSchemaResults(nextYamlSchemaResults);
         }
 
         const activeEditor = editor ?? getActiveEditor();
         if (activeEditor) {
           applyMergedHighlightsIfNeeded(activeEditor);
         }
+
+        if (!isValidationLoadingRef.current) {
+          publishFooterValidationResults();
+        }
       } catch {
         // Best-effort marker collection for partial YAML in the diff preview.
       }
     },
-    [applyMergedHighlightsIfNeeded, getActiveEditor]
+    [
+      applyMergedHighlightsIfNeeded,
+      collectYamlSchemaResultsFromModel,
+      getActiveEditor,
+      publishFooterValidationResults,
+    ]
   );
 
   const publishYamlSchemaResultsFromModelRef = useRef(publishYamlSchemaResultsFromModel);
@@ -294,7 +300,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       }
 
       completeInitialValidationPass();
-      setIsValidationLoading(false);
     },
     [completeInitialValidationPass]
   );
@@ -332,71 +337,8 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     return true;
   };
 
-  const runCustomValidationRef = useRef<() => Promise<void>>(async () => undefined);
   const runValidationRef = useRef<() => Promise<void>>(async () => undefined);
   const validationSequenceRef = useRef(0);
-
-  runCustomValidationRef.current = async () => {
-    if (!isEditorMounted || !highlightValidationErrors) {
-      return;
-    }
-
-    const sequence = ++validationSequenceRef.current;
-    const abortController = new AbortController();
-    validationAbortControllerRef.current = abortController;
-
-    const editor = getActiveEditor();
-    if (!editor || abortController.signal.aborted) {
-      return;
-    }
-
-    const yamlToValidate = editor.getModel()?.getValue() ?? validationYaml;
-
-    try {
-      const { validationResults: nextValidationResults, yamlDocument } =
-        await applyWorkflowYamlValidationToEditor(
-          editor,
-          yamlToValidate,
-          true,
-          validationDecorationsRef,
-          abortController.signal,
-          { skipApplyingHighlights: true }
-        );
-
-      if (abortController.signal.aborted || sequence !== validationSequenceRef.current) {
-        return;
-      }
-
-      computedYamlDocumentRef.current = yamlDocument;
-      customValidationResultsRef.current = nextValidationResults;
-      setCustomValidationResults(nextValidationResults);
-
-      const activeModel = editor.getModel();
-      if (activeModel) {
-        publishYamlSchemaResultsFromModelRef.current(activeModel, editor);
-      } else {
-        applyMergedHighlightsIfNeeded(editor);
-      }
-    } catch (validationError) {
-      if (
-        abortController.signal.aborted ||
-        sequence !== validationSequenceRef.current ||
-        (validationError instanceof DOMException && validationError.name === 'AbortError')
-      ) {
-        return;
-      }
-
-      customValidationResultsRef.current = [];
-      setCustomValidationResults([]);
-
-      const activeModel = editor.getModel();
-      if (activeModel) {
-        publishYamlSchemaResultsFromModelRef.current(activeModel, editor);
-      } else {
-        applyMergedHighlightsIfNeeded(editor);
-      }
-    }
-  };
 
   runValidationRef.current = async () => {
     if (!isEditorMounted || !highlightValidationErrors) {
@@ -407,63 +349,76 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     validationAbortControllerRef.current?.abort();
     const abortController = new AbortController();
     validationAbortControllerRef.current = abortController;
-    setIsValidationLoading(true);
+    beginValidationRun();
 
     const editor = getActiveEditor();
-    if (!editor) {
-      if (sequence === validationSequenceRef.current) {
-        finishInitialValidationPass();
-      }
+    const model = editor?.getModel();
+    if (!editor || !model) {
       return;
     }
 
-    if (abortController.signal.aborted) {
-      return;
-    }
-
+    const yamlToValidate = validationYamlRef.current;
     let didWaitForYamlSchema = false;
-    const model = editor.getModel();
-
-    if (model) {
-      publishYamlSchemaResultsFromModelRef.current(model, editor);
-    }
 
     try {
-      if (model) {
-        didWaitForYamlSchema = await waitForYamlSchemaMarkersOnModel(
-          model,
-          monacoYamlSchemasRef.current,
+      didWaitForYamlSchema = await waitForYamlSchemaMarkersOnModel(
+        model,
+        monacoYamlSchemasRef.current,
+        abortController.signal,
+        {
+          listenerOnly: registeredPreviewSchemasFingerprintRef.current.length > 0,
+        }
+      );
+
+      if (abortController.signal.aborted || sequence !== validationSequenceRef.current) {
+        return;
+      }
+
+      const { validationResults: nextValidationResults, yamlDocument } =
+        await applyWorkflowYamlValidationToEditor(
+          editor,
+          yamlToValidate,
+          true,
+          validationDecorationsRef,
           abortController.signal,
           {
-            listenerOnly: registeredPreviewSchemasFingerprintRef.current.length > 0,
+            skipApplyingHighlights: true,
+            validationContext: validationContextRef.current,
           }
         );
 
-        if (abortController.signal.aborted || sequence !== validationSequenceRef.current) {
-          return;
-        }
-
-        publishYamlSchemaResultsFromModelRef.current(model, editor);
+      if (abortController.signal.aborted || sequence !== validationSequenceRef.current) {
+        return;
       }
-    } catch (waitError) {
+
+      computedYamlDocumentRef.current = yamlDocument;
+      customValidationResultsRef.current = nextValidationResults;
+
+      const nextYamlSchemaResults = collectYamlSchemaResultsFromModel(model);
+      lastPublishedYamlFingerprintRef.current = validationResultsFingerprint(nextYamlSchemaResults);
+      lastYamlMarkersFingerprintRef.current = getYamlOwnerMarkersFingerprint(model);
+      yamlSchemaResultsRef.current = nextYamlSchemaResults;
+
+      applyMergedHighlightsIfNeeded(editor);
+      finishInitialValidationPass({ didWaitForYamlSchema });
+      completeValidationRun();
+    } catch (validationError) {
       if (
         abortController.signal.aborted ||
         sequence !== validationSequenceRef.current ||
-        (waitError instanceof DOMException && waitError.name === 'AbortError')
+        (validationError instanceof DOMException && validationError.name === 'AbortError')
       ) {
         return;
       }
 
-      throw waitError;
+      customValidationResultsRef.current = [];
+
+      const nextYamlSchemaResults = collectYamlSchemaResultsFromModel(model);
+      yamlSchemaResultsRef.current = nextYamlSchemaResults;
+      applyMergedHighlightsIfNeeded(editor);
+      finishInitialValidationPass({ didWaitForYamlSchema });
+      completeValidationRun();
     }
-
-    if (abortController.signal.aborted || sequence !== validationSequenceRef.current) {
-      return;
-    }
-
-    finishInitialValidationPass({ didWaitForYamlSchema });
-
-    void runCustomValidationRef.current();
   };
 
   useEffect(
@@ -490,7 +445,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     }
 
     lastYamlMarkersFingerprintRef.current = getYamlOwnerMarkersFingerprint(model);
-    publishYamlSchemaResultsFromModelRef.current(model, editor);
 
     const disposable = monaco.editor.onDidChangeMarkers((changedUris) => {
       if (isApplyingHighlightsRef.current) {
@@ -520,7 +474,9 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       completedInitialPassWithoutYamlSchemaRef.current = false;
       resetValidationResultsState();
       validationAbortControllerRef.current?.abort();
+      isValidationLoadingRef.current = false;
       setIsValidationLoading(false);
+      setPublishedValidationResults([]);
       syncValidationDisplay(false);
       clearEditorValidation();
       return;
@@ -538,38 +494,26 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     }
 
     if (!isEditorMounted) {
-      if (!highlightValidationErrors) {
-        return;
-      }
       if (validationYamlChanged) {
-        setIsValidationLoading(true);
+        beginValidationRun();
       }
       return;
     }
 
     syncValidationDisplay(true);
 
-    if (validationYamlChanged && !justEnabled) {
-      syncYamlFooterFromEditor();
-      finishInitialValidationPass({ didWaitForYamlSchema: false });
-      void runCustomValidationRef.current();
-      return;
-    }
-
     if (justEnabled || !hasInitialValidationPassRef.current) {
-      setIsValidationLoading(true);
       void runValidationRef.current();
     }
   }, [
+    beginValidationRun,
     clearEditorValidation,
-    finishInitialValidationPass,
     getActiveEditor,
     highlightValidationErrors,
     isEditorMounted,
     resetInitialValidationPass,
     resetValidationResultsState,
     syncValidationDisplay,
-    syncYamlFooterFromEditor,
     validationYaml,
   ]);
 
@@ -602,10 +546,9 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   );
 
   return {
-    validationResults,
+    validationResults: publishedValidationResults,
     isValidationLoading:
-      (isValidationLoading || (highlightValidationErrors && !hasInitialValidationPass)) &&
-      validationResults.length === 0,
+      highlightValidationErrors && (isValidationLoading || !hasInitialValidationPass),
     handleValidationErrorClick,
   };
 };

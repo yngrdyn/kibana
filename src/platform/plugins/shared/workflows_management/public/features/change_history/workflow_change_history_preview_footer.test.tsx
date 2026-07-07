@@ -70,14 +70,14 @@ describe('WorkflowChangeHistoryPreviewFooter', () => {
     expect(screen.getByText('Initializing validation...')).toBeInTheDocument();
   });
 
-  it('shows validation results while a background re-validation is in progress', () => {
+  it('hides validation results while validation is still in progress', () => {
     renderFooter({
       isValidationLoading: true,
       validationResults: [sampleError],
     });
 
-    expect(screen.getByText('1 error(s)')).toBeInTheDocument();
-    expect(screen.queryByText('Initializing validation...')).not.toBeInTheDocument();
+    expect(screen.getByText('Initializing validation...')).toBeInTheDocument();
+    expect(screen.queryByText('1 error(s)')).not.toBeInTheDocument();
   });
 
   it('shows validation results after loading completes', () => {
@@ -99,5 +99,14 @@ describe('WorkflowChangeHistoryPreviewFooter', () => {
 
     expect(screen.queryByTestId('workflowYamlEditorValidationErrorsList')).not.toBeInTheDocument();
     expect(screen.getByTestId('workflowChangeHistoryPreviewFooter')).toBeInTheDocument();
+  });
+
+  it('wraps the validation accordion to reserve space for the settings button', () => {
+    renderFooter({ highlightValidationErrors: true });
+
+    expect(
+      screen.getByTestId('workflowChangeHistoryPreviewValidationAccordion')
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('workflowYamlEditorValidationErrorsList')).toBeInTheDocument();
   });
 });

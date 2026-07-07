@@ -36,6 +36,18 @@ jest.mock('../validate_workflow_yaml/model/use_workflow_json_schema', () => ({
   })),
 }));
 
+jest.mock('../validate_workflow_yaml/lib/use_workflow_yaml_validation_context', () => ({
+  useWorkflowYamlValidationContextRef: jest.fn(() => ({
+    current: {
+      connectorTypes: {},
+      connectorsManagementUrl: 'http://test/connectors',
+      workflows: { workflows: {}, totalWorkflows: 0 },
+      getPropertyHandler: () => undefined,
+      esqlCallbacks: {},
+    },
+  })),
+}));
+
 jest.mock('../../entities/connectors/model/use_available_connectors', () => ({
   useAvailableConnectors: jest.fn(() => ({ connectorTypes: {} })),
 }));

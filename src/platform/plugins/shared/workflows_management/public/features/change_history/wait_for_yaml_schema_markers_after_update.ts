@@ -26,7 +26,7 @@ export interface WaitForPreviewYamlSchemaMarkersOptions {
  * Waits for a post-update marker change on the model (debounced), or until
  * {@link maxWaitMs} elapses.
  */
-export const waitForYamlSchemaMarkersSettle = (
+const waitForYamlSchemaMarkersSettle = (
   model: monaco.editor.ITextModel,
   signal: AbortSignal,
   maxWaitMs: number = WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_MAX_WAIT_MS

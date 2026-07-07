@@ -17,10 +17,15 @@ const SEVERITY_MAP = {
   info: MarkerSeverity.Info,
 };
 
+export interface CreateMarkersAndDecorationsOptions {
+  omitMarginDecorations?: boolean;
+  omitMarkersForOwners?: readonly string[];
+}
+
 // eslint-disable-next-line complexity
 export function createMarkersAndDecorations(
   validationResults: YamlValidationResult[],
-  options?: { omitMarginDecorations?: boolean; omitMarkersForOwners?: readonly string[] }
+  options?: CreateMarkersAndDecorationsOptions
 ): {
   markers: monaco.editor.IMarkerData[];
   decorations: monaco.editor.IModelDeltaDecoration[];
