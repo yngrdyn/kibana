@@ -244,4 +244,35 @@ describe('collectFullWorkflowYamlValidationResults', () => {
 
     model.dispose();
   });
+
+  it('returns no esql results when validation throws a non-abort error', async () => {
+    mockValidateEsqlSteps.mockRejectedValueOnce(new Error('ES|QL region mapping failed'));
+
+    const model = monaco.editor.createModel(yaml, 'yaml');
+
+    const results = await collectFullWorkflowYamlValidationResults({
+      yamlString: yaml,
+      model,
+      yamlDocument: computed.yamlDocument!,
+      lineCounter: computed.yamlLineCounter!,
+      workflowLookup: computed.workflowLookup,
+      workflowGraph: computed.workflowGraph,
+      workflowDefinition: computed.workflowDefinition ?? undefined,
+      graphBuildError: computed.graphBuildError,
+      context: {
+        connectorTypes: {},
+        connectorsManagementUrl: 'http://test/connectors',
+        workflows: { workflows: {}, totalWorkflows: 0 },
+        getPropertyHandler: () => null,
+        esqlCallbacks: {},
+      },
+    });
+
+    expect(results.some((result) => result.owner === 'esql-validation')).toBe(false);
+    expect(results).toEqual(
+      expect.arrayContaining([structuralResult, connectorResult, graphResult, workflowInputResult])
+    );
+
+    model.dispose();
+  });
 });

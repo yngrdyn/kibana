@@ -549,4 +549,39 @@ steps:
       { timeout: 3000 }
     );
   });
+
+  it('completes validation when validateEsqlSteps throws a non-abort error', async () => {
+    mockValidateEsqlSteps.mockRejectedValueOnce(new Error('ES|QL region mapping failed'));
+
+    const yamlContent = `
+version: "1"
+name: "ES|QL Workflow"
+enabled: true
+triggers:
+  - type: manual
+    enabled: true
+steps:
+  - name: esql_step
+    type: elasticsearch.esql.query
+    with:
+      query: |
+        FROM logs-* | LIMIT 10
+`;
+    const mockEditor = createMockEditor(yamlContent);
+    const { result } = renderHookWithProviders(mockEditor as any, yamlContent);
+
+    await waitFor(
+      () => {
+        expect(result.current.isLoading).toBe(false);
+      },
+      { timeout: 3000 }
+    );
+
+    expect(result.current.error).toBeNull();
+    expect(
+      result.current.validationResults.some(
+        (validationResult) => validationResult.owner === 'esql-validation'
+      )
+    ).toBe(false);
+  });
 });

@@ -127,6 +127,8 @@ async function collectEsqlValidationResults(
       return [];
     }
 
-    throw error;
+    // Degrade to no ES|QL markers on unexpected failures so structural/custom validators
+    // still publish. Matches pre-SSOT `validateEsqlSteps(...).catch(() => [])` in the editor.
+    return [];
   }
 }

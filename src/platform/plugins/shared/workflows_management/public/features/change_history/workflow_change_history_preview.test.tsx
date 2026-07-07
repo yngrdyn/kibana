@@ -27,6 +27,14 @@ jest.mock('./apply_workflow_yaml_validation_to_editor', () => ({
   applyValidationHighlightsToEditor: jest.fn(),
 }));
 
+jest.mock('./use_workflow_change_history_preview_validation', () => ({
+  useWorkflowChangeHistoryPreviewValidation: jest.fn(() => ({
+    validationResults: [],
+    isValidationLoading: false,
+    handleValidationErrorClick: jest.fn(),
+  })),
+}));
+
 jest.mock('../validate_workflow_yaml/model/use_workflow_json_schema', () => ({
   useWorkflowJsonSchema: jest.fn(() => ({
     jsonSchema: { type: 'object' },
@@ -46,10 +54,6 @@ jest.mock('../../shared/ui/yaml_editor/yaml_language_service', () => ({
 
 jest.mock('./collect_yaml_schema_validation_results', () => ({
   collectYamlSchemaValidationResults: jest.fn(() => []),
-  mergeWorkflowYamlValidationResults: jest.fn(
-    (customResults: import('../validate_workflow_yaml/model/types').YamlValidationResult[]) =>
-      customResults
-  ),
 }));
 
 jest.mock('../../widgets/workflow_yaml_editor/ui/workflow_yaml_validation_accordion', () => ({

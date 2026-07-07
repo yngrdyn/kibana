@@ -190,7 +190,8 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
     );
   }, [getActiveEditor, validationContextRef, validationDecorationsRef, validationYaml]);
 
-  const completeInitialValidationPass = useCallback(() => {
+  const markInitialValidationPassComplete = useCallback((didWaitForYamlSchema: boolean) => {
+    completedInitialPassWithoutYamlSchemaRef.current = !didWaitForYamlSchema;
     hasInitialValidationPassRef.current = true;
     setHasInitialValidationPass(true);
   }, []);
@@ -252,7 +253,7 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   );
 
   const publishYamlSchemaResultsFromModel = useCallback(
-    (model: monaco.editor.ITextModel, editor?: monaco.editor.IStandaloneCodeEditor | null) => {
+    (model: monaco.editor.ITextModel) => {
       if (isApplyingHighlightsRef.current) {
         return;
       }
@@ -267,7 +268,7 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
           yamlSchemaResultsRef.current = nextYamlSchemaResults;
         }
 
-        const activeEditor = editor ?? getActiveEditor();
+        const activeEditor = getActiveEditor();
         if (activeEditor) {
           applyMergedHighlightsIfNeeded(activeEditor);
         }
@@ -289,20 +290,6 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
 
   const publishYamlSchemaResultsFromModelRef = useRef(publishYamlSchemaResultsFromModel);
   publishYamlSchemaResultsFromModelRef.current = publishYamlSchemaResultsFromModel;
-
-  const finishInitialValidationPass = useCallback(
-    (options?: { didWaitForYamlSchema?: boolean }) => {
-      if (options?.didWaitForYamlSchema !== undefined) {
-        completedInitialPassWithoutYamlSchemaRef.current = !options.didWaitForYamlSchema;
-      } else {
-        completedInitialPassWithoutYamlSchemaRef.current =
-          monacoYamlSchemasRef.current.length === 0;
-      }
-
-      completeInitialValidationPass();
-    },
-    [completeInitialValidationPass]
-  );
 
   const waitForYamlSchemaMarkersOnModel = async (
     model: monaco.editor.ITextModel,
@@ -400,7 +387,7 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       yamlSchemaResultsRef.current = nextYamlSchemaResults;
 
       applyMergedHighlightsIfNeeded(editor);
-      finishInitialValidationPass({ didWaitForYamlSchema });
+      markInitialValidationPassComplete(didWaitForYamlSchema);
       completeValidationRun();
     } catch (validationError) {
       if (
@@ -416,7 +403,7 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
       const nextYamlSchemaResults = collectYamlSchemaResultsFromModel(model);
       yamlSchemaResultsRef.current = nextYamlSchemaResults;
       applyMergedHighlightsIfNeeded(editor);
-      finishInitialValidationPass({ didWaitForYamlSchema });
+      markInitialValidationPassComplete(didWaitForYamlSchema);
       completeValidationRun();
     }
   };
