@@ -103,13 +103,13 @@ jest.mock('./use_workflow_change_history', () => ({
   useWorkflowChangeHistoryEnabled: jest.fn(),
 }));
 
-jest.mock('./apply_workflow_yaml_validation_to_editor', () => ({
-  applyWorkflowYamlValidationToEditor: jest.fn(() => Promise.resolve({ validationResults: [] })),
+jest.mock('./use_workflow_change_history_preview_validation', () => ({
+  useWorkflowChangeHistoryPreviewValidation: jest.fn(() => ({
+    validationResults: [],
+    isValidationLoading: false,
+    handleValidationErrorClick: jest.fn(),
+  })),
 }));
-
-const { applyWorkflowYamlValidationToEditor } = jest.requireMock(
-  './apply_workflow_yaml_validation_to_editor'
-);
 
 jest.mock('@kbn/code-editor', () => ({
   monaco: {
@@ -118,12 +118,15 @@ jest.mock('@kbn/code-editor', () => ({
       createModel: jest.fn(() => ({ dispose: jest.fn() })),
       create: jest.fn(() => ({
         dispose: jest.fn(),
+        layout: jest.fn(),
         getModel: jest.fn(() => ({ dispose: jest.fn() })),
+        updateOptions: jest.fn(),
         createDecorationsCollection: jest.fn(() => ({ clear: jest.fn() })),
       })),
       createDiffEditor: jest.fn(() => ({
         setModel: jest.fn(),
         dispose: jest.fn(),
+        layout: jest.fn(),
         updateOptions: jest.fn(),
         getLineChanges: jest.fn(() => [
           {
@@ -143,12 +146,13 @@ jest.mock('@kbn/code-editor', () => ({
         })),
       })),
       setModelMarkers: jest.fn(),
+      onDidChangeMarkers: jest.fn(() => ({ dispose: jest.fn() })),
     },
   },
 }));
 
 jest.mock('@kbn/workflows-ui', () => ({
-  useWorkflowsMonacoTheme: jest.fn(),
+  useDefineWorkflowsMonacoTheme: jest.fn(),
   WORKFLOWS_MONACO_EDITOR_THEME: 'workflows-theme',
 }));
 
@@ -326,9 +330,6 @@ describe('WorkflowChangeHistoryListItem', () => {
     });
 
     expect(screen.getByTestId('workflowChangeHistoryMonacoPreview')).toBeInTheDocument();
-    await waitFor(() => {
-      expect(applyWorkflowYamlValidationToEditor).toHaveBeenCalled();
-    });
     expect(services.http.get).toHaveBeenCalledWith(
       expect.stringContaining('/internal/workflows/workflow/workflow-1/history'),
       expect.objectContaining({
