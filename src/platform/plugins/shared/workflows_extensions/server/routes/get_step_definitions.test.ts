@@ -18,7 +18,7 @@ import { ServerStepRegistry } from '../step_registry';
 describe('registerGetStepDefinitionsRoute', () => {
   const router = httpServiceMock.createRouter();
   const logger = loggerMock.create();
-  const registry = new ServerStepRegistry(loggerMock.create());
+  const registry = new ServerStepRegistry();
 
   beforeEach(() => {
     router.get.mockClear();

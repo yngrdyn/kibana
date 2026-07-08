@@ -53,9 +53,9 @@ apiTest.describe(
             message: `Step "${step.id}" is not in the approved list`,
           }).toBeDefined();
 
-          expect(step.handlerHash, {
-            message: `Step "${step.id}" has an invalid handler hash`,
-          }).toBe(approvedStep?.handlerHash);
+          expect(step.definitionHash, {
+            message: `Step "${step.id}" has an invalid definition hash`,
+          }).toBe(approvedStep?.definitionHash);
         }
       }
     );
