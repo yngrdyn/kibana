@@ -11,45 +11,50 @@ import Fsp from 'fs/promises';
 import Path from 'path';
 
 import { REPO_ROOT } from '@kbn/repo-info';
+import { StepCategory } from '@kbn/workflows';
 
 import type { GenerateCommand } from '../generate_command';
 
 const SNIPPETS_DIR = Path.resolve(REPO_ROOT, 'docs/reference/workflows');
-const LEGACY_STEP_LIST_FILE = Path.join(SNIPPETS_DIR, 'step-definitions-list.md');
 const STEP_INDEX_FILE = Path.join(SNIPPETS_DIR, 'step-definitions-index.md');
 const REFERENCE_TOC_FILE = Path.resolve(REPO_ROOT, 'docs/reference/toc.yml');
 
-/** Must match the marker line in docs/reference/toc.yml (may include trailing comment text). */
 const WORKFLOW_STEP_TOC_BEGIN_SENTINEL = 'workflow-step-docs-toc:begin';
 const WORKFLOW_STEP_TOC_END_SENTINEL = 'workflow-step-docs-toc:end';
 
 const DEFAULT_KIBANA_URL = 'http://localhost:5601';
 const DEFAULT_KIBANA_AUTH = 'elastic:changeme';
 
-const STEP_DEFINITIONS_PATH = '/internal/workflows_extensions/step_definitions';
+const STEP_DEFINITIONS_PATH = '/internal/workflows_extensions/step_definitions?includeDocs=true';
 
-/** Matches `StepCategory` in @kbn/workflows (used for stable sort only). */
 const STEP_CATEGORY_SORT_ORDER: readonly string[] = [
-  'ai',
-  'data',
-  'elasticsearch',
-  'external',
-  'flowControl',
-  'kibana',
+  StepCategory.Ai,
+  StepCategory.Data,
+  StepCategory.Elasticsearch,
+  StepCategory.External,
+  StepCategory.FlowControl,
+  StepCategory.Kibana,
+  StepCategory.KibanaCases,
+  StepCategory.KibanaEntityStore,
+  StepCategory.KibanaSecurity,
 ];
 
 const CATEGORY_PAGE_TITLE: Record<string, string> = {
-  ai: 'AI',
-  data: 'Data',
-  elasticsearch: 'Elasticsearch',
-  external: 'External',
-  flowControl: 'Flow control',
-  kibana: 'Kibana',
+  [StepCategory.Ai]: 'AI',
+  [StepCategory.Data]: 'Data',
+  [StepCategory.Elasticsearch]: 'Elasticsearch',
+  [StepCategory.External]: 'External',
+  [StepCategory.FlowControl]: 'Flow control',
+  [StepCategory.Kibana]: 'Kibana',
+  [StepCategory.KibanaCases]: 'Kibana Cases',
+  [StepCategory.KibanaEntityStore]: 'Kibana Entity Store',
+  [StepCategory.KibanaSecurity]: 'Kibana Security',
 };
 
 interface StepDocMetadata {
   details?: string;
   examples?: string[];
+  url?: string;
 }
 
 interface SchemaProperty {
@@ -61,7 +66,7 @@ interface SchemaProperty {
 
 interface StepDefinitionResponseItem {
   id: string;
-  handlerHash: string;
+  definitionHash: string;
   stepCategory?: string;
   label?: string;
   description?: string;
@@ -75,7 +80,6 @@ interface StepDefinitionsResponse {
   steps: StepDefinitionResponseItem[];
 }
 
-/** Step row after the API has doc metadata (includes `stepCategory`). */
 type StepDefinitionWithCategory = StepDefinitionResponseItem & { stepCategory: string };
 
 function getKibanaUrl(): string {
@@ -96,10 +100,6 @@ function categoryPageBasename(stepCategory: string): string {
   return `step-definitions-category-${safe}.md`;
 }
 
-/**
- * Rewrites the auto-managed block in docs/reference/toc.yml so every generated
- * step-definitions-category-*.md page is listed under step-definitions-index.md.
- */
 function replaceWorkflowStepDocsTocChildren(content: string, categories: string[]): string {
   const lines = content.split('\n');
   const beginIndex = lines.findIndex((l) => l.includes(WORKFLOW_STEP_TOC_BEGIN_SENTINEL));
@@ -156,7 +156,7 @@ async function fetchStepDefinitions(
 
   if (!response.ok) {
     throw new Error(
-      `GET ${fullUrl} failed: ${response.status} ${response.statusText}. Ensure Kibana is running and a page that loads the workflows app has been opened so step doc metadata is pushed.`
+      `GET ${fullUrl} failed: ${response.status} ${response.statusText}. Ensure Kibana is running and the server step registry has finished loading.`
     );
   }
 
@@ -171,10 +171,6 @@ async function fetchStepDefinitions(
   return { steps: steps as StepDefinitionResponseItem[] };
 }
 
-/**
- * Strip one leading markdown heading line from details and demote all other headings by one level,
- * so they nest correctly under our "## ${label}" section (e.g. ## in details becomes ###).
- */
 function normalizeDetailsHeadings(details: string): string {
   const trimmed = details.trimStart();
   const firstLineMatch = trimmed.match(/^#+\s+.+$/m);
@@ -189,16 +185,11 @@ function normalizeDetailsHeadings(details: string): string {
   } else {
     body = trimmed;
   }
-  // Demote every remaining heading by one level (## -> ###, ### -> ####; max 6 #).
   return body.replace(/^(#+)(\s)/gm, (_, hashes, space) =>
     hashes.length >= 6 ? hashes + space : hashes + '#' + space
   );
 }
 
-/**
- * Remove the "Configuration" subsection from details when we render our own Configuration table,
- * so we don't show both the table and the prose block (e.g. "arrays (required): ...").
- */
 function stripConfigurationSection(details: string): string {
   const configHeading = /^#{2,6}\s+Configuration\s*$/m;
   const match = details.match(configHeading);
@@ -245,7 +236,6 @@ function renderStepSection(step: StepDefinitionResponseItem): string {
   if (step.config !== undefined && step.config.length > 0) {
     details = stripConfigurationSection(details);
   }
-  // Only render examples explicitly declared on the step definition (`documentation.examples`).
   const examples = step.documentation?.examples ?? [];
 
   const lines: string[] = [`## ${label}`, '', details, ''];
@@ -335,7 +325,7 @@ function renderCategoryDocument(
 export const WorkflowStepDocsCommand: GenerateCommand = {
   name: 'workflow-step-docs',
   description:
-    'Generate workflow step definitions doc. Requires Kibana running and the workflows app to have been loaded at least once so step doc metadata is pushed.',
+    'Generate workflow step reference docs from the server step registry (requires Kibana running). Icons are not included.',
   usage: 'node scripts/generate workflow-step-docs',
   async run({ log }) {
     const url = getKibanaUrl();
@@ -349,13 +339,12 @@ export const WorkflowStepDocsCommand: GenerateCommand = {
     for (const step of steps) {
       if (typeof step.stepCategory !== 'string' || step.stepCategory.length === 0) {
         throw new Error(
-          `Step "${step.id}" is missing stepCategory in the API response. Open a page that loads the workflows app so step doc metadata (including category) is pushed, then retry.`
+          `Step "${step.id}" is missing stepCategory in the server registry response. Wait for async step registrations to finish (see scripts/wait_for_workflow_extension_registrations.js), then retry.`
         );
       }
     }
 
     const stepsWithCategory = steps as StepDefinitionWithCategory[];
-
     const sorted = sortSteps(stepsWithCategory);
     const categories = [...new Set(stepsWithCategory.map((s) => s.stepCategory))].sort(
       compareStepCategories
@@ -365,15 +354,6 @@ export const WorkflowStepDocsCommand: GenerateCommand = {
     const expectedCategoryFiles = new Set<string>();
 
     await Fsp.mkdir(SNIPPETS_DIR, { recursive: true });
-
-    try {
-      await Fsp.unlink(LEGACY_STEP_LIST_FILE);
-      log.info(`Removed legacy ${Path.relative(REPO_ROOT, LEGACY_STEP_LIST_FILE)}`);
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw err;
-      }
-    }
 
     for (const category of categories) {
       const stepsInCategory = stepsWithCategory.filter((s) => s.stepCategory === category);

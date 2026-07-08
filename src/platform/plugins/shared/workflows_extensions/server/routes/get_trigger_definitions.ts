@@ -7,14 +7,29 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import { schema as configSchema } from '@kbn/config-schema';
 import type { IRouter } from '@kbn/core/server';
 import { createSHA256Hash } from '@kbn/crypto';
 import { stableStringify } from '@kbn/std';
+import type { StabilityLevel } from '@kbn/workflows';
 import { z } from '@kbn/zod/v4';
-import type { TriggerDocMetadata } from '../../common';
+import { type SchemaProperty, schemaToProperties } from './schema_properties';
+import type { TriggerDocumentation, TriggerSnippets } from '../../common/trigger_registry/types';
 import type { TriggerRegistry } from '../trigger_registry';
+import type { ServerTriggerDefinition } from '../types';
 
 const ROUTE_PATH = '/internal/workflows_extensions/trigger_definitions';
+
+export interface TriggerDefinitionResponseItem {
+  id: string;
+  schemaHash: string;
+  title?: string;
+  description?: string;
+  stability?: StabilityLevel;
+  documentation?: TriggerDocumentation;
+  snippets?: TriggerSnippets;
+  eventPayload?: SchemaProperty[];
+}
 
 function eventSchemaToJsonSchema(eventSchema: z.ZodType): Record<string, unknown> | null {
   try {
@@ -24,96 +39,49 @@ function eventSchemaToJsonSchema(eventSchema: z.ZodType): Record<string, unknown
   }
 }
 
-function hashJsonSchema(schema: Record<string, unknown>): string {
-  return createSHA256Hash(stableStringify(schema));
+function hashJsonSchema(jsonSchema: Record<string, unknown>): string {
+  return createSHA256Hash(stableStringify(jsonSchema));
 }
 
-/** One event payload property for docs (required/optional, type, optional description). */
-export interface EventPayloadProperty {
-  name: string;
-  required: boolean;
-  type: string;
-  description?: string;
-}
+function toDocResponseItem(trigger: ServerTriggerDefinition): TriggerDefinitionResponseItem {
+  const { id, title, description, stability, documentation, snippets, eventSchema } = trigger;
+  const jsonSchema = eventSchemaToJsonSchema(eventSchema);
+  const schemaHash = jsonSchema !== null ? hashJsonSchema(jsonSchema) : '';
 
-/** Base properties present on every trigger event (prepended to the event payload table in docs). */
-const BASE_EVENT_PAYLOAD_PROPERTIES: EventPayloadProperty[] = [
-  {
-    name: 'timestamp',
-    required: true,
-    type: 'string',
-    description: 'When the event occurred (ISO 8601 format).',
-  },
-  {
-    name: 'spaceId',
-    required: true,
-    type: 'string',
-    description: 'The Kibana space where the event was emitted.',
-  },
-];
+  const item: TriggerDefinitionResponseItem = {
+    id,
+    schemaHash,
+    title,
+    description,
+  };
 
-function getJsonSchemaType(prop: Record<string, unknown>): string {
-  if (typeof prop.type === 'string') {
-    return prop.type;
+  if (stability) {
+    item.stability = stability;
   }
-  const anyOf = prop.anyOf as Array<Record<string, unknown>> | undefined;
-  if (Array.isArray(anyOf)) {
-    const first = anyOf.find((s) => s.type !== 'null');
-    return first && typeof first.type === 'string' ? first.type : 'unknown';
+  if (documentation) {
+    item.documentation = documentation;
   }
-  const oneOf = prop.oneOf as Array<Record<string, unknown>> | undefined;
-  if (Array.isArray(oneOf)) {
-    const first = oneOf.find((s) => s.type !== 'null');
-    return first && typeof first.type === 'string' ? first.type : 'unknown';
+  if (snippets) {
+    item.snippets = snippets;
   }
-  return 'unknown';
-}
 
-function jsonSchemaToEventPayload(
-  jsonSchema: Record<string, unknown>
-): EventPayloadProperty[] | null {
-  const properties = jsonSchema.properties as Record<string, Record<string, unknown>> | undefined;
-  if (typeof properties !== 'object' || properties === null) {
-    return null;
+  const eventPayload = schemaToProperties(eventSchema);
+  if (eventPayload !== null && eventPayload.length > 0) {
+    item.eventPayload = eventPayload;
   }
-  const required = new Set<string>(
-    Array.isArray(jsonSchema.required) ? (jsonSchema.required as string[]) : []
-  );
-  const schemaProperties = Object.entries(properties).map(([name, prop]) => {
-    const propObj = typeof prop === 'object' && prop !== null ? prop : {};
-    return {
-      name,
-      required: required.has(name),
-      type: getJsonSchemaType(propObj),
-      description:
-        typeof propObj.description === 'string' ? (propObj.description as string) : undefined,
-    };
-  });
-  const combined = [...BASE_EVENT_PAYLOAD_PROPERTIES, ...schemaProperties];
-  return combined.sort((a, b) => a.name.localeCompare(b.name, 'en'));
-}
 
-/**
- * Response shape for one trigger: id and schemaHash (for approval tests), plus optional doc metadata (for docs generator).
- */
-export interface TriggerDefinitionResponseItem {
-  id: string;
-  schemaHash: string;
-  title?: string;
-  description?: string;
-  documentation?: TriggerDocMetadata['documentation'];
-  snippets?: TriggerDocMetadata['snippets'];
-  eventPayload?: EventPayloadProperty[];
+  return item;
 }
 
 /**
  * Registers the route to get all registered trigger definitions.
- * Used by Scout tests (id + schemaHash) and by the docs generator (id, schemaHash, title, description, documentation, snippets when pushed by the public plugin).
+ * Scout approval tests use the default response (`id` + `schemaHash`).
+ * The workflow-trigger-docs generator calls with `?includeDocs=true` to read title,
+ * event schema, and documentation from the server registry (icons are public-only).
  */
 export function registerGetTriggerDefinitionsRoute(
   router: IRouter,
-  registry: TriggerRegistry,
-  docMetadataStore: Map<string, TriggerDocMetadata>
+  registry: TriggerRegistry
 ): void {
   router.get(
     {
@@ -127,29 +95,23 @@ export function registerGetTriggerDefinitionsRoute(
           reason: 'This route is used for testing purposes only. No sensitive data is exposed.',
         },
       },
-      validate: false,
+      validate: {
+        query: configSchema.object({
+          includeDocs: configSchema.maybe(configSchema.boolean({ defaultValue: false })),
+        }),
+      },
     },
-    async (_context, _request, response) => {
-      const triggers: TriggerDefinitionResponseItem[] = registry
+    async (_context, request, response) => {
+      const includeDocs = request.query.includeDocs === true;
+      const triggers = registry
         .list()
-        .map((t) => {
-          const jsonSchema = eventSchemaToJsonSchema(t.eventSchema);
+        .map((trigger) => {
+          if (includeDocs) {
+            return toDocResponseItem(trigger);
+          }
+          const jsonSchema = eventSchemaToJsonSchema(trigger.eventSchema);
           const schemaHash = jsonSchema !== null ? hashJsonSchema(jsonSchema) : '';
-          const doc = docMetadataStore.get(t.id);
-          const item: TriggerDefinitionResponseItem = { id: t.id, schemaHash };
-          if (doc) {
-            item.title = doc.title;
-            item.description = doc.description;
-            if (doc.documentation) item.documentation = doc.documentation;
-            if (doc.snippets) item.snippets = doc.snippets;
-          }
-          if (jsonSchema !== null) {
-            const eventPayload = jsonSchemaToEventPayload(jsonSchema);
-            if (eventPayload !== null && eventPayload.length > 0) {
-              item.eventPayload = eventPayload;
-            }
-          }
-          return item;
+          return { id: trigger.id, schemaHash };
         })
         .sort((a, b) => a.id.localeCompare(b.id));
 

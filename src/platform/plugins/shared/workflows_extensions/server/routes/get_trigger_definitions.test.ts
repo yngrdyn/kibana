@@ -9,6 +9,7 @@
 
 import { httpServerMock, httpServiceMock } from '@kbn/core/server/mocks';
 import { z } from '@kbn/zod/v4';
+import type { TriggerDefinitionResponseItem } from './get_trigger_definitions';
 import { registerGetTriggerDefinitionsRoute } from './get_trigger_definitions';
 import { TriggerRegistry } from '../trigger_registry';
 import type { ServerTriggerDefinition } from '../types';
@@ -26,7 +27,7 @@ describe('registerGetTriggerDefinitionsRoute', () => {
     expect(routeConfig.path).toBe('/internal/workflows_extensions/trigger_definitions');
     expect(routeConfig.options?.access).toBe('internal');
     expect(routeConfig.security?.authz).toHaveProperty('enabled', false);
-    expect(routeConfig.validate).toBe(false);
+    expect(routeConfig.validate).toHaveProperty('query');
   });
 
   it('returns triggers sorted alphabetically with schema hashes', async () => {
@@ -115,5 +116,43 @@ describe('registerGetTriggerDefinitionsRoute', () => {
     const { body } = response.ok.mock.calls[0][0]!;
     const { triggers } = body as { triggers: Array<{ id: string; schemaHash: string }> };
     expect(triggers[0].schemaHash).not.toBe(triggers[1].schemaHash);
+  });
+
+  it('includes doc metadata when includeDocs=true', async () => {
+    const registry = new TriggerRegistry();
+    registry.register({
+      id: 'workflows.failed',
+      stability: 'tech_preview',
+      title: 'Workflow failed',
+      description: 'Emitted when a workflow run fails',
+      documentation: { details: 'Trigger details' },
+      snippets: { condition: 'not event.workflow.isErrorHandler:true' },
+      eventSchema: z.object({
+        workflow: z.object({ id: z.string() }),
+      }),
+    } as ServerTriggerDefinition);
+
+    const router = httpServiceMock.createRouter();
+    registerGetTriggerDefinitionsRoute(router, registry);
+
+    const [, handler] = router.get.mock.calls[0];
+    const response = httpServerMock.createResponseFactory();
+    await handler(
+      {} as any,
+      httpServerMock.createKibanaRequest({ query: { includeDocs: true } }),
+      response
+    );
+
+    const { body } = response.ok.mock.calls[0][0]!;
+    const { triggers } = body as { triggers: TriggerDefinitionResponseItem[] };
+    expect(triggers[0]).toMatchObject({
+      id: 'workflows.failed',
+      title: 'Workflow failed',
+      description: 'Emitted when a workflow run fails',
+      snippets: { condition: 'not event.workflow.isErrorHandler:true' },
+    });
+    expect(triggers[0].eventPayload).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'workflow', type: 'object' })])
+    );
   });
 });

@@ -16,7 +16,6 @@ import type { GenerateCommand } from '../generate_command';
 
 const SNIPPETS_DIR = Path.resolve(REPO_ROOT, 'docs/reference/workflows');
 const TRIGGER_INDEX_FILE = Path.join(SNIPPETS_DIR, 'trigger-definitions-index.md');
-const LEGACY_TRIGGER_LIST_FILE = Path.join(SNIPPETS_DIR, 'trigger-definitions-list.md');
 const REFERENCE_TOC_FILE = Path.resolve(REPO_ROOT, 'docs/reference/toc.yml');
 
 const WORKFLOW_TRIGGER_TOC_BEGIN_SENTINEL = 'workflow-trigger-docs-toc:begin';
@@ -25,7 +24,8 @@ const WORKFLOW_TRIGGER_TOC_END_SENTINEL = 'workflow-trigger-docs-toc:end';
 const DEFAULT_KIBANA_URL = 'http://localhost:5601';
 const DEFAULT_KIBANA_AUTH = 'elastic:changeme';
 
-const TRIGGER_DEFINITIONS_PATH = '/internal/workflows_extensions/trigger_definitions';
+const TRIGGER_DEFINITIONS_PATH =
+  '/internal/workflows_extensions/trigger_definitions?includeDocs=true';
 
 interface TriggerDocMetadata {
   details?: string;
@@ -70,10 +70,6 @@ function getAuthHeader(auth: string): string {
   return `Basic ${encoded}`;
 }
 
-/**
- * Category is the prefix of the trigger id before the first dot (e.g. `workflows.failed` → `workflows`).
- * Triggers with no dot are grouped under `uncategorized`.
- */
 function triggerCategoryFromId(id: string): string {
   const dot = id.indexOf('.');
   if (dot === -1) {
@@ -100,7 +96,6 @@ function compareTriggerCategories(a: string, b: string): number {
   return a.localeCompare(b, 'en');
 }
 
-/** Rewrites the auto-managed trigger category entries in docs/reference/toc.yml. */
 function replaceWorkflowTriggerDocsTocChildren(content: string, categories: string[]): string {
   const lines = content.split('\n');
   const beginIndex = lines.findIndex((l) => l.includes(WORKFLOW_TRIGGER_TOC_BEGIN_SENTINEL));
@@ -144,7 +139,7 @@ async function fetchTriggerDefinitions(
 
   if (!response.ok) {
     throw new Error(
-      `GET ${fullUrl} failed: ${response.status} ${response.statusText}. Ensure Kibana is running and a page that loads the workflows app has been opened so trigger doc metadata is pushed.`
+      `GET ${fullUrl} failed: ${response.status} ${response.statusText}. Ensure Kibana is running.`
     );
   }
 
@@ -156,7 +151,7 @@ async function fetchTriggerDefinitions(
   if (!Array.isArray(triggers)) {
     throw new Error(`Response "triggers" must be an array`);
   }
-  return { triggers };
+  return { triggers: triggers as TriggerDefinitionResponseItem[] };
 }
 
 function renderTriggerSection(trigger: TriggerDefinitionResponseItem): string {
@@ -278,7 +273,7 @@ function renderCategoryDocument(
 export const WorkflowTriggerDocsCommand: GenerateCommand = {
   name: 'workflow-trigger-docs',
   description:
-    'Generate workflow trigger definitions doc. Requires Kibana running and the workflows app to have been loaded at least once so trigger doc metadata is pushed.',
+    'Generate workflow trigger reference docs from the server trigger registry (requires Kibana running). Icons are not included.',
   usage: 'node scripts/generate workflow-trigger-docs',
   async run({ log }) {
     const url = getKibanaUrl();
@@ -301,15 +296,6 @@ export const WorkflowTriggerDocsCommand: GenerateCommand = {
     );
 
     await Fsp.mkdir(SNIPPETS_DIR, { recursive: true });
-
-    try {
-      await Fsp.unlink(LEGACY_TRIGGER_LIST_FILE);
-      log.info(`Removed legacy ${Path.relative(REPO_ROOT, LEGACY_TRIGGER_LIST_FILE)}`);
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw err;
-      }
-    }
 
     const expectedCategoryFiles = new Set<string>();
 
