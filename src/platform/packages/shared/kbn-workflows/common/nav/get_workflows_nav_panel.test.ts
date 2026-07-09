@@ -7,10 +7,10 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { CoreStart } from '@kbn/core-lifecycle-browser';
 import { coreMock } from '@kbn/core/public/mocks';
-import { WORKFLOWS_LIBRARY_ENABLED_SETTING_ID } from '../constants';
+import type { CoreStart } from '@kbn/core-lifecycle-browser';
 import { getWorkflowsNavPanel } from './get_workflows_nav_panel';
+import { WORKFLOWS_LIBRARY_ENABLED_SETTING_ID } from '../constants';
 
 describe('getWorkflowsNavPanel', () => {
   let core: CoreStart;
