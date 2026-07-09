@@ -246,7 +246,7 @@ export const WorkflowDetailHeader = React.memo(
     const openHistoryModal = useCallback(() => {
       changeHistoryModal?.openModal();
     }, [changeHistoryModal]);
-    const showHistoryButton = Boolean(canReadWorkflow && !isExecutionsTab);
+    const showHistoryButton = Boolean(canReadWorkflow && !isExecutionsTab && changeHistoryModal);
     const isAppMenuSwitchInline = useIsWithinBreakpoints([
       ...WORKFLOW_DETAIL_INLINE_TOOLBAR_BREAKPOINTS,
     ]);
