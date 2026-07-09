@@ -13,7 +13,7 @@ import { combineLatest, map, of } from 'rxjs';
 import { AIChatExperience } from '@kbn/ai-assistant-common';
 import { AI_CHAT_EXPERIENCE_TYPE } from '@kbn/management-settings-ids';
 import { getAlertingV2ManagementNavPanel } from '@kbn/alerting-v2-utils';
-import { getWorkflowsNavPanel } from '@kbn/workflows';
+import { getWorkflowsNavPanel } from '@kbn/deeplinks-workflows';
 import type { Location } from 'history';
 import type { ObservabilityPublicPluginsStart } from './plugin';
 

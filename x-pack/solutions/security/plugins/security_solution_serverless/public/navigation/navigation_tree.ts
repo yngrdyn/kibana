@@ -16,7 +16,7 @@ import {
 import { i18nStrings, securityLink } from '@kbn/security-solution-navigation/links';
 import { defaultNavigationTree } from '@kbn/security-solution-navigation/navigation_tree';
 import { AGENT_BUILDER_NAV_AT_TOP_FLAG } from '@kbn/navigation-plugin/public';
-import { getWorkflowsNavPanel } from '@kbn/workflows';
+import { getWorkflowsNavPanel } from '@kbn/deeplinks-workflows';
 
 import { type Services } from '../common/services';
 import { createManagementFooterItemsTree } from './management_footer_items';

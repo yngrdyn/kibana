@@ -8,7 +8,7 @@
 import type { NavigationTreeDefinition } from '@kbn/core-chrome-browser';
 import type { CoreStart } from '@kbn/core/public';
 import { i18n } from '@kbn/i18n';
-import { getWorkflowsNavPanel } from '@kbn/workflows';
+import { getWorkflowsNavPanel } from '@kbn/deeplinks-workflows';
 
 export const createNavigationTree = (core: CoreStart): NavigationTreeDefinition => {
   return {

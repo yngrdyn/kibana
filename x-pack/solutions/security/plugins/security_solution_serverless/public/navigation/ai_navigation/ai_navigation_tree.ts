@@ -14,7 +14,7 @@ import { SecurityPageName } from '@kbn/security-solution-navigation';
 import { defaultNavigationTree } from '@kbn/security-solution-navigation/navigation_tree';
 import { i18nStrings, securityLink } from '@kbn/security-solution-navigation/links';
 import { getAlertingV2ManagementNavPanel } from '@kbn/alerting-v2-utils';
-import { getWorkflowsNavPanel } from '@kbn/workflows';
+import { getWorkflowsNavPanel } from '@kbn/deeplinks-workflows';
 
 import { AiNavigationIcon } from './icon';
 

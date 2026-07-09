@@ -7,16 +7,8 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { WorkflowsPageName } from './deep_links';
-
-export { WorkflowsPageName } from './deep_links';
-export { getWorkflowsNavPanel } from './get_workflows_nav_panel';
-export type { WorkflowsNavPanelCore } from './get_workflows_nav_panel';
-
-export const WORKFLOWS_APP_ID = 'workflows';
-
-export type AppId = typeof WORKFLOWS_APP_ID;
-
-export type LinkId = `${WorkflowsPageName}`;
-
-export type DeepLinkId = AppId | `${AppId}:${LinkId}`;
+module.exports = {
+  preset: '@kbn/test',
+  rootDir: '../../../../../..',
+  roots: ['<rootDir>/src/platform/packages/shared/deeplinks/workflows'],
+};
