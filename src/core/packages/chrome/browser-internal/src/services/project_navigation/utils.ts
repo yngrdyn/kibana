@@ -327,59 +327,6 @@ export const getRenderableNodes = (
   });
 };
 
-/**
- * When a solution nav tree references an app via `{ link: 'appId' }` and that app
- * exposes multiple project side-nav deep links, expand the node into a panel opener
- * automatically so solutions do not need bespoke submenu definitions.
- */
-export const expandAppLinkNodesWithSideNavChildren = (
-  navigationTreeDef: NavigationTreeDefinition,
-  deepLinks: Record<string, ChromeNavLink>
-): NavigationTreeDefinition => {
-  const expandNode = (node: NodeDefinition): NodeDefinition => {
-    if (node.children?.length) {
-      return { ...node, children: node.children.map(expandNode) };
-    }
-
-    const { link } = node;
-    if (!link || link.includes(':') || node.renderAs) {
-      return node;
-    }
-
-    const appNavLink = deepLinks[link];
-    const childNavLinks = Object.values(deepLinks)
-      .filter(
-        (navLink) =>
-          navLink.id.startsWith(`${link}:`) && navLink.visibleIn.includes('projectSideNav')
-      )
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-    if (childNavLinks.length < 2) {
-      return node;
-    }
-
-    return {
-      ...node,
-      id: node.id ?? link,
-      title: node.title ?? appNavLink?.title,
-      icon: node.icon ?? appNavLink?.euiIconType,
-      renderAs: 'panelOpener',
-      children: [
-        {
-          breadcrumbStatus: 'hidden',
-          children: childNavLinks.map((navLink) => ({ link: navLink.id as AppDeepLinkId })),
-        },
-      ],
-    };
-  };
-
-  return {
-    ...navigationTreeDef,
-    body: navigationTreeDef.body?.map(expandNode),
-    footer: navigationTreeDef.footer?.map(expandNode),
-  };
-};
-
 export const parseNavigationTree = (
   id: SolutionId,
   navigationTreeDef: NavigationTreeDefinition,
@@ -394,10 +341,6 @@ export const parseNavigationTree = (
   navigationTree: ChromeProjectNavigationNode[];
   navigationTreeUI: NavigationTreeDefinitionUI;
 } => {
-  const expandedNavigationTreeDef = expandAppLinkNodesWithSideNavChildren(
-    navigationTreeDef,
-    deepLinks
-  );
   // The navigation tree that represents the global navigation and will be used by the Chrome service
   const navigationTree: ChromeProjectNavigationNode[] = [];
 
@@ -458,12 +401,8 @@ export const parseNavigationTree = (
     });
   };
 
-  parseNodesArray(expandedNavigationTreeDef.body, 'body');
-  parseNodesArray(
-    expandedNavigationTreeDef.footer,
-    'footer',
-    expandedNavigationTreeDef.body?.length ?? 0
-  );
+  parseNodesArray(navigationTreeDef.body, 'body');
+  parseNodesArray(navigationTreeDef.footer, 'footer', navigationTreeDef.body?.length ?? 0);
 
   return { navigationTree, navigationTreeUI };
 };

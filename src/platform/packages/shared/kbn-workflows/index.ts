@@ -45,6 +45,7 @@ export * from './spec/deprecated_step_metadata';
 export * from './types/latest';
 export * from './types/utils';
 export * from './common/constants';
+export { getWorkflowsNavPanel } from './common/nav/get_workflows_nav_panel';
 export * from './common/workflows_events';
 export type * from './common/event_trigger_replay';
 export * from './common/well_known_trigger_sources';

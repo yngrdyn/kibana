@@ -17,6 +17,7 @@ import { SEARCH_HOMEPAGE } from '@kbn/deeplinks-search';
 import { i18n } from '@kbn/i18n';
 
 import type { AddSolutionNavigationArg } from '@kbn/navigation-plugin/public';
+import { getWorkflowsNavPanel } from '@kbn/workflows';
 
 export interface DynamicSideNavItems {
   collections?: Array<EuiSideNavItemType<unknown>>;
@@ -88,9 +89,7 @@ export const getNavigationTreeDefinition = ({
               icon: 'productDashboard',
               link: 'dashboards',
             },
-            {
-              link: 'workflows',
-            },
+            ...getWorkflowsNavPanel(core),
             {
               children: [
                 {

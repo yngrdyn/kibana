@@ -11,6 +11,8 @@
     "@kbn/es-query",
     "@kbn/utility-types",
     "@kbn/core",
+    "@kbn/core-chrome-browser",
+    "@kbn/core-lifecycle-browser",
     "@kbn/repo-info",
     "@kbn/human-readable-id",
     "@kbn/std"

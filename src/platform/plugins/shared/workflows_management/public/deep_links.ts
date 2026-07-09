@@ -16,7 +16,7 @@ import { PLUGIN_NAME } from '../common';
  * `application.navigateToApp(PLUGIN_ID, { deepLinkId, path })`.
  */
 export enum WorkflowsDeepLinks {
-  workflowsList = 'workflowsList',
+  workflows = 'workflows',
   executions = 'executions',
   library = 'library',
 }
@@ -38,9 +38,9 @@ export function getDeepLinks({
 }: DeepLinksParams = {}): AppDeepLink[] {
   const links: AppDeepLink[] = [
     {
-      id: WorkflowsDeepLinks.workflowsList,
+      id: WorkflowsDeepLinks.workflows,
       title: libraryEnabled
-        ? i18n.translate('workflowsManagement.nav.workflowsListDeepLinkTitle', {
+        ? i18n.translate('workflowsManagement.nav.workflowsDeepLinkTitle', {
             defaultMessage: 'Workflows',
           })
         : PLUGIN_NAME,

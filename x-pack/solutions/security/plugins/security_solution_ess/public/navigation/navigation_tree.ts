@@ -16,6 +16,7 @@ import { defaultNavigationTree } from '@kbn/security-solution-navigation/navigat
 import { STACK_MANAGEMENT_NAV_ID, DATA_MANAGEMENT_NAV_ID } from '@kbn/deeplinks-management';
 import { AGENT_BUILDER_NAV_AT_TOP_FLAG } from '@kbn/navigation-plugin/public';
 import { getAlertingV2ManagementNavPanel } from '@kbn/alerting-v2-utils';
+import { getWorkflowsNavPanel } from '@kbn/workflows';
 import { type Services } from '../common/services';
 import { SOLUTION_NAME } from './translations';
 
@@ -61,9 +62,7 @@ export const createNavigationTree = (
             icon: 'warning',
             link: securityLink(SecurityPageName.alerts),
           },
-      {
-        link: 'workflows',
-      },
+      ...getWorkflowsNavPanel(services),
       // TODO: remove this item when agentBuilderNavAtTop is enabled by default and the Agent Builder link is always at the top of the nav
       ...(showAgentBuilder && !agentBuilderNavAtTop ? [agentBuilderLink] : []),
       {

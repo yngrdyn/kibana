@@ -9,4 +9,6 @@
 
 export enum WorkflowsPageName {
   workflows = 'workflows',
+  library = 'library',
+  executions = 'executions',
 }
