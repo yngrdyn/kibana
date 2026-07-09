@@ -18,13 +18,13 @@ const PANEL_ID = 'workflows';
  * Intentionally structural (no import from `@kbn/core-*`) to avoid a dependency cycle:
  * `@kbn/core-chrome-browser` already imports this package for `AppDeepLinkId` typing.
  */
-export type WorkflowsNavPanelCore = {
+export interface WorkflowsNavPanelCore {
   settings: {
     globalClient: {
       get: <T>(key: string, defaultValue: T) => T;
     };
   };
-};
+}
 
 type WorkflowsNavNode =
   | { link: 'workflows' }
