@@ -13,7 +13,12 @@ import type {
   ChromeProjectNavigationNode,
   NavigationTreeDefinition,
 } from '@kbn/core-chrome-browser/src';
-import { flattenNav, findActiveNodes, parseNavigationTree } from './utils';
+import {
+  flattenNav,
+  findActiveNodes,
+  parseNavigationTree,
+  expandAppLinkNodesWithSideNavChildren,
+} from './utils';
 
 const getDeepLink = (id: string, path: string, title = ''): ChromeNavLink => ({
   id,
@@ -463,5 +468,50 @@ describe('findActiveNodes', () => {
         },
       ],
     ]);
+  });
+});
+
+describe('expandAppLinkNodesWithSideNavChildren', () => {
+  it('expands an app link into a panel opener when the app has multiple project side-nav deep links', () => {
+    const deepLinks = {
+      workflows: getDeepLink('workflows', '', 'Workflows'),
+      'workflows:workflowsList': getDeepLink('workflows:workflowsList', 'list', 'List'),
+      'workflows:library': getDeepLink('workflows:library', 'library', 'Library'),
+    };
+
+    const expanded = expandAppLinkNodesWithSideNavChildren(
+      { body: [{ link: 'workflows' }] },
+      deepLinks
+    );
+
+    expect(expanded.body?.[0]).toEqual(
+      expect.objectContaining({
+        id: 'workflows',
+        renderAs: 'panelOpener',
+        children: [
+          {
+            breadcrumbStatus: 'hidden',
+            children: [{ link: 'workflows:workflowsList' }, { link: 'workflows:library' }],
+          },
+        ],
+      })
+    );
+  });
+
+  it('leaves the app link unchanged when fewer than two project side-nav deep links exist', () => {
+    const deepLinks = {
+      workflows: getDeepLink('workflows', '', 'Workflows'),
+      'workflows:workflowsList': {
+        ...getDeepLink('workflows:workflowsList', 'list', 'List'),
+        visibleIn: ['globalSearch'],
+      },
+    };
+
+    const expanded = expandAppLinkNodesWithSideNavChildren(
+      { body: [{ link: 'workflows' }] },
+      deepLinks
+    );
+
+    expect(expanded.body?.[0]).toEqual({ link: 'workflows' });
   });
 });

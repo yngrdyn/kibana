@@ -6,7 +6,7 @@
  * your election, the "Elastic License 2.0", the "GNU Affero General Public
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
-import { type AppDeepLink } from '@kbn/core/public';
+import { type AppDeepLink, type AppDeepLinkLocations } from '@kbn/core/public';
 import { i18n } from '@kbn/i18n';
 import { PLUGIN_NAME } from '../common';
 
@@ -26,6 +26,12 @@ export interface DeepLinksParams {
   libraryEnabled?: boolean;
 }
 
+const projectSideNavVisibleIn: AppDeepLinkLocations[] = [
+  'globalSearch',
+  'classicSideNav',
+  'projectSideNav',
+];
+
 export function getDeepLinks({
   executionsViewEnabled = false,
   libraryEnabled = true,
@@ -33,8 +39,13 @@ export function getDeepLinks({
   const links: AppDeepLink[] = [
     {
       id: WorkflowsDeepLinks.workflowsList,
-      title: PLUGIN_NAME,
+      title: libraryEnabled
+        ? i18n.translate('workflowsManagement.nav.workflowsListDeepLinkTitle', {
+            defaultMessage: 'Workflows',
+          })
+        : PLUGIN_NAME,
       path: '/',
+      ...(libraryEnabled ? { visibleIn: projectSideNavVisibleIn } : {}),
     },
   ];
 
@@ -45,6 +56,7 @@ export function getDeepLinks({
         defaultMessage: 'Library',
       }),
       path: '/library',
+      visibleIn: projectSideNavVisibleIn,
     });
   }
 
