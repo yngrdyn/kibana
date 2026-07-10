@@ -7,10 +7,18 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+import { WORKFLOWS_APP_ID } from './constants';
+import { WorkflowsPageName, type WorkflowsPageName as WorkflowsPageNameType } from './deep_links';
+
 /** Keep in sync with `WORKFLOWS_LIBRARY_ENABLED_SETTING_ID` in `@kbn/workflows`. */
 const WORKFLOWS_LIBRARY_ENABLED_SETTING_ID = 'workflowsManagement:library:enabled';
 
-const PANEL_ID = 'workflows';
+const PANEL_ID = WORKFLOWS_APP_ID;
+
+type DeepLinkId = typeof WORKFLOWS_APP_ID | `${typeof WORKFLOWS_APP_ID}:${WorkflowsPageNameType}`;
+
+const workflowsDeepLink = (page: WorkflowsPageNameType): DeepLinkId =>
+  `${WORKFLOWS_APP_ID}:${page}`;
 
 /**
  * Minimal `CoreStart` shape for nav gating. Satisfied by `CoreStart` at call sites.
@@ -27,15 +35,15 @@ export interface WorkflowsNavPanelCore {
 }
 
 type WorkflowsNavNode =
-  | { link: 'workflows' }
+  | { link: typeof WORKFLOWS_APP_ID }
   | {
       id: typeof PANEL_ID;
-      link: 'workflows';
+      link: typeof WORKFLOWS_APP_ID;
       renderAs: 'panelOpener';
       children: [
         {
           breadcrumbStatus: 'hidden';
-          children: [{ link: 'workflows:workflows' }, { link: 'workflows:library' }];
+          children: [{ link: DeepLinkId }, { link: DeepLinkId }];
         }
       ];
     };
@@ -57,18 +65,21 @@ export const getWorkflowsNavPanel = (core: WorkflowsNavPanelCore): WorkflowsNavN
   );
 
   if (!libraryEnabled) {
-    return [{ link: 'workflows' }];
+    return [{ link: WORKFLOWS_APP_ID }];
   }
 
   return [
     {
       id: PANEL_ID,
-      link: 'workflows',
+      link: WORKFLOWS_APP_ID,
       renderAs: 'panelOpener',
       children: [
         {
           breadcrumbStatus: 'hidden',
-          children: [{ link: 'workflows:workflows' }, { link: 'workflows:library' }],
+          children: [
+            { link: workflowsDeepLink(WorkflowsPageName.workflows) },
+            { link: workflowsDeepLink(WorkflowsPageName.library) },
+          ],
         },
       ],
     },
