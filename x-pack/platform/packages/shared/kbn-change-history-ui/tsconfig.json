@@ -5,7 +5,7 @@
     "jsx": "react",
     "types": ["jest", "node", "react", "@kbn/ambient-ui-types", "@emotion/react/types/css-prop"]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", ".storybook/**/*.ts", ".storybook/**/*.tsx"],
   "exclude": ["target/**/*"],
   "kbn_references": [
     "@kbn/core",
@@ -14,5 +14,6 @@
     "@kbn/react-query",
     "@kbn/logging-mocks",
     "@kbn/core-http-browser",
+    "@kbn/storybook",
   ]
 }
