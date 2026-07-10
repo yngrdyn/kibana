@@ -13,5 +13,6 @@
     "@kbn/i18n-react",
     "@kbn/react-query",
     "@kbn/logging-mocks",
+    "@kbn/core-http-browser",
   ]
 }
