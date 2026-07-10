@@ -23,6 +23,7 @@ dependsOn:
   - '@kbn/react-query'
   - '@kbn/logging-mocks'
   - '@kbn/core-http-browser'
+  - '@kbn/storybook'
 tags:
   - shared-browser
   - package
@@ -34,6 +35,8 @@ fileGroups:
   src:
     - '**/*.ts'
     - '**/*.tsx'
+    - .storybook/**/*.ts
+    - .storybook/**/*.tsx
     - '!target/**/*'
   jest-config:
     - jest.config.js
