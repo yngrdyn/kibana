@@ -8,7 +8,7 @@
  */
 
 /**
- * Workflow eventId namespace and public hub URL segment — strips leading dot.
+ * Connector eventId namespace and public hub URL segment — strips leading dot.
  * `.inboundWebhook` → `inboundWebhook`
  */
 export const connectorTypeToEventNamespace = (connectorTypeId: string): string =>

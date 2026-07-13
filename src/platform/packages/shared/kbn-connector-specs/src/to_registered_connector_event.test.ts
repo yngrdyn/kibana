@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { z } from '@kbn/zod/v4';
+import { inboundWebhookReceivedEventSchema } from './inbound_webhook_received_event_schema';
 import type { ConnectorMetadata } from './connector_spec';
 import { defineConnectorEvent } from './define_connector_event';
 import {
@@ -24,16 +24,6 @@ const inboundWebhookMetadata: ConnectorMetadata = {
   minimumLicense: 'gold',
   supportedFeatureIds: ['workflows'],
 };
-
-const inboundWebhookReceivedEventSchema = z.object({
-  connectorId: z.string(),
-  connectorTypeId: z.string(),
-  method: z.string(),
-  headers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
-  query: z.record(z.string(), z.string()).optional(),
-  body: z.unknown(),
-  receivedAt: z.string(),
-});
 
 describe('connector event type id helpers', () => {
   it('connectorTypeToEventNamespace strips leading dot', () => {

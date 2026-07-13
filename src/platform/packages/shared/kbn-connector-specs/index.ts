@@ -37,6 +37,7 @@ export {
   type ConnectorEventInfo,
 } from './src/list_connector_event_infos';
 export { resolveRegisteredConnectorEventByEventId } from './src/resolve_registered_connector_event_by_event_id';
+export { inboundWebhookReceivedEventSchema } from './src/inbound_webhook_received_event_schema';
 export { isToolAction, TEST_CONNECTOR_SUB_ACTION } from './src/connector_spec';
 export {
   getConnectorActionErrorMeta,

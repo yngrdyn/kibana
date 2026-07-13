@@ -10,7 +10,9 @@
 import type { ConnectorMetadata } from './connector_spec';
 
 jest.mock('./all_specs', () => {
-  const { z: z4 } = jest.requireActual('@kbn/zod/v4');
+  const { inboundWebhookReceivedEventSchema } = jest.requireActual(
+    './inbound_webhook_received_event_schema'
+  );
   const { defineConnectorEvent: defineEvent } = jest.requireActual('./define_connector_event');
 
   const inboundWebhookMetadata: ConnectorMetadata = {
@@ -31,10 +33,7 @@ jest.mock('./all_specs', () => {
             eventId: 'inboundWebhook.received',
             title: 'Webhook received',
             description: 'Fires when an authenticated request hits this connector endpoint.',
-            eventSchema: z4.object({
-              connectorId: z4.string(),
-              body: z4.unknown(),
-            }),
+            eventSchema: inboundWebhookReceivedEventSchema,
           }),
         },
         handleEvents: async () => ({ events: [] }),

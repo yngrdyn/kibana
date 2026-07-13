@@ -7,9 +7,12 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { defineConnectorEvent, toRegisteredConnectorEvent } from '@kbn/connector-specs';
+import {
+  defineConnectorEvent,
+  inboundWebhookReceivedEventSchema,
+  toRegisteredConnectorEvent,
+} from '@kbn/connector-specs';
 import type { ConnectorMetadata } from '@kbn/connector-specs';
-import { z } from '@kbn/zod/v4';
 import { connectorEventToWorkflowSurface } from './connector_event_to_workflow_surface';
 
 const inboundWebhookMetadata: ConnectorMetadata = {
@@ -19,16 +22,6 @@ const inboundWebhookMetadata: ConnectorMetadata = {
   minimumLicense: 'gold',
   supportedFeatureIds: ['workflows'],
 };
-
-const inboundWebhookReceivedEventSchema = z.object({
-  connectorId: z.string(),
-  connectorTypeId: z.string(),
-  method: z.string(),
-  headers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
-  query: z.record(z.string(), z.string()).optional(),
-  body: z.unknown(),
-  receivedAt: z.string(),
-});
 
 describe('connectorEventToWorkflowSurface', () => {
   it('maps inboundWebhook.received to a trigger surface with required connector binding', () => {
