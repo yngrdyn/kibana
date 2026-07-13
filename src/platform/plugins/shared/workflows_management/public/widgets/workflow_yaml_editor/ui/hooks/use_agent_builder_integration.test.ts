@@ -49,7 +49,6 @@ jest.mock('../../../../features/ai_integration', () => ({
   setLastCreateAttachmentId: jest.fn(),
   setSidebarOpen: jest.fn(),
   consumeSidebarRestoreFor: jest.fn().mockReturnValue(false),
-  checkWorkflowAiChatAccess: jest.fn().mockResolvedValue(true),
 }));
 
 type AiIntegrationModule = typeof import('../../../../features/ai_integration');
@@ -57,12 +56,10 @@ const {
   setLastCreateAttachmentId: mockSetLastCreateAttachmentId,
   setSidebarOpen: mockSetSidebarOpen,
   consumeSidebarRestoreFor: mockConsumeSidebarRestoreFor,
-  checkWorkflowAiChatAccess: mockCheckWorkflowAiChatAccess,
 } = jest.requireMock('../../../../features/ai_integration') as {
   setLastCreateAttachmentId: jest.MockedFunction<AiIntegrationModule['setLastCreateAttachmentId']>;
   setSidebarOpen: jest.MockedFunction<AiIntegrationModule['setSidebarOpen']>;
   consumeSidebarRestoreFor: jest.MockedFunction<AiIntegrationModule['consumeSidebarRestoreFor']>;
-  checkWorkflowAiChatAccess: jest.MockedFunction<AiIntegrationModule['checkWorkflowAiChatAccess']>;
 };
 jest.mock('../../../../features/ai_integration/proposal_tracker', () => ({
   ProposalTracker: jest.fn().mockImplementation(() => ({
@@ -100,11 +97,18 @@ let mockModel: ReturnType<typeof createMockModel>;
 const createMockEditor = (model: ReturnType<typeof createMockModel>) =>
   ({ getModel: jest.fn().mockReturnValue(model) } as any);
 
+const embeddableChatAccessReady = {
+  hasShowPrivilege: true,
+  hasRequiredLicense: true,
+  hasLlmConnector: true,
+} as const;
+
 const createMockAgentBuilder = () => ({
   addAttachment: jest.fn(),
   setChatConfig: jest.fn(),
   clearChatConfig: jest.fn(),
   openChat: jest.fn().mockReturnValue({ chatRef: { close: jest.fn() } }),
+  getEmbeddableChatAccess: jest.fn().mockResolvedValue(embeddableChatAccessReady),
   events: { chat$: { subscribe: jest.fn().mockReturnValue({ unsubscribe: jest.fn() }) } },
   tools: {},
   attachments: {},
@@ -121,13 +125,6 @@ const setupKibanaMock = (agentBuilder?: ReturnType<typeof createMockAgentBuilder
     services: {
       workflowsManagement: {
         agentBuilder,
-      },
-      http: { get: jest.fn() },
-      licensing: { license$: { pipe: jest.fn() } },
-      application: {
-        capabilities: {
-          agentBuilder: { show: true },
-        },
       },
     },
   } as any);
@@ -164,7 +161,6 @@ describe('useAgentBuilderIntegration', () => {
     jest.useFakeTimers();
     mockModel = createMockModel(INITIAL_YAML);
     useUiSettingMock.mockReturnValue(true);
-    mockCheckWorkflowAiChatAccess.mockResolvedValue(true);
     mockConsumeSidebarRestoreFor.mockReturnValue(false);
   });
 
@@ -609,8 +605,12 @@ describe('useAgentBuilderIntegration', () => {
     });
 
     it('does not auto-open when no LLM connector is configured', async () => {
-      mockCheckWorkflowAiChatAccess.mockResolvedValue(false);
       const agentBuilder = createMockAgentBuilder();
+      agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
+        hasShowPrivilege: true,
+        hasRequiredLicense: true,
+        hasLlmConnector: false,
+      });
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
 
@@ -977,9 +977,59 @@ describe('useAgentBuilderIntegration', () => {
       });
     });
 
-    it('returns false when chat access is unavailable', async () => {
-      mockCheckWorkflowAiChatAccess.mockResolvedValue(false);
+    it('returns false when no LLM connector is configured', async () => {
       const agentBuilder = createMockAgentBuilder();
+      agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
+        hasShowPrivilege: true,
+        hasRequiredLicense: true,
+        hasLlmConnector: false,
+      });
+      setupKibanaMock(agentBuilder);
+      useUiSettingMock.mockReturnValue(true);
+      const editor = createMockEditor(mockModel);
+
+      const { result } = renderHook(() =>
+        useAgentBuilderIntegration({
+          editorRef: { current: editor },
+          isEditorMounted: true,
+        })
+      );
+
+      await flushChatAccessCheck();
+
+      expect(result.current.isAgentBuilderAvailable).toBe(false);
+    });
+
+    it('returns false when show privilege is missing', async () => {
+      const agentBuilder = createMockAgentBuilder();
+      agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
+        hasShowPrivilege: false,
+        hasRequiredLicense: true,
+        hasLlmConnector: true,
+      });
+      setupKibanaMock(agentBuilder);
+      useUiSettingMock.mockReturnValue(true);
+      const editor = createMockEditor(mockModel);
+
+      const { result } = renderHook(() =>
+        useAgentBuilderIntegration({
+          editorRef: { current: editor },
+          isEditorMounted: true,
+        })
+      );
+
+      await flushChatAccessCheck();
+
+      expect(result.current.isAgentBuilderAvailable).toBe(false);
+    });
+
+    it('returns false when enterprise license is missing', async () => {
+      const agentBuilder = createMockAgentBuilder();
+      agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
+        hasShowPrivilege: true,
+        hasRequiredLicense: false,
+        hasLlmConnector: true,
+      });
       setupKibanaMock(agentBuilder);
       useUiSettingMock.mockReturnValue(true);
       const editor = createMockEditor(mockModel);

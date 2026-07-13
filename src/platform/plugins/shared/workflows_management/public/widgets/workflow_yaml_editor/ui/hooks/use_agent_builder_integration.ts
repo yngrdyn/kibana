@@ -19,7 +19,6 @@ import { WORKFLOW_YAML_ATTACHMENT_TYPE } from '@kbn/workflows/common/constants';
 import { setAiAssisted } from '../../../../entities/workflows/store/workflow_detail/slice';
 import {
   AttachmentBridge,
-  checkWorkflowAiChatAccess,
   consumeSidebarRestoreFor,
   ProposalManager,
   setActiveProposalManager,
@@ -68,7 +67,7 @@ export const useAgentBuilderIntegration = ({
   workflowName,
   validationErrors,
 }: UseAgentBuilderIntegrationParams): UseAgentBuilderIntegrationReturn => {
-  const { workflowsManagement, http, licensing, application } = useKibana().services;
+  const { workflowsManagement } = useKibana().services;
   const agentBuilder = workflowsManagement?.agentBuilder;
   const isExperimentalEnabled = useUiSetting<boolean>(
     AGENT_BUILDER_EXPERIMENTAL_FEATURES_SETTING_ID
@@ -100,26 +99,18 @@ export const useAgentBuilderIntegration = ({
 
     let cancelled = false;
 
-    checkWorkflowAiChatAccess({
-      http,
-      licensing,
-      hasAgentBuilderShowPrivilege: application.capabilities.agentBuilder?.show === true,
-    })
-      .then((isAccessible) => {
-        if (!cancelled) {
-          setIsChatAccessible(isAccessible);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setIsChatAccessible(false);
-        }
-      });
+    void agentBuilder.getEmbeddableChatAccess().then((access) => {
+      if (!cancelled) {
+        setIsChatAccessible(
+          access.hasShowPrivilege && access.hasRequiredLicense && access.hasLlmConnector
+        );
+      }
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [agentBuilder, isExperimentalEnabled, http, licensing, application.capabilities.agentBuilder]);
+  }, [agentBuilder, isExperimentalEnabled]);
 
   useEffect(() => {
     const editor = editorRef.current;

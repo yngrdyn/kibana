@@ -162,6 +162,16 @@ export interface OpenConversationSidebarReturn {
 export interface AgentBuilderPluginSetup {}
 
 /**
+ * Embeddable chat access signals matching the embeddable access boundary checks
+ * in the agent_builder plugin (privilege, license, LLM connector).
+ */
+export interface EmbeddableChatAccess {
+  hasShowPrivilege: boolean;
+  hasRequiredLicense: boolean;
+  hasLlmConnector: boolean;
+}
+
+/**
  * Public start contract for the browser-side agentBuilder plugin.
  */
 export interface AgentBuilderPluginStart {
@@ -185,6 +195,12 @@ export interface AgentBuilderPluginStart {
    * Events service contract, can be used to listen to chat events.
    */
   events: EventsServiceStartContract;
+  /**
+   * Resolves embeddable chat access using the same checks as the embeddable access
+   * boundary (privilege, enterprise license, LLM connector). Hosts should require all
+   * three signals before programmatically opening chat.
+   */
+  getEmbeddableChatAccess: () => Promise<EmbeddableChatAccess>;
   /**
    * Opens the conversation sidebar.
    *

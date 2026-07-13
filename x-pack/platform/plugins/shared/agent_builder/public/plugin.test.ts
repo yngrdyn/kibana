@@ -16,6 +16,14 @@ import type {
   ConfigSchema,
 } from './types';
 import { setSidebarRuntimeContext } from './sidebar';
+import { resolveEmbeddableChatAccess } from './services/access';
+
+jest.mock('./services/access', () => ({
+  AgentBuilderAccessChecker: jest.fn(),
+  resolveEmbeddableChatAccess: jest.fn(),
+}));
+
+const mockResolveEmbeddableChatAccess = jest.mocked(resolveEmbeddableChatAccess);
 
 jest.mock('@kbn/shared-ux-utility', () => ({
   dynamic: jest.fn(() => () => null),
@@ -161,6 +169,37 @@ const openSidebarAndRegisterCallbacks = (
 describe('AgentBuilderPlugin', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('getEmbeddableChatAccess', () => {
+    it('exposes getEmbeddableChatAccess on the start contract and delegates to resolveEmbeddableChatAccess', async () => {
+      mockResolveEmbeddableChatAccess.mockResolvedValue({
+        hasShowPrivilege: true,
+        hasRequiredLicense: true,
+        hasLlmConnector: true,
+      });
+
+      const sidebarApp = createMockSidebarApp();
+      const coreStart = createMockCoreStart(sidebarApp);
+      coreStart.application.capabilities = { agentBuilder: { show: false } };
+
+      const plugin = new AgentBuilderPlugin(createMockInitializerContext());
+      plugin.setup(createMockCoreSetup(), createMockSetupDeps());
+      const start = plugin.start(coreStart, createMockStartDeps());
+
+      expect(start.getEmbeddableChatAccess).toEqual(expect.any(Function));
+
+      await expect(start.getEmbeddableChatAccess()).resolves.toEqual({
+        hasShowPrivilege: true,
+        hasRequiredLicense: true,
+        hasLlmConnector: true,
+      });
+
+      expect(mockResolveEmbeddableChatAccess).toHaveBeenCalledWith({
+        accessChecker: expect.anything(),
+        hasShowPrivilege: false,
+      });
+    });
   });
 
   describe('openChat when sidebar is already open', () => {
