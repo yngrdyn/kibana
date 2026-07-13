@@ -7,12 +7,9 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { z } from '@kbn/zod/v4';
+import { inboundWebhookReceivedEventSchema } from '@kbn/connector-specs';
 
-const mockInboundWebhookReceivedEventSchema = z.object({
-  connectorId: z.string(),
-  body: z.unknown(),
-});
+const mockInboundWebhookReceivedEventSchema = inboundWebhookReceivedEventSchema;
 
 const mockInboundWebhookReceivedEvent = {
   eventId: 'inboundWebhook.received',
