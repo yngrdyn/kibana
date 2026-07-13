@@ -16,6 +16,7 @@ import type {
 } from '@kbn/workflows';
 import {
   builtInStepDefinitions,
+  collectConnectorEventsFromTypes,
   DEPRECATED_STEP_METADATA,
   generateLightweightYamlSchema,
   generateYamlSchemaFromConnectors,
@@ -459,17 +460,27 @@ export function getAllConnectorsWithDynamic(
   return getAllConnectorsWithDynamicInternal(dynamicConnectorTypes);
 }
 
+const getWorkflowTriggerSchemaInput = (
+  dynamicConnectorTypes: Record<string, ConnectorTypeInfo>,
+  registeredTriggerIds: string[] = []
+) => ({
+  customTriggerIds: registeredTriggerIds,
+  connectorEvents: collectConnectorEventsFromTypes(dynamicConnectorTypes),
+});
+
 export const getWorkflowZodSchema = (
   dynamicConnectorTypes: Record<string, ConnectorTypeInfo>,
   registeredTriggerIds: string[] = [],
   options: WorkflowZodSchemaOptions = {}
 ): z.ZodType => {
+  const triggerInput = getWorkflowTriggerSchemaInput(dynamicConnectorTypes, registeredTriggerIds);
+
   if (options.lightweight) {
-    return generateLightweightYamlSchema(registeredTriggerIds);
+    return generateLightweightYamlSchema(triggerInput);
   }
 
   const allConnectors = getAllConnectorsWithDynamicInternal(dynamicConnectorTypes);
-  return generateYamlSchemaFromConnectors(allConnectors, registeredTriggerIds);
+  return generateYamlSchemaFromConnectors(allConnectors, triggerInput);
 };
 
 export const getWorkflowZodSchemaLoose = (
