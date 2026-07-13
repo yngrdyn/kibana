@@ -9,6 +9,14 @@
 
 export * as connectorsSpecs from './src/all_specs';
 export type * from './src/connector_spec';
+export type * from './src/connector_spec_events';
+export { defineConnectorEvent } from './src/define_connector_event';
+export {
+  buildConnectorEventId,
+  connectorTypeToEventNamespace,
+  normalizeConnectorTypeId,
+} from './src/connector_event_type_id';
+export { toRegisteredConnectorEvent } from './src/to_registered_connector_event';
 export type { ConnectorActionErrorMeta } from './src/connector_utils';
 export * as authTypeSpecs from './src/all_auth_types';
 export { EARS_AUTH_ID, EARS_PROVIDERS } from './src/auth_types/ears';

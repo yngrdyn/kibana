@@ -27,6 +27,8 @@ import type { CustomHostSettings, ProxySettings, SSLSettings } from '@kbn/action
 import type { LicenseType } from '@kbn/licensing-types';
 import type { AxiosHeaderValue, AxiosInstance } from 'axios';
 
+import type { ConnectorSpecEvents } from './connector_spec_events';
+
 export { UISchemas } from './connector_spec_ui';
 
 // ============================================================================
@@ -323,6 +325,11 @@ export interface ConnectorSpec {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- record of actions with different input types (contravariance)
   actions: Record<string, ActionDefinition<any, any, any>>;
+
+  /**
+   * Inbound connector events — ingress handled by the events hub, not the outbound executor.
+   */
+  events?: ConnectorSpecEvents;
 
   test?: ConnectorTest;
 
