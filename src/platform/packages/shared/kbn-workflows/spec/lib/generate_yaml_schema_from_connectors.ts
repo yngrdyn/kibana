@@ -9,6 +9,7 @@
 
 import { z } from '@kbn/zod/v4';
 import { type ConnectorContractUnion } from '../..';
+import type { ConnectorEventInfo } from '../../types/latest';
 import { getDeprecatedStepMessage, getStepDeprecationInfo } from '../deprecated_step_metadata';
 import { KIBANA_TYPE_ALIASES } from '../kibana/aliases';
 import {
@@ -37,6 +38,24 @@ import {
 } from '../schema';
 import { getTriggerSchema } from '../schema/triggers';
 
+export interface YamlSchemaTriggerInput {
+  customTriggerIds?: string[];
+  connectorEvents?: ConnectorEventInfo[];
+}
+
+export const normalizeYamlSchemaTriggerInput = (
+  input: string[] | YamlSchemaTriggerInput = []
+): Required<YamlSchemaTriggerInput> => {
+  if (Array.isArray(input)) {
+    return { customTriggerIds: input, connectorEvents: [] };
+  }
+
+  return {
+    customTriggerIds: input.customTriggerIds ?? [],
+    connectorEvents: input.connectorEvents ?? [],
+  };
+};
+
 export function getStepId(stepName: string): string {
   // Using step name as is, don't do any escaping to match the workflow engine behavior
   // Leaving this function in case we'd to change behaviour in future.
@@ -45,13 +64,14 @@ export function getStepId(stepName: string): string {
 
 export function generateYamlSchemaFromConnectors(
   connectors: ConnectorContractUnion[],
-  /** Registered custom trigger type ids for YAML schema validation (e.g. example.custom_trigger) */
-  triggers: string[] = [],
+  /** Registered custom trigger ids and/or connector events for YAML schema validation */
+  triggerInput: string[] | YamlSchemaTriggerInput = [],
   /**
    * @deprecated use WorkflowSchemaForAutocomplete instead
    */
   loose: boolean = false
 ): z.ZodType {
+  const { customTriggerIds, connectorEvents } = normalizeYamlSchemaTriggerInput(triggerInput);
   const recursiveStepSchema = createRecursiveStepSchema(connectors, loose);
 
   if (loose) {
@@ -66,7 +86,7 @@ export function generateYamlSchemaFromConnectors(
     }));
   }
 
-  const triggerSchema = getTriggerSchema(triggers);
+  const triggerSchema = getTriggerSchema(customTriggerIds, connectorEvents);
   const workflowBaseWithTriggers = WorkflowSchemaBase.extend({
     triggers: z.array(triggerSchema).min(1),
   });
@@ -81,10 +101,13 @@ export function generateYamlSchemaFromConnectors(
  * Generates a schema for trusted workflow definitions that need the shared workflow envelope
  * validation without materializing the connector-expanded step union.
  */
-export function generateLightweightYamlSchema(triggers: string[] = []): z.ZodType {
+export function generateLightweightYamlSchema(
+  triggerInput: string[] | YamlSchemaTriggerInput = []
+): z.ZodType {
+  const { customTriggerIds, connectorEvents } = normalizeYamlSchemaTriggerInput(triggerInput);
   // Trigger schemas are lightweight: custom IDs add literal trigger variants and do
   // not materialize connector or step-definition schemas.
-  const triggerSchema = getTriggerSchema(triggers);
+  const triggerSchema = getTriggerSchema(customTriggerIds, connectorEvents);
   const workflowBaseWithTriggers = WorkflowSchemaBase.extend({
     triggers: z.array(triggerSchema).min(1),
   });

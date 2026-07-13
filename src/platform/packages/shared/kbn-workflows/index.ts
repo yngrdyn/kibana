@@ -86,6 +86,8 @@ export {
   ManualTriggerSchema,
   TriggerSchema,
   getTriggerSchema,
+  getTriggerSchemaFromConnectorEvents,
+  collectConnectorEventsFromTypes,
   TriggerTypes,
   WORKFLOW_EVENTS_VALUES_SET,
   WorkflowEventsSchema,

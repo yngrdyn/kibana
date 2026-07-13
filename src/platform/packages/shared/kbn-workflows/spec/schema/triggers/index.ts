@@ -9,8 +9,11 @@
 
 import { z } from '@kbn/zod/v4';
 import { AlertRuleTriggerSchema } from './alert_trigger_schema';
+import { getTriggerSchemaFromConnectorEvents } from './connector_event_trigger_schema';
+import { CustomTriggerOnSchema } from './custom_trigger_on_schema';
 import { ManualTriggerSchema } from './manual_trigger_schema';
 import { ScheduledTriggerSchema } from './scheduled_trigger_schema';
+import type { ConnectorEventInfo } from '../../../types/latest';
 
 export { AlertRuleTriggerSchema } from './alert_trigger_schema';
 export { ManualTriggerSchema } from './manual_trigger_schema';
@@ -19,6 +22,17 @@ export {
   SCHEDULED_INTERVAL_ERROR,
   SCHEDULED_INTERVAL_PATTERN,
 } from './scheduled_trigger_schema';
+export {
+  WORKFLOW_EVENTS_VALUES_SET,
+  WorkflowEventsSchema,
+  type WorkflowEventsValue,
+} from './workflow_events_schema';
+export { CustomTriggerOnSchema } from './custom_trigger_on_schema';
+export {
+  createConnectorEventTriggerSchema,
+  getTriggerSchemaFromConnectorEvents,
+} from './connector_event_trigger_schema';
+export { collectConnectorEventsFromTypes } from './collect_connector_events_from_types';
 
 export const TriggerSchema = z.discriminatedUnion('type', [
   AlertRuleTriggerSchema,
@@ -28,46 +42,37 @@ export const TriggerSchema = z.discriminatedUnion('type', [
 
 export type Trigger = z.infer<typeof TriggerSchema>;
 
-/** Allowed values for `on.workflowEvents` on custom (event-driven) triggers. */
-const WORKFLOW_EVENTS_VALUES = ['ignore', 'allow-all', 'avoid-loop'] as const;
-export type WorkflowEventsValue = (typeof WORKFLOW_EVENTS_VALUES)[number];
-export const WORKFLOW_EVENTS_VALUES_SET = new Set<string>(WORKFLOW_EVENTS_VALUES);
-export const WorkflowEventsSchema = z.enum(WORKFLOW_EVENTS_VALUES);
-
-/** Schema for the `on` block of custom triggers (KQL condition to filter when the workflow runs). */
-const CustomTriggerOnSchema = z
-  .object({
-    condition: z.string().optional(),
-    /**
-     * How this trigger responds when the event was emitted from a workflow-attributed chain:
-     * `ignore` — do not schedule;
-     * `avoid-loop` — schedule with cycle guard (default when omitted);
-     * `allow-all` — schedule without cycle guard (max chain depth still applies).
-     */
-    workflowEvents: WorkflowEventsSchema.optional(),
-  })
-  .optional();
-
 /**
- * Returns a trigger schema that includes built-in types plus optional registered trigger ids.
+ * Returns a trigger schema that includes built-in types plus optional registered trigger ids
+ * and connector-event triggers discovered from `GET /api/workflows/connectors`.
  * Used by the YAML editor so custom trigger types (e.g. example.custom_trigger) pass validation.
  * Custom triggers allow an `on.condition` clause for KQL filtering.
+ * Connector-event triggers require `connector-id` and allow the same optional `on` block.
  */
-export function getTriggerSchema(customTriggerIds: string[] = []): z.ZodType {
-  if (customTriggerIds.length === 0) {
+export function getTriggerSchema(
+  customTriggerIds: string[] = [],
+  connectorEvents: ConnectorEventInfo[] = []
+): z.ZodType {
+  const connectorEventIds = new Set(connectorEvents.map((event) => event.eventId));
+  const plainCustomTriggerIds = customTriggerIds.filter((id) => !connectorEventIds.has(id));
+
+  if (plainCustomTriggerIds.length === 0 && connectorEvents.length === 0) {
     return TriggerSchema;
   }
-  const customSchemas = customTriggerIds.map((id) =>
+
+  const plainCustomSchemas = plainCustomTriggerIds.map((id) =>
     z.object({
       type: z.literal(id),
       on: CustomTriggerOnSchema,
     })
   );
+
   return z.discriminatedUnion('type', [
     AlertRuleTriggerSchema,
     ScheduledTriggerSchema,
     ManualTriggerSchema,
-    ...customSchemas,
+    ...plainCustomSchemas,
+    ...getTriggerSchemaFromConnectorEvents(connectorEvents),
   ]);
 }
 
