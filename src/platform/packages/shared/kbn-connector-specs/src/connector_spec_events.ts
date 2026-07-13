@@ -14,8 +14,7 @@ export type ConnectorEventStability = 'stable' | 'beta' | 'tech_preview';
 
 /**
  * Declarative event definition on a ConnectorSpec.
- * Workflows trigger `type` equals {@link ConnectorEventDefinition.eventId}.
- *
+ * {@link ConnectorEventDefinition.eventId} is the public identifier subscribers use.
  */
 export interface ConnectorEventDefinition {
   /** MUST equal `{connectorTypeId sans dot}.{eventKey}` */
@@ -52,7 +51,7 @@ export interface InboundEventPayload {
 export interface HandleEventsResult {
   /** Control-plane responses (e.g. Slack URL verification) — skip emitEvent */
   readonly httpResponse?: InboundEventHttpResponse;
-  /** Data-plane events for Workflows emitEvent */
+  /** Data-plane events dispatched after ingress handling. */
   readonly events?: InboundEventPayload[];
 }
 
@@ -61,9 +60,7 @@ export interface ConnectorSpecEvents {
   handleEvents(ctx: InboundEventContext): Promise<HandleEventsResult>;
 }
 
-/**
- * Resolved connector event after registration — consumed by Workflows surface resolver.
- */
+/** Resolved connector event after registration. */
 export interface RegisteredConnectorEvent extends ConnectorEventDefinition {
   readonly connectorTypeId: string;
   readonly eventKey: string;
