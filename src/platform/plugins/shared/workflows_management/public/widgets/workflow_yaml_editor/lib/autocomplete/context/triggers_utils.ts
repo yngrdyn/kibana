@@ -29,6 +29,31 @@ export function getTriggerConditionBlockIndex(path: (string | number)[]): number
 }
 
 /**
+ * When the YAML path is `triggers[i].connector-id`, returns `i`. Otherwise `null`.
+ */
+export function getTriggerConnectorIdBlockIndex(path: (string | number)[]): number | null {
+  if (
+    path.length >= 3 &&
+    path[0] === 'triggers' &&
+    typeof path[1] === 'number' &&
+    path[2] === 'connector-id'
+  ) {
+    return path[1];
+  }
+  return null;
+}
+
+/**
+ * When the YAML path is under `triggers[i]`, returns `i`. Otherwise `null`.
+ */
+export function getTriggerBlockIndex(path: (string | number)[]): number | null {
+  if (path.length >= 2 && path[0] === 'triggers' && typeof path[1] === 'number') {
+    return path[1];
+  }
+  return null;
+}
+
+/**
  * Reads `triggers[triggerIndex].type` from the parsed YAML document.
  */
 export function getTriggerTypeAtIndex(yamlDocument: Document, triggerIndex: number): string | null {
