@@ -8,7 +8,7 @@
  */
 
 import { getConnectorIdSuggestionsItems } from './get_connector_id_suggestions_items';
-import { resolveConnectorIdStepType } from './resolve_connector_id_step_type';
+import { resolveConnectorIdActionTypeId } from '../../../../../../workflow_surface/connector_id_provider';
 import type { AutocompleteContext } from '../../context/autocomplete.types';
 
 export function getConnectorIdSuggestions({
@@ -18,18 +18,25 @@ export function getConnectorIdSuggestions({
   focusedStepInfo,
   focusedYamlPair,
   path,
+  yamlDocument,
   dynamicConnectorTypes,
 }: AutocompleteContext) {
-  const stepConnectorType = resolveConnectorIdStepType(focusedStepInfo, path, focusedYamlPair);
+  const connectorActionTypeId = resolveConnectorIdActionTypeId({
+    yamlDocument,
+    path,
+    focusedStepInfo,
+    focusedYamlPair,
+  });
 
   if (
-    !stepConnectorType ||
+    !connectorActionTypeId ||
     !lineParseResult ||
     lineParseResult.matchType !== 'connector-id' ||
     !dynamicConnectorTypes
   ) {
     return [];
   }
+
   // If the user has typed part of the connector-id, we replace from the start of the value to the end of the line
   if (lineParseResult.fullKey !== '') {
     const replaceRange = {
@@ -37,8 +44,12 @@ export function getConnectorIdSuggestions({
       startColumn: lineParseResult.valueStartIndex + 1,
       endColumn: line.length + 1,
     };
-    return getConnectorIdSuggestionsItems(stepConnectorType, replaceRange, dynamicConnectorTypes);
+    return getConnectorIdSuggestionsItems(
+      connectorActionTypeId,
+      replaceRange,
+      dynamicConnectorTypes
+    );
   }
 
-  return getConnectorIdSuggestionsItems(stepConnectorType, range, dynamicConnectorTypes);
+  return getConnectorIdSuggestionsItems(connectorActionTypeId, range, dynamicConnectorTypes);
 }
