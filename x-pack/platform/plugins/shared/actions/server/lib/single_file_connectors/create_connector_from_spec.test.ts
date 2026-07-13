@@ -140,7 +140,7 @@ describe('createConnectorTypeFromSpec', () => {
     });
 
     expect(() => createConnectorTypeFromSpec(spec, mockActionsPlugin)).toThrow(
-      'No actions defined'
+      'No actions or events defined'
     );
   });
 
