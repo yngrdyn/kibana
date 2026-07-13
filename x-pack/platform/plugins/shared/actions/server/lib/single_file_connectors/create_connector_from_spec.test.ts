@@ -127,7 +127,7 @@ describe('createConnectorTypeFromSpec', () => {
     expect(connectorType.source).toBe(ACTION_TYPE_SOURCES.spec);
   });
 
-  it('throws an error if the actions are empty', () => {
+  it('throws an error if the actions are empty and the spec has no events', () => {
     const spec = createMockSpec({
       metadata: {
         id: 'workflows-multi-feature-connector-no-actions',
@@ -139,10 +139,32 @@ describe('createConnectorTypeFromSpec', () => {
       actions: {},
     });
 
-    // This should throw an error because generateParamsSchema requires actions
     expect(() => createConnectorTypeFromSpec(spec, mockActionsPlugin)).toThrow(
-      'No actions defined'
+      'No actions or events defined'
     );
+  });
+
+  it('creates an events-only connector type without an executor', () => {
+    const spec = createMockSpec({
+      metadata: {
+        id: 'inbound-webhook-events-only',
+        description: 'Inbound webhook ingress only',
+        displayName: 'Inbound Webhook',
+        minimumLicense: 'gold',
+        supportedFeatureIds: [WorkflowsConnectorFeatureId],
+      },
+      actions: {},
+      events: {
+        definitions: {},
+        handleEvents: jest.fn(),
+      },
+    });
+
+    const connectorType = createConnectorTypeFromSpec(spec, mockActionsPlugin);
+
+    expect(connectorType.id).toBe('inbound-webhook-events-only');
+    expect(connectorType.executor).toBeUndefined();
+    expect(connectorType.validate.params).toBeUndefined();
   });
 
   it('always includes config and secrets validators', () => {

@@ -51,10 +51,13 @@ export const createConnectorTypeFromSpec = (
 ): ActionType<ActionTypeConfig, ActionTypeSecrets, ActionTypeParams, unknown> => {
   const configUtils = actions.getActionsConfigurationUtilities();
 
-  const hasTest = Boolean(spec.test?.enabled);
-  const hasActions = Boolean(spec.actions);
   const executableActions = buildExecutableActions(spec);
-  const hasExecutableActions = hasActions || hasTest;
+  const hasExecutableActions = Object.keys(executableActions).length > 0;
+  const isEventsOnlyConnector = !hasExecutableActions && Boolean(spec.events);
+
+  if (!hasExecutableActions && !isEventsOnlyConnector) {
+    throw new Error('No actions or events defined');
+  }
 
   const executor = hasExecutableActions
     ? generateExecutorFunction({
