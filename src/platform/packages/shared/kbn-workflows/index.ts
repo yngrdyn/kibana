@@ -39,6 +39,7 @@ export {
   getWorkflowExamplesDir,
 } from './spec/examples';
 export type { WorkflowExampleEntry } from './spec/examples';
+export * from './spec/workflow_surface';
 export { StepCategory, StepCategories } from './spec/step_definition_types';
 export type { BaseStepDefinition, StepDocumentation } from './spec/step_definition_types';
 export * from './spec/deprecated_step_metadata';

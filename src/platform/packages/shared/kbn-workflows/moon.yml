@@ -25,6 +25,7 @@ dependsOn:
   - '@kbn/repo-info'
   - '@kbn/human-readable-id'
   - '@kbn/std'
+  - '@kbn/connector-specs'
 tags:
   - shared-common
   - package
