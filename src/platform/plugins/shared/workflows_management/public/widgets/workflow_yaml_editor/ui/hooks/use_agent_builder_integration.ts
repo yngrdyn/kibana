@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { v4 } from 'uuid';
 import { isConversationIdSetEvent } from '@kbn/agent-builder-common/chat/events';
@@ -19,6 +19,7 @@ import { WORKFLOW_YAML_ATTACHMENT_TYPE } from '@kbn/workflows/common/constants';
 import { setAiAssisted } from '../../../../entities/workflows/store/workflow_detail/slice';
 import {
   AttachmentBridge,
+  checkWorkflowAiChatAccess,
   consumeSidebarRestoreFor,
   ProposalManager,
   setActiveProposalManager,
@@ -67,7 +68,7 @@ export const useAgentBuilderIntegration = ({
   workflowName,
   validationErrors,
 }: UseAgentBuilderIntegrationParams): UseAgentBuilderIntegrationReturn => {
-  const { workflowsManagement } = useKibana().services;
+  const { workflowsManagement, http, licensing, application } = useKibana().services;
   const agentBuilder = workflowsManagement?.agentBuilder;
   const isExperimentalEnabled = useUiSetting<boolean>(
     AGENT_BUILDER_EXPERIMENTAL_FEATURES_SETTING_ID
@@ -87,8 +88,38 @@ export const useAgentBuilderIntegration = ({
   const unsavedWorkflowIdRef = useRef<string>(v4());
   const workflowNameRef = useRef(workflowName);
   workflowNameRef.current = workflowName;
+  const [isChatAccessible, setIsChatAccessible] = useState(false);
 
   const attachmentId = workflowId ?? unsavedWorkflowIdRef.current;
+
+  useEffect(() => {
+    if (!agentBuilder || !isExperimentalEnabled) {
+      setIsChatAccessible(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    checkWorkflowAiChatAccess({
+      http,
+      licensing,
+      hasAgentBuilderShowPrivilege: application.capabilities.agentBuilder?.show === true,
+    })
+      .then((isAccessible) => {
+        if (!cancelled) {
+          setIsChatAccessible(isAccessible);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIsChatAccessible(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [agentBuilder, isExperimentalEnabled, http, licensing, application.capabilities.agentBuilder]);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -307,7 +338,7 @@ export const useAgentBuilderIntegration = ({
 
   const openAgentChat = useCallback(
     (options?: OpenAgentChatOptions) => {
-      if (!agentBuilder || !isExperimentalEnabled) {
+      if (!agentBuilder || !isExperimentalEnabled || !isChatAccessible) {
         return;
       }
 
@@ -346,6 +377,7 @@ export const useAgentBuilderIntegration = ({
     [
       agentBuilder,
       isExperimentalEnabled,
+      isChatAccessible,
       editorRef,
       attachmentId,
       workflowId,
@@ -359,7 +391,7 @@ export const useAgentBuilderIntegration = ({
   // the save thunk requested we restore. Never on an existing workflow the
   // user navigated to directly. Guarded per-mount so a manual close stays.
   useEffect(() => {
-    if (!isEditorMounted || !agentBuilder || !isExperimentalEnabled) return;
+    if (!isEditorMounted || !agentBuilder || !isExperimentalEnabled || !isChatAccessible) return;
     if (hasAutoOpenedRef.current) return;
 
     const shouldRestoreForSavedWorkflow =
@@ -369,7 +401,14 @@ export const useAgentBuilderIntegration = ({
 
     hasAutoOpenedRef.current = true;
     openAgentChat({ isAutoOpen: true });
-  }, [isEditorMounted, agentBuilder, isExperimentalEnabled, workflowId, openAgentChat]);
+  }, [
+    isEditorMounted,
+    agentBuilder,
+    isExperimentalEnabled,
+    isChatAccessible,
+    workflowId,
+    openAgentChat,
+  ]);
 
   // Close the sidebar on unmount (leaving the workflow scope). Empty deps so
   // it does not fire on prop changes. `application.navigateToApp` remounts
@@ -385,7 +424,7 @@ export const useAgentBuilderIntegration = ({
 
   return {
     openAgentChat,
-    isAgentBuilderAvailable: agentBuilder != null && isExperimentalEnabled,
+    isAgentBuilderAvailable: agentBuilder != null && isExperimentalEnabled && isChatAccessible,
     proposalManager: proposalManagerRef.current,
   };
 };

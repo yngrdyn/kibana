@@ -25,3 +25,5 @@ export {
   requestSidebarRestore,
   consumeSidebarRestoreFor,
 } from './conversation_handoff';
+
+export { checkWorkflowAiChatAccess } from './check_workflow_ai_chat_access';
