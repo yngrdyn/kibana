@@ -13,6 +13,7 @@ import { WORKFLOW_GRAPH_FOCUS_TRIGGER } from '@kbn/workflows';
 import type { ActiveTab, ComputedData, LineColumnPosition, WorkflowDetailState } from './types';
 import { addLoadingStateReducers, initialLoadingState } from './utils/loading_states';
 import { resolveFocusForLine } from './utils/trigger_finder';
+import { mapRegisteredTriggersForSchema } from '../../../../../common/lib/map_registered_triggers_for_schema';
 import { getWorkflowZodSchema } from '../../../../../common/schema';
 import { triggerSchemas } from '../../../../trigger_schemas';
 import type { WorkflowsResponse } from '../../model/types';
@@ -40,7 +41,10 @@ const initialState: WorkflowDetailState = {
   activeTab: undefined,
   connectors: undefined,
   workflows: initialWorkflowsState,
-  schema: getWorkflowZodSchema({}, triggerSchemas.getRegisteredIds()),
+  schema: getWorkflowZodSchema(
+    {},
+    mapRegisteredTriggersForSchema(triggerSchemas.getTriggerDefinitions())
+  ),
   cursorPosition: undefined,
   focusedStepId: undefined,
   focusedTriggerId: undefined,

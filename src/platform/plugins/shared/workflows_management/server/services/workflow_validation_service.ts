@@ -14,6 +14,7 @@ import type { ServerTriggerDefinition } from '@kbn/workflows-extensions/server';
 import type { z } from '@kbn/zod/v4';
 
 import type { WorkflowValidationDeps } from './types';
+import { mapRegisteredTriggersForSchema } from '../../common/lib/map_registered_triggers_for_schema';
 import { validateWorkflowYaml } from '../../common/lib/validate_workflow_yaml';
 import { getWorkflowZodSchema } from '../../common/schema';
 import { getAvailableConnectors } from '../api/lib/workflow_connectors';
@@ -53,7 +54,9 @@ export class WorkflowValidationService {
     request: KibanaRequest
   ): Promise<z.ZodType> {
     const { connectorTypes } = await this.getAvailableConnectors(spaceId, request);
-    const registeredTriggerIds = this.getRegisteredCustomTriggerDefinitions().map((t) => t.id);
-    return getWorkflowZodSchema(connectorTypes, registeredTriggerIds);
+    const registeredTriggers = mapRegisteredTriggersForSchema(
+      this.getRegisteredCustomTriggerDefinitions()
+    );
+    return getWorkflowZodSchema(connectorTypes, registeredTriggers);
   }
 }

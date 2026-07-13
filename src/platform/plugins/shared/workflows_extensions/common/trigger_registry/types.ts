@@ -34,6 +34,10 @@ export interface TriggerSnippets {
    * Must be valid KQL and only reference properties from the event schema (validated at registration).
    */
   condition?: string;
+  /**
+   * Connector instance id pre-filled in `connector-id` for connector-event triggers.
+   */
+  connectorId?: string;
 }
 
 /**
@@ -71,6 +75,10 @@ export interface CommonTriggerDefinition<EventSchema extends z.ZodType = z.ZodTy
    * Pre-filled values for snippet insertion (e.g. on.condition).
    */
   snippets?: TriggerSnippets;
+  /**
+   * When true, workflow YAML must include `connector-id` for this trigger (connector-event binding).
+   */
+  requiresConnectorId?: boolean;
   /**
    * API stability level for this trigger (e.g. 'tech_preview', 'beta', 'stable').
    * Required so every trigger explicitly declares its contract. Set 'stable' for GA triggers (no badge).

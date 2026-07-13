@@ -38,6 +38,7 @@ import type {
   WorkflowDocumentGetOptions,
   WriteWorkflowDocumentWithOccParams,
 } from './workflow_occ_types';
+import { mapRegisteredTriggersForSchema } from '../../common/lib/map_registered_triggers_for_schema';
 import {
   WORKFLOW_CHANGE_HISTORY_OBJECT_TYPE,
   WorkflowChangeHistoryAction,
@@ -356,11 +357,12 @@ export class WorkflowCrudService {
     request?: KibanaRequest;
     yaml: string;
   }): Promise<{ id: string; workflowData: WorkflowProperties; definition?: WorkflowYaml }> {
-    const registeredTriggerIds =
-      this.deps.workflowsExtensions?.getAllTriggerDefinitions().map((t) => t.id) ?? [];
+    const registeredTriggers = mapRegisteredTriggersForSchema(
+      this.deps.workflowsExtensions?.getAllTriggerDefinitions() ?? []
+    );
     let zodSchema: z.ZodType;
     if (params.lightweightValidation) {
-      zodSchema = getWorkflowZodSchema({}, registeredTriggerIds, { lightweight: true });
+      zodSchema = getWorkflowZodSchema({}, registeredTriggers, { lightweight: true });
     } else if (params.request) {
       zodSchema = await this.deps.validationService.getWorkflowZodSchema(
         { loose: false },
@@ -368,7 +370,7 @@ export class WorkflowCrudService {
         params.request
       );
     } else {
-      zodSchema = getWorkflowZodSchema({}, registeredTriggerIds);
+      zodSchema = getWorkflowZodSchema({}, registeredTriggers);
     }
     const triggerDefinitions = params.lightweightValidation
       ? undefined

@@ -33,6 +33,11 @@ export {
   getTriggerSchemaFromConnectorEvents,
 } from './connector_event_trigger_schema';
 export { collectConnectorEventsFromTypes } from './collect_connector_events_from_types';
+export {
+  collectConnectorEventsForTriggerSchema,
+  type RegisteredTriggerForSchema,
+  type RegisteredTriggerSchemaArg,
+} from './collect_connector_events_for_trigger_schema';
 
 export const TriggerSchema = z.discriminatedUnion('type', [
   AlertRuleTriggerSchema,
