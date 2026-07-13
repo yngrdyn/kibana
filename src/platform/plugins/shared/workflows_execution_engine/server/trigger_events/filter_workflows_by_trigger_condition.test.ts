@@ -14,9 +14,16 @@ import {
   workflowMatchesTriggerCondition,
 } from './filter_workflows_by_trigger_condition';
 
+jest.mock('@kbn/workflows', () => ({
+  ...jest.requireActual('@kbn/workflows'),
+  resolveConnectorEventTriggerDefinition: jest.fn((triggerId: string) =>
+    triggerId === 'inboundWebhook.received' ? { id: triggerId } : undefined
+  ),
+}));
+
 /** Definition overrides for tests; allows custom trigger types (e.g. cases.updated). */
 interface TestDefinitionOverrides {
-  triggers?: Array<{ type: string; on?: { condition?: string } }>;
+  triggers?: Array<{ type: string; 'connector-id'?: string; on?: { condition?: string } }>;
   steps?: unknown[];
 }
 
@@ -267,5 +274,117 @@ describe('classifyWorkflowTriggerMatch', () => {
       definition: { triggers: [{ type: 'cases.updated' }], steps: [] },
     });
     expect(classifyWorkflowTriggerMatch(workflow, 'cases.updated', {}, mockLogger)).toBe('matched');
+  });
+});
+
+describe('connector-event trigger connector-id gate', () => {
+  const mockLogger: Logger = {
+    warn: jest.fn(),
+  } as unknown as Logger;
+
+  const createConnectorEventWorkflow = (connectorId: string, condition?: string) =>
+    createMockWorkflow({
+      definition: {
+        triggers: [
+          {
+            type: 'inboundWebhook.received',
+            'connector-id': connectorId,
+            ...(condition ? { on: { condition } } : {}),
+          },
+        ],
+        steps: [],
+      },
+    });
+
+  it('matches when trigger connector-id equals payload connectorId', () => {
+    const workflow = createConnectorEventWorkflow('sales-ingress');
+    expect(
+      workflowMatchesTriggerCondition(
+        workflow,
+        'inboundWebhook.received',
+        { connectorId: 'sales-ingress', body: { eventType: 'order.created' } },
+        mockLogger
+      )
+    ).toBe(true);
+  });
+
+  it('does not match when connector ids differ', () => {
+    const workflow = createConnectorEventWorkflow('sales-ingress');
+    expect(
+      workflowMatchesTriggerCondition(
+        workflow,
+        'inboundWebhook.received',
+        { connectorId: 'other-ingress', body: { eventType: 'order.created' } },
+        mockLogger
+      )
+    ).toBe(false);
+  });
+
+  it('does not match when payload connectorId is missing', () => {
+    const workflow = createConnectorEventWorkflow('sales-ingress');
+    expect(
+      workflowMatchesTriggerCondition(
+        workflow,
+        'inboundWebhook.received',
+        { body: { eventType: 'order.created' } },
+        mockLogger
+      )
+    ).toBe(false);
+  });
+
+  it('applies connector-id gate before KQL evaluation', () => {
+    const workflow = createConnectorEventWorkflow(
+      'sales-ingress',
+      'event.body.eventType: "order.created"'
+    );
+
+    expect(
+      workflowMatchesTriggerCondition(
+        workflow,
+        'inboundWebhook.received',
+        {
+          connectorId: 'other-ingress',
+          body: { eventType: 'order.created' },
+        },
+        mockLogger
+      )
+    ).toBe(false);
+
+    expect(
+      workflowMatchesTriggerCondition(
+        workflow,
+        'inboundWebhook.received',
+        {
+          connectorId: 'sales-ingress',
+          body: { eventType: 'order.created' },
+        },
+        mockLogger
+      )
+    ).toBe(true);
+
+    expect(
+      workflowMatchesTriggerCondition(
+        workflow,
+        'inboundWebhook.received',
+        {
+          connectorId: 'sales-ingress',
+          body: { eventType: 'order.cancelled' },
+        },
+        mockLogger
+      )
+    ).toBe(false);
+  });
+
+  it('does not apply connector-id gate to plain custom triggers', () => {
+    const workflow = createMockWorkflow({
+      definition: {
+        triggers: [{ type: 'cases.updated', on: { condition: 'event.severity: "high"' } }],
+        steps: [],
+      },
+    });
+
+    expect(
+      workflowMatchesTriggerCondition(workflow, 'cases.updated', { severity: 'high' }, mockLogger)
+    ).toBe(true);
   });
 });
