@@ -7,7 +7,21 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+jest.mock('@kbn/connector-specs', () => {
+  const actual = jest.requireActual('@kbn/connector-specs');
+  return {
+    ...actual,
+    listConnectorEventInfosForType: jest.fn(() => []),
+  };
+});
+
+import { listConnectorEventInfosForType } from '@kbn/connector-specs';
+
 import { getAvailableConnectors } from './workflow_connectors';
+
+const mockListConnectorEventInfosForType = listConnectorEventInfosForType as jest.MockedFunction<
+  typeof listConnectorEventInfosForType
+>;
 
 const mockActionType = (overrides: Record<string, unknown> = {}) => ({
   id: '.slack',
@@ -31,6 +45,10 @@ const mockConnector = (overrides: Record<string, unknown> = {}) => ({
 
 describe('getAvailableConnectors', () => {
   const request = {} as any;
+
+  beforeEach(() => {
+    mockListConnectorEventInfosForType.mockReturnValue([]);
+  });
 
   it('groups connectors by type and returns the configured action-type metadata', async () => {
     const actionsClient = { getAll: jest.fn().mockResolvedValue([mockConnector()]) };
@@ -190,5 +208,43 @@ describe('getAvailableConnectors', () => {
     // Both starts precede both ends — proves parallel, not sequential.
     expect(order.indexOf('getAll:start')).toBeLessThan(order.indexOf('listTypes:end'));
     expect(order.indexOf('listTypes:start')).toBeLessThan(order.indexOf('getAll:end'));
+  });
+
+  it('includes connector events from ConnectorSpec when the type declares events', async () => {
+    mockListConnectorEventInfosForType.mockImplementation((actionTypeId) =>
+      actionTypeId === '.inboundWebhook'
+        ? [
+            {
+              eventKey: 'received',
+              eventId: 'inboundWebhook.received',
+              title: 'Webhook received',
+              description: 'Fires when an authenticated request hits this connector endpoint.',
+            },
+          ]
+        : []
+    );
+
+    const actionsClient = { getAll: jest.fn().mockResolvedValue([]) };
+    const actionsClientWithRequest = {
+      listTypes: jest
+        .fn()
+        .mockResolvedValue([mockActionType({ id: '.inboundWebhook', name: 'Inbound Webhook' })]),
+    };
+
+    const result = await getAvailableConnectors({
+      getActionsClient: jest.fn().mockResolvedValue(actionsClient),
+      getActionsClientWithRequest: jest.fn().mockResolvedValue(actionsClientWithRequest),
+      spaceId: 'default',
+      request,
+    });
+
+    expect(result.connectorTypes['.inboundWebhook'].events).toEqual([
+      {
+        eventKey: 'received',
+        eventId: 'inboundWebhook.received',
+        title: 'Webhook received',
+        description: 'Fires when an authenticated request hits this connector endpoint.',
+      },
+    ]);
   });
 });

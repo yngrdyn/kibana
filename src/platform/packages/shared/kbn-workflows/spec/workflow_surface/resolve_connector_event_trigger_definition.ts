@@ -7,17 +7,19 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-export type {
-  InstanceRef,
-  WorkflowSurfaceBinding,
-  WorkflowSurfaceDefinition,
-  WorkflowSurfaceFilter,
-  WorkflowSurfaceKind,
-  WorkflowSurfaceSource,
-} from './types';
-export { connectorEventToWorkflowSurface } from './connector_event_to_workflow_surface';
-export {
+import { resolveRegisteredConnectorEventByEventId } from '@kbn/connector-specs';
+import {
   connectorEventToTriggerDefinition,
   type ConnectorEventTriggerDefinition,
 } from './connector_event_to_trigger_definition';
-export { resolveConnectorEventTriggerDefinition } from './resolve_connector_event_trigger_definition';
+
+export const resolveConnectorEventTriggerDefinition = (
+  triggerId: string
+): ConnectorEventTriggerDefinition | undefined => {
+  const event = resolveRegisteredConnectorEventByEventId(triggerId);
+  if (!event) {
+    return undefined;
+  }
+
+  return connectorEventToTriggerDefinition(event);
+};

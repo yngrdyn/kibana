@@ -31,6 +31,12 @@ export {
 } from './src/auth_types/oauth_client_credentials_private_key_jwt';
 
 export { getConnectorSpec } from './src/get_connector_spec';
+export {
+  listConnectorEventInfos,
+  listConnectorEventInfosForType,
+  type ConnectorEventInfo,
+} from './src/list_connector_event_infos';
+export { resolveRegisteredConnectorEventByEventId } from './src/resolve_registered_connector_event_by_event_id';
 export { isToolAction, TEST_CONNECTOR_SUB_ACTION } from './src/connector_spec';
 export {
   getConnectorActionErrorMeta,

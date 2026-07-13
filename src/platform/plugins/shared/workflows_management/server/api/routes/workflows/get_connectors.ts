@@ -22,7 +22,7 @@ export function registerGetConnectorsRoute({ router, api, logger, spaces }: Rout
       security: WORKFLOW_READ_SECURITY,
       summary: 'Get available connectors',
       description:
-        'Retrieve the Kibana action connectors that can be used in workflow steps, grouped by connector type. Each type includes its configured instances and availability status.',
+        'Retrieve the Kibana action connectors that can be used in workflow steps and triggers, grouped by connector type. Each type includes its configured instances, availability status, and declared workflow events (when the connector supports inbound events).',
       options: {
         tags: [OAS_TAG],
         availability: AVAILABILITY,

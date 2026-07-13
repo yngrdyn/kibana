@@ -573,6 +573,14 @@ export interface ConnectorInstanceConfig {
   taskType?: string;
 }
 
+export interface ConnectorEventInfo {
+  readonly eventKey: string;
+  readonly eventId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly stability?: StabilityLevel;
+}
+
 export interface ConnectorTypeInfo {
   actionTypeId: string;
   displayName: string;
@@ -582,6 +590,8 @@ export interface ConnectorTypeInfo {
   enabledInLicense: boolean;
   minimumLicenseRequired: string;
   subActions: ConnectorSubAction[];
+  /** Inbound connector events declared on this connector type (from ConnectorSpec.events). */
+  events?: ConnectorEventInfo[];
 }
 
 export type CompletionFn = () => Promise<

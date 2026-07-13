@@ -30,6 +30,7 @@ import { initializeTriggerEventsClient, writeTriggerEvent } from './event_logs';
 import type { TriggerEventsDataStreamClient } from './event_logs/trigger_events_data_stream';
 import { classifyWorkflowTriggerMatch } from './filter_workflows_by_trigger_condition';
 import { resolveWorkflowEventsModeFromOn } from './lib/resolve_workflow_events_mode_from_on';
+import { resolveTriggerDefinition } from './resolve_trigger_definition';
 import {
   createEmptyTriggerResolutionStats,
   createEmptyTriggerScheduleStats,
@@ -276,10 +277,10 @@ export class TriggerEventHandler {
     spaceId: string,
     event: Record<string, unknown>
   ): void {
-    const definition = this.workflowsExtensions.getTriggerDefinition(triggerId);
+    const definition = resolveTriggerDefinition(triggerId, this.workflowsExtensions);
     if (!definition) {
       throw new Error(
-        `Trigger "${triggerId}" is not registered. Register it during plugin setup via registerTriggerDefinition.`
+        `Trigger "${triggerId}" is not registered. Register it during plugin setup via registerTriggerDefinition, or declare it on a ConnectorSpec.events definition.`
       );
     }
 
