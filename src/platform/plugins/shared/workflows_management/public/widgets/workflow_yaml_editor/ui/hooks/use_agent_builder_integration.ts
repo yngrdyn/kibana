@@ -100,20 +100,34 @@ export const useAgentBuilderIntegration = ({
 
     let cancelled = false;
 
-    void agentBuilder.getEmbeddableChatAccess().then((access) => {
-      if (!cancelled) {
-        setIsChatAccessible(access.hasRequiredLicense && access.hasLlmConnector);
-      }
-    });
+    void agentBuilder
+      .getEmbeddableChatAccess()
+      .then((access) => {
+        if (!cancelled) {
+          setIsChatAccessible(access.hasRequiredLicense && access.hasLlmConnector);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setIsChatAccessible(false);
+        }
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [agentBuilder, application, hasShowPrivilege, isExperimentalEnabled]);
+  }, [agentBuilder, hasShowPrivilege, isExperimentalEnabled]);
 
   useEffect(() => {
     const editor = editorRef.current;
-    if (!isEditorMounted || !editor || !agentBuilder || !isExperimentalEnabled) {
+    if (
+      !isEditorMounted ||
+      !editor ||
+      !agentBuilder ||
+      !isExperimentalEnabled ||
+      !hasShowPrivilege ||
+      !isChatAccessible
+    ) {
       return;
     }
 
@@ -320,6 +334,8 @@ export const useAgentBuilderIntegration = ({
     editorRef,
     agentBuilder,
     isExperimentalEnabled,
+    hasShowPrivilege,
+    isChatAccessible,
     attachmentId,
     workflowId,
     telemetry,

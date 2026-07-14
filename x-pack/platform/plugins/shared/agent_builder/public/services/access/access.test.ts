@@ -90,4 +90,26 @@ describe('AgentBuilderAccessChecker', () => {
 
     expect(() => accessChecker.getAccess()).toThrow('Agent Builder access was not initialized');
   });
+
+  it('returns denied access when initialization fails', async () => {
+    const accessChecker = createAccessChecker({
+      hasEnterpriseLicense: true,
+      connectorCount: 0,
+      connectorsReject: new Error('forbidden'),
+    });
+
+    await expect(accessChecker.getEmbeddableChatAccess()).resolves.toEqual({
+      hasRequiredLicense: false,
+      hasLlmConnector: false,
+    });
+  });
+
+  it('returns access from getEmbeddableChatAccess when initialization succeeds', async () => {
+    const accessChecker = createAccessChecker({ hasEnterpriseLicense: true, connectorCount: 1 });
+
+    await expect(accessChecker.getEmbeddableChatAccess()).resolves.toEqual({
+      hasRequiredLicense: true,
+      hasLlmConnector: true,
+    });
+  });
 });

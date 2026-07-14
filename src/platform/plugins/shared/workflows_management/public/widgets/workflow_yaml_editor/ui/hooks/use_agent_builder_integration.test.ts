@@ -178,7 +178,7 @@ describe('useAgentBuilderIntegration', () => {
   });
 
   describe('attachment sync on mount', () => {
-    it('calls setChatConfig and addAttachment immediately when editor is mounted', () => {
+    it('calls setChatConfig and addAttachment when editor is mounted and chat access resolves', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -189,13 +189,15 @@ describe('useAgentBuilderIntegration', () => {
           isEditorMounted: true,
         })
       );
+
+      await flushChatAccessCheck();
 
       const expected = expectedAttachment(INITIAL_YAML);
       expect(agentBuilder.setChatConfig).toHaveBeenCalledWith(expectedChatConfig(expected));
       expect(agentBuilder.addAttachment).toHaveBeenCalledWith(expected);
     });
 
-    it('propagates the workflow-editor greetingMessage in the chat config', () => {
+    it('propagates the workflow-editor greetingMessage in the chat config', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -206,6 +208,8 @@ describe('useAgentBuilderIntegration', () => {
           isEditorMounted: true,
         })
       );
+
+      await flushChatAccessCheck();
 
       expect(agentBuilder.setChatConfig).toHaveBeenCalledWith(
         expect.objectContaining({ greetingMessage: WORKFLOW_EDITOR_GREETING })
@@ -257,7 +261,7 @@ describe('useAgentBuilderIntegration', () => {
       expect(agentBuilder.addAttachment).not.toHaveBeenCalled();
     });
 
-    it('includes workflowId and workflowName in the attachment', () => {
+    it('includes workflowId and workflowName in the attachment', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -271,6 +275,8 @@ describe('useAgentBuilderIntegration', () => {
         })
       );
 
+      await flushChatAccessCheck();
+
       const expected = expectedAttachment(INITIAL_YAML, {
         workflowId: 'wf-123',
         name: 'My Workflow',
@@ -280,7 +286,7 @@ describe('useAgentBuilderIntegration', () => {
       );
     });
 
-    it('does not tear down the effect when workflowName changes', () => {
+    it('does not tear down the effect when workflowName changes', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -294,6 +300,8 @@ describe('useAgentBuilderIntegration', () => {
           workflowName: 'Original Name',
         },
       });
+
+      await flushChatAccessCheck();
 
       agentBuilder.clearChatConfig.mockClear();
       agentBuilder.setChatConfig.mockClear();
@@ -317,7 +325,7 @@ describe('useAgentBuilderIntegration', () => {
       );
     });
 
-    it('uses a generated UUID as attachment id when workflowId is undefined', () => {
+    it('uses a generated UUID as attachment id when workflowId is undefined', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -328,6 +336,8 @@ describe('useAgentBuilderIntegration', () => {
           isEditorMounted: true,
         })
       );
+
+      await flushChatAccessCheck();
 
       expect(agentBuilder.setChatConfig).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -339,7 +349,7 @@ describe('useAgentBuilderIntegration', () => {
   });
 
   describe('attachment sync on content change', () => {
-    it('syncs attachment after debounce when content changes', () => {
+    it('syncs attachment after debounce when content changes', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -350,6 +360,8 @@ describe('useAgentBuilderIntegration', () => {
           isEditorMounted: true,
         })
       );
+
+      await flushChatAccessCheck();
 
       agentBuilder.setChatConfig.mockClear();
       agentBuilder.addAttachment.mockClear();
@@ -368,7 +380,7 @@ describe('useAgentBuilderIntegration', () => {
       expect(agentBuilder.addAttachment).toHaveBeenCalledWith(expected);
     });
 
-    it('debounces rapid content changes', () => {
+    it('debounces rapid content changes', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -379,6 +391,8 @@ describe('useAgentBuilderIntegration', () => {
           isEditorMounted: true,
         })
       );
+
+      await flushChatAccessCheck();
 
       agentBuilder.setChatConfig.mockClear();
       agentBuilder.addAttachment.mockClear();
@@ -409,7 +423,7 @@ describe('useAgentBuilderIntegration', () => {
   });
 
   describe('cleanup on unmount', () => {
-    it('calls clearChatConfig on unmount', () => {
+    it('calls clearChatConfig on unmount', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -420,6 +434,8 @@ describe('useAgentBuilderIntegration', () => {
           isEditorMounted: true,
         })
       );
+
+      await flushChatAccessCheck();
 
       unmount();
 
@@ -788,7 +804,7 @@ describe('useAgentBuilderIntegration', () => {
   });
 
   describe('conversation handoff registration', () => {
-    it('registers the unsaved attachment id when there is no workflowId', () => {
+    it('registers the unsaved attachment id when there is no workflowId', async () => {
       const agentBuilder = createMockAgentBuilder();
       setupKibanaMock(agentBuilder);
       const editor = createMockEditor(mockModel);
@@ -799,6 +815,8 @@ describe('useAgentBuilderIntegration', () => {
           isEditorMounted: true,
         })
       );
+
+      await flushChatAccessCheck();
 
       expect(mockSetLastCreateAttachmentId).toHaveBeenCalledWith(MOCK_UUID);
     });

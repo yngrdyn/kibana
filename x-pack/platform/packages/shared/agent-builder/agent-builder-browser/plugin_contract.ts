@@ -196,7 +196,9 @@ export interface AgentBuilderPluginStart {
   events: EventsServiceStartContract;
   /**
    * Resolves embeddable chat access using the same checks as the embeddable access
-   * boundary (enterprise license, LLM connector).
+   * boundary (enterprise license, LLM connector). Callers must also require
+   * `application.capabilities.agentBuilder.show === true` before programmatically
+   * opening chat.
    */
   getEmbeddableChatAccess: () => Promise<EmbeddableChatAccess>;
   /**
