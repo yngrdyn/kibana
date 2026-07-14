@@ -11,6 +11,12 @@ import { parseDocument } from 'yaml';
 import { resolveConnectorIdActionTypeId, resolveConnectorIdBinding } from './connector_id_provider';
 import type { StepInfo } from '../entities/workflows/store';
 
+jest.mock('../trigger_schemas', () => ({
+  triggerSchemas: {
+    getTriggerDefinition: jest.fn(() => undefined),
+  },
+}));
+
 jest.mock('./resolve_surface_at_path', () => ({
   resolveSurfaceAtPath: jest.fn((_, path: (string | number)[]) =>
     path[0] === 'triggers' && path[2] === 'connector-id'

@@ -8,7 +8,7 @@
  */
 
 import type { Document } from 'yaml';
-import type { WorkflowSurfaceDefinition } from '@kbn/workflows';
+import type { ConnectorTypeInfo, WorkflowSurfaceDefinition } from '@kbn/workflows';
 import {
   type ConnectorIdBinding,
   resolveConnectorIdBindingFromStepType,
@@ -23,6 +23,7 @@ export interface ConnectorIdProviderContext {
   readonly path: ReadonlyArray<string | number>;
   readonly focusedStepInfo: StepInfo | null;
   readonly focusedYamlPair: StepPropInfo | null;
+  readonly connectorTypes?: Record<string, ConnectorTypeInfo>;
 }
 
 /**
@@ -32,9 +33,14 @@ export const resolveConnectorIdSurface = (
   yamlDocument: Document,
   path: ReadonlyArray<string | number>,
   focusedStepInfo: StepInfo | null = null,
-  focusedYamlPair: StepPropInfo | null = null
+  focusedYamlPair: StepPropInfo | null = null,
+  connectorTypes: Record<string, ConnectorTypeInfo> = {}
 ): WorkflowSurfaceDefinition | undefined =>
-  resolveSurfaceAtPath(yamlDocument, [...path], { focusedStepInfo, focusedYamlPair })?.surface;
+  resolveSurfaceAtPath(yamlDocument, [...path], {
+    focusedStepInfo,
+    focusedYamlPair,
+    connectorTypes,
+  })?.surface;
 
 /**
  * Resolves connector-id binding through workflow surfaces first, then legacy step fallback.
@@ -46,7 +52,8 @@ export const resolveConnectorIdBinding = (
     context.yamlDocument,
     context.path,
     context.focusedStepInfo,
-    context.focusedYamlPair
+    context.focusedYamlPair,
+    context.connectorTypes
   );
   if (surface) {
     const binding = resolveConnectorIdBindingFromSurface(surface);
