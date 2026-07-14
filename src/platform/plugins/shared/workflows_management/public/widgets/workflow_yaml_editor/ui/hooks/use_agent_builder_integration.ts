@@ -67,8 +67,9 @@ export const useAgentBuilderIntegration = ({
   workflowName,
   validationErrors,
 }: UseAgentBuilderIntegrationParams): UseAgentBuilderIntegrationReturn => {
-  const { workflowsManagement } = useKibana().services;
+  const { workflowsManagement, application } = useKibana().services;
   const agentBuilder = workflowsManagement?.agentBuilder;
+  const hasShowPrivilege = application.capabilities.agentBuilder?.show === true;
   const isExperimentalEnabled = useUiSetting<boolean>(
     AGENT_BUILDER_EXPERIMENTAL_FEATURES_SETTING_ID
   );
@@ -92,7 +93,7 @@ export const useAgentBuilderIntegration = ({
   const attachmentId = workflowId ?? unsavedWorkflowIdRef.current;
 
   useEffect(() => {
-    if (!agentBuilder || !isExperimentalEnabled) {
+    if (!agentBuilder || !isExperimentalEnabled || !hasShowPrivilege) {
       setIsChatAccessible(false);
       return;
     }
@@ -101,16 +102,14 @@ export const useAgentBuilderIntegration = ({
 
     void agentBuilder.getEmbeddableChatAccess().then((access) => {
       if (!cancelled) {
-        setIsChatAccessible(
-          access.hasShowPrivilege && access.hasRequiredLicense && access.hasLlmConnector
-        );
+        setIsChatAccessible(access.hasRequiredLicense && access.hasLlmConnector);
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [agentBuilder, isExperimentalEnabled]);
+  }, [agentBuilder, application, hasShowPrivilege, isExperimentalEnabled]);
 
   useEffect(() => {
     const editor = editorRef.current;

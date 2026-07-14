@@ -98,7 +98,6 @@ const createMockEditor = (model: ReturnType<typeof createMockModel>) =>
   ({ getModel: jest.fn().mockReturnValue(model) } as any);
 
 const embeddableChatAccessReady = {
-  hasShowPrivilege: true,
   hasRequiredLicense: true,
   hasLlmConnector: true,
 } as const;
@@ -120,11 +119,20 @@ const flushChatAccessCheck = async () => {
   });
 };
 
-const setupKibanaMock = (agentBuilder?: ReturnType<typeof createMockAgentBuilder>) => {
+const setupKibanaMock = (
+  agentBuilder?: ReturnType<typeof createMockAgentBuilder>,
+  options: { hasShowPrivilege?: boolean } = {}
+) => {
+  const { hasShowPrivilege = true } = options;
   useKibanaMock.mockReturnValue({
     services: {
       workflowsManagement: {
         agentBuilder,
+      },
+      application: {
+        capabilities: {
+          agentBuilder: { show: hasShowPrivilege },
+        },
       },
     },
   } as any);
@@ -607,7 +615,6 @@ describe('useAgentBuilderIntegration', () => {
     it('does not auto-open when no LLM connector is configured', async () => {
       const agentBuilder = createMockAgentBuilder();
       agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
-        hasShowPrivilege: true,
         hasRequiredLicense: true,
         hasLlmConnector: false,
       });
@@ -980,7 +987,6 @@ describe('useAgentBuilderIntegration', () => {
     it('returns false when no LLM connector is configured', async () => {
       const agentBuilder = createMockAgentBuilder();
       agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
-        hasShowPrivilege: true,
         hasRequiredLicense: true,
         hasLlmConnector: false,
       });
@@ -1002,12 +1008,7 @@ describe('useAgentBuilderIntegration', () => {
 
     it('returns false when show privilege is missing', async () => {
       const agentBuilder = createMockAgentBuilder();
-      agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
-        hasShowPrivilege: false,
-        hasRequiredLicense: true,
-        hasLlmConnector: true,
-      });
-      setupKibanaMock(agentBuilder);
+      setupKibanaMock(agentBuilder, { hasShowPrivilege: false });
       useUiSettingMock.mockReturnValue(true);
       const editor = createMockEditor(mockModel);
 
@@ -1026,7 +1027,6 @@ describe('useAgentBuilderIntegration', () => {
     it('returns false when enterprise license is missing', async () => {
       const agentBuilder = createMockAgentBuilder();
       agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
-        hasShowPrivilege: true,
         hasRequiredLicense: false,
         hasLlmConnector: true,
       });

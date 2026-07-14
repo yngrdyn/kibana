@@ -47,7 +47,6 @@ import {
   EventsService,
   type AgentBuilderInternalService,
 } from './services';
-import { resolveEmbeddableChatAccess } from './services/access';
 import { createPublicAttachmentContract } from './services/attachments';
 import { createPublicRenderersContract } from './services/renderers';
 import { createPublicToolContract } from './services/tools';
@@ -320,11 +319,18 @@ export class AgentBuilderPlugin
       renderers: createPublicRenderersContract({ renderersService }),
       tools: createPublicToolContract({ toolsService }),
       events: createPublicEventsContract({ eventsService }),
-      getEmbeddableChatAccess: () =>
-        resolveEmbeddableChatAccess({
-          accessChecker,
-          hasShowPrivilege: core.application.capabilities.agentBuilder?.show === true,
-        }),
+      getEmbeddableChatAccess: async () => {
+        if (core.application.capabilities.agentBuilder?.show !== true) {
+          return { hasRequiredLicense: false, hasLlmConnector: false };
+        }
+
+        try {
+          await accessChecker.initAccess();
+          return accessChecker.getAccess();
+        } catch {
+          return { hasRequiredLicense: false, hasLlmConnector: false };
+        }
+      },
       addAttachment: (attachment: AttachmentInput) => {
         if (this.sidebarCallbacks) {
           this.sidebarCallbacks.addAttachment(attachment);

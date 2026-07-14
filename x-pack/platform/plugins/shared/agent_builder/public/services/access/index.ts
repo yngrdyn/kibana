@@ -5,4 +5,4 @@
  * 2.0.
  */
 
-export { AgentBuilderAccessChecker, resolveEmbeddableChatAccess } from './access';
+export { AgentBuilderAccessChecker } from './access';

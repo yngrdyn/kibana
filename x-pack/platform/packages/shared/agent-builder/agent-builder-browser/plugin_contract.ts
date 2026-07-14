@@ -163,10 +163,9 @@ export interface AgentBuilderPluginSetup {}
 
 /**
  * Embeddable chat access signals matching the embeddable access boundary checks
- * in the agent_builder plugin (privilege, license, LLM connector).
+ * in the agent_builder plugin (license, LLM connector).
  */
 export interface EmbeddableChatAccess {
-  hasShowPrivilege: boolean;
   hasRequiredLicense: boolean;
   hasLlmConnector: boolean;
 }
@@ -197,8 +196,7 @@ export interface AgentBuilderPluginStart {
   events: EventsServiceStartContract;
   /**
    * Resolves embeddable chat access using the same checks as the embeddable access
-   * boundary (privilege, enterprise license, LLM connector). Hosts should require all
-   * three signals before programmatically opening chat.
+   * boundary (enterprise license, LLM connector).
    */
   getEmbeddableChatAccess: () => Promise<EmbeddableChatAccess>;
   /**

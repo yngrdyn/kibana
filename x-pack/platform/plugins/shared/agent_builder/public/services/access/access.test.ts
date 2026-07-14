@@ -8,7 +8,7 @@
 import { BehaviorSubject } from 'rxjs';
 import type { InferencePublicStart } from '@kbn/inference-plugin/public';
 import type { LicensingPluginStart } from '@kbn/licensing-plugin/public';
-import { AgentBuilderAccessChecker, resolveEmbeddableChatAccess } from './access';
+import { AgentBuilderAccessChecker } from './access';
 
 const createAccessChecker = ({
   hasEnterpriseLicense,
@@ -39,26 +39,13 @@ const createAccessChecker = ({
   return new AgentBuilderAccessChecker({ licensing, inference });
 };
 
-describe('resolveEmbeddableChatAccess', () => {
-  it('returns denied access shape when the user lacks show privilege', async () => {
-    const accessChecker = createAccessChecker({ hasEnterpriseLicense: true, connectorCount: 1 });
-
-    await expect(
-      resolveEmbeddableChatAccess({ accessChecker, hasShowPrivilege: false })
-    ).resolves.toEqual({
-      hasShowPrivilege: false,
-      hasRequiredLicense: false,
-      hasLlmConnector: false,
-    });
-  });
-
+describe('AgentBuilderAccessChecker', () => {
   it('returns hasRequiredLicense false when the cluster license is not enterprise', async () => {
     const accessChecker = createAccessChecker({ hasEnterpriseLicense: false, connectorCount: 1 });
 
-    await expect(
-      resolveEmbeddableChatAccess({ accessChecker, hasShowPrivilege: true })
-    ).resolves.toEqual({
-      hasShowPrivilege: true,
+    await accessChecker.initAccess();
+
+    expect(accessChecker.getAccess()).toEqual({
       hasRequiredLicense: false,
       hasLlmConnector: true,
     });
@@ -67,40 +54,40 @@ describe('resolveEmbeddableChatAccess', () => {
   it('returns hasLlmConnector false when no inference connectors are configured', async () => {
     const accessChecker = createAccessChecker({ hasEnterpriseLicense: true, connectorCount: 0 });
 
-    await expect(
-      resolveEmbeddableChatAccess({ accessChecker, hasShowPrivilege: true })
-    ).resolves.toEqual({
-      hasShowPrivilege: true,
+    await accessChecker.initAccess();
+
+    expect(accessChecker.getAccess()).toEqual({
       hasRequiredLicense: true,
       hasLlmConnector: false,
     });
   });
 
-  it('returns all three signals true when privilege, license, and connectors are available', async () => {
+  it('returns both signals true when license and connectors are available', async () => {
     const accessChecker = createAccessChecker({ hasEnterpriseLicense: true, connectorCount: 1 });
 
-    await expect(
-      resolveEmbeddableChatAccess({ accessChecker, hasShowPrivilege: true })
-    ).resolves.toEqual({
-      hasShowPrivilege: true,
+    await accessChecker.initAccess();
+
+    expect(accessChecker.getAccess()).toEqual({
       hasRequiredLicense: true,
       hasLlmConnector: true,
     });
   });
 
-  it('returns denied access shape when connector lookup fails', async () => {
+  it('throws when connector lookup fails during initialization', async () => {
     const accessChecker = createAccessChecker({
       hasEnterpriseLicense: true,
       connectorCount: 0,
       connectorsReject: new Error('forbidden'),
     });
 
-    await expect(
-      resolveEmbeddableChatAccess({ accessChecker, hasShowPrivilege: true })
-    ).resolves.toEqual({
-      hasShowPrivilege: true,
-      hasRequiredLicense: false,
-      hasLlmConnector: false,
-    });
+    await expect(accessChecker.initAccess()).rejects.toThrow(
+      'Unable to determine Agent Builder access'
+    );
+  });
+
+  it('throws when getAccess is called before initialization', () => {
+    const accessChecker = createAccessChecker({ hasEnterpriseLicense: true, connectorCount: 1 });
+
+    expect(() => accessChecker.getAccess()).toThrow('Agent Builder access was not initialized');
   });
 });

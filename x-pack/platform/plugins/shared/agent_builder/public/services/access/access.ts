@@ -5,7 +5,6 @@
  * 2.0.
  */
 
-import type { EmbeddableChatAccess } from '@kbn/agent-builder-browser';
 import type { InferencePublicStart } from '@kbn/inference-plugin/public';
 import type { LicensingPluginStart } from '@kbn/licensing-plugin/public';
 import { firstValueFrom } from 'rxjs';
@@ -14,36 +13,6 @@ export interface AgentBuilderAccess {
   hasRequiredLicense: boolean;
   hasLlmConnector: boolean;
 }
-
-const embeddableChatAccessDenied = (hasShowPrivilege: boolean): EmbeddableChatAccess => ({
-  hasShowPrivilege,
-  hasRequiredLicense: false,
-  hasLlmConnector: false,
-});
-
-export const resolveEmbeddableChatAccess = async ({
-  accessChecker,
-  hasShowPrivilege,
-}: {
-  accessChecker: AgentBuilderAccessChecker;
-  hasShowPrivilege: boolean;
-}): Promise<EmbeddableChatAccess> => {
-  if (!hasShowPrivilege) {
-    return embeddableChatAccessDenied(false);
-  }
-
-  try {
-    await accessChecker.initAccess();
-    const { hasRequiredLicense, hasLlmConnector } = accessChecker.getAccess();
-    return {
-      hasShowPrivilege: true,
-      hasRequiredLicense,
-      hasLlmConnector,
-    };
-  } catch {
-    return embeddableChatAccessDenied(true);
-  }
-};
 
 type PromiseValues<T> = {
   [Key in keyof T]: Promise<T[Key]>;
