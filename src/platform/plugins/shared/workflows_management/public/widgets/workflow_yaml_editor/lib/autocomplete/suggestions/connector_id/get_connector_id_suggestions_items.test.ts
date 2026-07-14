@@ -289,7 +289,7 @@ describe('getConnectorIdSuggestionsItems', () => {
     expect(firstSuggestion.filterText).toContain('Engineering Slack');
   });
 
-  it('returns no suggestions when connector-event binding requires declared events', () => {
+  it('returns instances for connector-event surfaces when API omits events[]', () => {
     const range = createMockRange();
     const binding = {
       connectorTypeId: '.inboundWebhook',
@@ -317,7 +317,7 @@ describe('getConnectorIdSuggestionsItems', () => {
       },
     });
 
-    expect(suggestions).toEqual([]);
+    expect(suggestions.some((item) => item.insertText === 'sales-ingress')).toBe(true);
   });
 });
 

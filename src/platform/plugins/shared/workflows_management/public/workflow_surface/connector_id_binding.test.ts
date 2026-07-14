@@ -118,7 +118,7 @@ describe('connector_id_binding', () => {
       expect(instances.map((instance) => instance.id)).toEqual(['sales-ingress']);
     });
 
-    it('returns no instances for connector-event surfaces when the type has no events', () => {
+    it('returns instances for connector-event surfaces when API omits events[] but type exists', () => {
       const binding = resolveConnectorIdBindingFromSurface(connectorEventSurface);
       expect(binding).toBeDefined();
       if (!binding) {
@@ -129,7 +129,17 @@ describe('connector_id_binding', () => {
         '.inboundWebhook': { ...inboundWebhookType, events: undefined },
       });
 
-      expect(instances).toEqual([]);
+      expect(instances.map((instance) => instance.id)).toEqual(['sales-ingress']);
+    });
+
+    it('returns no instances when connector-event binding type is missing from API', () => {
+      const binding = resolveConnectorIdBindingFromSurface(connectorEventSurface);
+      expect(binding).toBeDefined();
+      if (!binding) {
+        throw new Error('Expected connector-event binding');
+      }
+
+      expect(listConnectorInstancesForBinding(binding, {})).toEqual([]);
     });
 
     it('returns step connector instances without requiring events', () => {

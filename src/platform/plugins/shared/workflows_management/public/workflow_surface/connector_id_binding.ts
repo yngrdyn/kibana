@@ -68,10 +68,8 @@ export function listConnectorInstancesForBinding(
   binding: ConnectorIdBinding,
   connectorTypes: Record<string, ConnectorTypeInfo>
 ): Array<ConnectorInstance & { connectorType: string }> {
-  if (
-    binding.requireConnectorTypeEvents &&
-    !connectorTypeHasDeclaredEvents(binding.connectorTypeId, connectorTypes)
-  ) {
+  const connectorTypeInfo = connectorTypes[binding.connectorTypeId];
+  if (binding.requireConnectorTypeEvents && !connectorTypeInfo) {
     return [];
   }
 

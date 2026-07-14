@@ -26,6 +26,7 @@ export function getConnectorIdSuggestions({
     path,
     focusedStepInfo,
     focusedYamlPair,
+    connectorTypes: dynamicConnectorTypes ?? undefined,
   });
 
   if (

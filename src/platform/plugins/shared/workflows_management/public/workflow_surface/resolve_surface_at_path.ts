@@ -8,11 +8,13 @@
  */
 
 import type { Document } from 'yaml';
-import type { InstanceRef, WorkflowSurfaceDefinition } from '@kbn/workflows';
-import { isDynamicConnector, resolveConnectorEventWorkflowSurface } from '@kbn/workflows';
+import type { ConnectorTypeInfo, InstanceRef, WorkflowSurfaceDefinition } from '@kbn/workflows';
+import { isDynamicConnector } from '@kbn/workflows';
+import { resolveConnectorEventSurfaceForTriggerId } from './resolve_connector_event_surface_for_trigger';
 import { getCachedAllConnectorsMap } from '../../common/schema';
 import type { StepInfo, StepPropInfo } from '../entities/workflows/store';
 import { getActionTypeIdFromStepType } from '../shared/lib/action_type_utils';
+import { triggerSchemas } from '../trigger_schemas';
 import {
   getTriggerBlockIndex,
   getTriggerConditionBlockIndex,
@@ -31,6 +33,7 @@ export interface ResolvedSurfaceAtPath {
 export interface ResolveSurfaceAtPathOptions {
   readonly focusedStepInfo?: StepInfo | null;
   readonly focusedYamlPair?: StepPropInfo | null;
+  readonly connectorTypes?: Record<string, ConnectorTypeInfo>;
 }
 
 const isStepConnectorIdPath = (path: (string | number)[]): boolean =>
@@ -52,7 +55,8 @@ const resolveSurfaceRole = (path: (string | number)[]): SurfaceCursorRole | unde
 const resolveTriggerSurfaceAtPath = (
   yamlDocument: Document,
   path: (string | number)[],
-  role: SurfaceCursorRole
+  role: SurfaceCursorRole,
+  connectorTypes: Record<string, ConnectorTypeInfo>
 ): ResolvedSurfaceAtPath | undefined => {
   const triggerIndex =
     getTriggerConnectorIdBlockIndex(path) ??
@@ -67,7 +71,12 @@ const resolveTriggerSurfaceAtPath = (
     return undefined;
   }
 
-  const surface = resolveConnectorEventWorkflowSurface(triggerType);
+  const extensionTrigger = triggerSchemas.getTriggerDefinition(triggerType);
+  const surface = resolveConnectorEventSurfaceForTriggerId(
+    triggerType,
+    connectorTypes,
+    extensionTrigger
+  );
   if (!surface) {
     return undefined;
   }
@@ -150,7 +159,7 @@ export const resolveSurfaceAtPath = (
   }
 
   if (path[0] === 'triggers') {
-    return resolveTriggerSurfaceAtPath(yamlDocument, path, role);
+    return resolveTriggerSurfaceAtPath(yamlDocument, path, role, options?.connectorTypes ?? {});
   }
 
   if (path[0] === 'steps' && role === 'connector-id') {
