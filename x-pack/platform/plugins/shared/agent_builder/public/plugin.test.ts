@@ -117,7 +117,12 @@ const createMockCoreStart = (sidebarApp: ReturnType<typeof createMockSidebarApp>
     http: {},
     docLinks: { links: {} },
     application: {
-      capabilities: { agentBuilder: { show: false } },
+      capabilities: {
+        navLinks: {},
+        management: {},
+        catalogue: {},
+        agentBuilder: { show: false },
+      },
     },
     chrome: {
       sidebar: { getApp: jest.fn(() => sidebarApp) },
@@ -181,7 +186,10 @@ describe('AgentBuilderPlugin', () => {
 
       const sidebarApp = createMockSidebarApp();
       const coreStart = createMockCoreStart(sidebarApp);
-      coreStart.application.capabilities = { agentBuilder: { show: false } };
+      coreStart.application.capabilities = {
+        ...coreStart.application.capabilities,
+        agentBuilder: { show: false },
+      };
 
       const plugin = new AgentBuilderPlugin(createMockInitializerContext());
       plugin.setup(createMockCoreSetup(), createMockSetupDeps());
