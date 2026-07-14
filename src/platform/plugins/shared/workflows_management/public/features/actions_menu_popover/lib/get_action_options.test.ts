@@ -8,18 +8,24 @@
  */
 
 import type { EuiThemeComputed } from '@elastic/eui';
+import type { ConnectorTypeInfo } from '@kbn/workflows';
 import { isDynamicConnector, StepCategory } from '@kbn/workflows';
 import type { WorkflowsExtensionsPublicPluginStart } from '@kbn/workflows-extensions/public';
 import { workflowsExtensionsMock } from '@kbn/workflows-extensions/public/mocks';
 import { z } from '@kbn/zod/v4';
 import { flattenOptions, getActionOptions } from './get_action_options';
-import { getAllConnectors, isDeprecatedStepType } from '../../../../common/schema';
+import {
+  getAllConnectors,
+  getCachedDynamicConnectorTypes,
+  isDeprecatedStepType,
+} from '../../../../common/schema';
 import { triggerSchemas } from '../../../trigger_schemas';
 import type { ActionOptionData } from '../types';
-import { isActionGroup, isActionOption } from '../types';
+import { isActionConnectorOption, isActionGroup, isActionOption } from '../types';
 
 jest.mock('../../../../common/schema', () => ({
   getAllConnectors: jest.fn(),
+  getCachedDynamicConnectorTypes: jest.fn(() => ({})),
   isDeprecatedStepType: jest.fn(() => false),
 }));
 jest.mock('../../../trigger_schemas', () => ({
@@ -56,6 +62,7 @@ describe('getActionOptions', () => {
     mockWorkflowsExtensions = workflowsExtensionsMock.createStart();
 
     (getAllConnectors as jest.Mock).mockReturnValue([]);
+    (getCachedDynamicConnectorTypes as jest.Mock).mockReturnValue({});
     (isDeprecatedStepType as jest.Mock).mockReturnValue(false);
     (isDynamicConnector as jest.MockedFunction<typeof isDynamicConnector>).mockImplementation(
       () => false
@@ -83,6 +90,94 @@ describe('getActionOptions', () => {
     if (triggersGroup && 'options' in triggersGroup) {
       expect(triggersGroup.options).toHaveLength(3);
       expect(triggersGroup.options.map((opt) => opt.id)).toEqual(['manual', 'alert', 'scheduled']);
+    }
+  });
+
+  it('should include connector-event triggers from dynamic connector types when not registered', () => {
+    const connectorTypes: Record<string, ConnectorTypeInfo> = {
+      '.inboundWebhook': {
+        actionTypeId: '.inboundWebhook',
+        displayName: 'Inbound Webhook',
+        instances: [],
+        enabled: true,
+        enabledInConfig: true,
+        enabledInLicense: true,
+        minimumLicenseRequired: 'basic',
+        subActions: [],
+        events: [
+          {
+            eventKey: 'received',
+            eventId: 'inboundWebhook.received',
+            title: 'Webhook received',
+            description: 'When an HTTP request is received on the connector endpoint.',
+            stability: 'tech_preview',
+          },
+        ],
+      },
+    };
+
+    (getCachedDynamicConnectorTypes as jest.Mock).mockReturnValueOnce(connectorTypes);
+
+    const result = getActionOptions(mockEuiTheme, mockWorkflowsExtensions);
+    const triggersGroup = result.find((group) => group.id === 'triggers');
+
+    expect(triggersGroup).toBeDefined();
+    if (triggersGroup && isActionGroup(triggersGroup)) {
+      const webhookOption = triggersGroup.options.find(
+        (opt) => opt.id === 'inboundWebhook.received'
+      );
+      expect(webhookOption).toBeDefined();
+      if (webhookOption && isActionConnectorOption(webhookOption)) {
+        expect(webhookOption.label).toBe('Webhook received');
+        expect(webhookOption.connectorType).toBe('.inboundWebhook');
+      } else {
+        throw new Error('Expected connector-event trigger option');
+      }
+    }
+  });
+
+  it('should not duplicate connector-event triggers already registered via extensions', () => {
+    (triggerSchemas.getTriggerDefinitions as jest.Mock).mockReturnValueOnce([
+      {
+        id: 'inboundWebhook.received',
+        title: 'Webhook received',
+        description: 'Registered extension trigger.',
+        stability: 'tech_preview',
+      },
+    ]);
+
+    const connectorTypes: Record<string, ConnectorTypeInfo> = {
+      '.inboundWebhook': {
+        actionTypeId: '.inboundWebhook',
+        displayName: 'Inbound Webhook',
+        instances: [],
+        enabled: true,
+        enabledInConfig: true,
+        enabledInLicense: true,
+        minimumLicenseRequired: 'basic',
+        subActions: [],
+        events: [
+          {
+            eventKey: 'received',
+            eventId: 'inboundWebhook.received',
+            title: 'Webhook received',
+            description: 'When an HTTP request is received on the connector endpoint.',
+            stability: 'tech_preview',
+          },
+        ],
+      },
+    };
+
+    (getCachedDynamicConnectorTypes as jest.Mock).mockReturnValueOnce(connectorTypes);
+
+    const result = getActionOptions(mockEuiTheme, mockWorkflowsExtensions);
+    const triggersGroup = result.find((group) => group.id === 'triggers');
+
+    expect(triggersGroup).toBeDefined();
+    if (triggersGroup && isActionGroup(triggersGroup)) {
+      expect(
+        triggersGroup.options.filter((opt) => opt.id === 'inboundWebhook.received')
+      ).toHaveLength(1);
     }
   });
 

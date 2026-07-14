@@ -18,7 +18,11 @@ import type YAML from 'yaml';
 import { monaco, YAML_LANG_ID } from '@kbn/code-editor';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
-import { isTriggerType, WORKFLOWS_EXPERIMENTAL_FEATURES_SETTING_ID } from '@kbn/workflows';
+import {
+  isTriggerType,
+  resolveConnectorEventWorkflowSurface,
+  WORKFLOWS_EXPERIMENTAL_FEATURES_SETTING_ID,
+} from '@kbn/workflows';
 import { useWorkflowsMonacoTheme, WORKFLOW_MONACO_LAYOUT_OPTIONS } from '@kbn/workflows-ui';
 import type { z } from '@kbn/zod/v4';
 import { ActionsMenuButton } from './actions_menu_button';
@@ -649,15 +653,18 @@ export const WorkflowYAMLEditor = ({
       if (!model || !editor) {
         return;
       }
-      if (isTriggerType(action.id) || triggerSchemas.isRegisteredTriggerId(action.id)) {
+      if (
+        isTriggerType(action.id) ||
+        triggerSchemas.isRegisteredTriggerId(action.id) ||
+        resolveConnectorEventWorkflowSurface(action.id) !== undefined
+      ) {
         const triggerDefinition = triggerSchemas.getTriggerDefinition(action.id);
         insertTriggerSnippet(
           model,
           yamlDocumentCurrent,
           action.id,
           editor,
-          triggerDefinition?.snippets?.condition,
-          triggerDefinition?.snippets?.connectorId
+          triggerDefinition?.snippets?.condition
         );
       } else {
         insertStepSnippet(model, yamlDocumentCurrent, action.id, cursorPosition, editor);

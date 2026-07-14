@@ -54,9 +54,7 @@ export function generateTriggerSnippet(
     connectorEventSurface?.binding.instanceRef === 'required' ||
     triggerDefinition?.requiresConnectorId === true;
   const resolvedConnectorId =
-    defaultConnectorId ??
-    triggerDefinition?.snippets?.connectorId ??
-    (monacoSuggestionFormat ? '${1:<connector-id>}' : '<connector-id>');
+    defaultConnectorId ?? (monacoSuggestionFormat ? '${1:<connector-id>}' : '<connector-id>');
   const resolvedCondition = defaultCondition ?? triggerDefinition?.snippets?.condition ?? '';
 
   switch (triggerType) {
