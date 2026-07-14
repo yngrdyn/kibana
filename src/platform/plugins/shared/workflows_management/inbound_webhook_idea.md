@@ -1,14 +1,14 @@
-# Inbound webhook connector for Workflows Management
+# External event endpoint for the Workflows inbound webhook connector
 
 ## Summary
 
 Add a user-configured **Inbound Webhook** connector to the
 `workflows_management` plugin and register it with the Actions plugin.
 
-Each connector owns one webhook URL containing a random UUID:
+The connector exposes an external event URL containing a random UUID:
 
 ```text
-https://<kibana-host>/<base-path>/api/webhooks/<uuid>
+https://<kibana-host>/<base-path>/api/event/<uuid>
 ```
 
 The UUID is a bearer credential. When the endpoint receives a request, Workflows
@@ -22,6 +22,75 @@ logic.
 
 The connector implementation and UI live in Workflows Management. Actions owns
 connector persistence, encrypted secrets, validation, and execution.
+
+This is a focused Workflows implementation of an event-oriented public contract.
+It does not introduce a generic Connectors event platform or an Actions-owned
+ingress hub. The public route represents receipt of an external event while the
+underlying connector remains an inbound webhook connector.
+
+## Ownership and evolution
+
+Workflows is the only initial consumer, so the connector, public endpoint,
+mapping storage, and credential lifecycle live in `workflows_management` for
+this phase. This keeps the first implementation local to the product that needs
+it and avoids introducing a platform abstraction before there is a second
+consumer.
+
+The capability is not intended to remain a Workflows-specific webhook in the
+larger architecture. If other products need inbound connector events, move the
+connector and ingress implementation to `stack_connectors`, or migrate it to a
+generic Connectors V2 event contract such as `ConnectorSpec.events`. Workflows
+would then consume the emitted connector event instead of owning ingress.
+
+The external contract is intentionally generic from the start:
+
+```text
+POST /api/event/{webhookKey}
+```
+
+Moving ownership later must preserve this route, existing URLs, and active
+credentials through saved object migration or a compatibility layer. The move
+must not require users or external systems to reconfigure their event URL. The
+initial endpoint still accepts only this connector's fixed event and does not
+act as a caller-selectable generic event hub.
+
+### Future connector event pattern
+
+The same pattern can eventually let connector implementations owned by other
+plugins receive external events. An inbound-capable connector must provide two
+capabilities:
+
+1. a fixed `receive` sub-action that authenticates or validates the
+   source-specific request, normalizes it, and emits one of the connector's
+   declared event types;
+2. automatic external subscription provisioning so users do not have to
+   install or maintain vendor webhooks manually.
+
+Automatic provisioning is a lifecycle rather than only a create operation. The
+connector must register the generic Kibana event URL with the external service
+after connector creation, update or rotate the remote subscription when its
+credentials or URL change, and remove the remote subscription when the
+connector is deleted. Provisioning failures must be visible through connector
+health and repair flows. Vendors that do not offer a webhook-management API may
+fall back to explicit setup instructions, but they do not satisfy the fully
+automatic experience.
+
+For example, a Jira connector could register `/api/event/{webhookKey}` with
+Jira, normalize an incoming issue-created webhook in its `receive` sub-action,
+and emit `jira.issueCreated`. A workflow could then subscribe with:
+
+```yaml
+triggers:
+  - type: jira.issueCreated
+    connector-id: production-jira
+```
+
+This enables workflows that create or update an Elastic case when a Jira issue
+is created. Combined with outbound Jira actions and corresponding Case events,
+the same model can support synchronization between Cases and Jira issues.
+Bidirectional synchronization must use correlation identifiers, idempotency,
+and loop prevention so an update propagated in one direction does not bounce
+back indefinitely.
 
 ## Durable encrypted storage
 
@@ -42,21 +111,23 @@ with `xpack.encryptedSavedObjects.encryptionKey`.
 
 Do not persist the raw UUID in searchable attributes. Use
 `SHA-256(webhookKey)` as the saved object ID. The raw UUID appears only in the
-webhook URL stored in the connector's encrypted secrets.
+external event URL stored in the connector's encrypted secrets.
 
 ## Goals
 
 - The connector type and UI are owned by `workflows_management`.
 - Users create, edit, rotate, and delete connector instances through the
   standard connector UI.
-- Each connector has a unique, generated webhook URL.
-- The full webhook URL is stored as an encrypted connector secret.
-- A public inbound route resolves the URL key to a connector ID.
+- Each connector has a unique, generated external event URL.
+- The full external event URL is stored as an encrypted connector secret.
+- A public external event route resolves the URL key to a connector ID.
 - The user saving the webhook grants a managed API key used to continue work
   under that user's privilege scope.
 - Delegated ES and UIAM credentials are encrypted in an ESO and never returned
   to the browser.
 - The route delegates a normalized payload to one fixed connector sub-action.
+- The route and mapping model can later be generalized for connectors owned by
+  other plugins without changing the public event URL.
 - Mappings are space-aware and work with multiple Kibana nodes.
 - Every successful connector save rotates delegated credentials to the current
   editor while URL rotation remains explicit.
@@ -65,14 +136,17 @@ webhook URL stored in the connector's encrypted secrets.
 
 ## Non-goals
 
-- Do not put the inbound route or connector implementation in Actions.
-- Do not expose a caller-selected connector ID or sub-action in the webhook API.
+- Do not put the initial workflow-only route or connector implementation in
+  Actions or `stack_connectors`; revisit ownership when another consumer exists.
+- Do not introduce Connectors V2 or a generic ingress hub in the initial phase.
+- Do not expose a caller-selected connector ID, event ID, or sub-action in the
+  external event API.
 - Do not let the route execute arbitrary connector types.
 - Do not put workflow selection or workflow execution logic in the route.
 - Do not support form, multipart, or arbitrary binary bodies initially.
 - Do not store webhook keys in plaintext outside encrypted connector secrets.
 - Do not expose delegated API-key credentials through connector APIs or the
-  webhook response.
+  external event response.
 
 ## Connector contract
 
@@ -125,9 +199,9 @@ the external caller cannot supply `subAction`, `connectorId`, `spaceId`, or
 It also supplies the trusted mapping `credentialRevision`; the executor rejects
 the call unless it equals `config.credentialRevision` on the connector.
 
-The connector executor emits the built-in `webhook` event using the synthetic
-user-scoped request received in its execution options. It does not select or
-execute workflows directly.
+The connector executor emits the registered `inboundWebhook.received` event
+using the synthetic user-scoped request received in its execution options. It
+does not select or execute workflows directly.
 
 ## Workflow trigger contract
 
@@ -135,30 +209,32 @@ Workflows subscribe to a specific inbound webhook connector with this trigger:
 
 ```yaml
 triggers:
-  - type: webhook
+  - type: inboundWebhook.received
     connector-id: webhook-connector-1
-    condition: 'event.body.severity: "critical"'
+    on:
+      condition: 'event.body.severity: "critical"'
 ```
 
 The trigger fields are:
 
-- `type`: the literal `webhook`;
+- `type`: the registered event ID `inboundWebhook.received`;
 - `connector-id`: required Actions connector ID for one
   `.workflows-inbound-webhook` connector in the workflow's space;
-- `condition`: optional KQL expression evaluated against the normalized event
-  after connector matching.
+- `on.condition`: optional KQL expression evaluated against the normalized
+  event after connector matching.
 
-Parse and validate `condition` when the workflow is saved or enabled. Invalid
-KQL prevents enablement. Runtime evaluation errors skip that workflow, emit an
-audit/error metric, and do not fail scheduling for other matching workflows.
+Parse and validate `on.condition` when the workflow is saved or enabled.
+Invalid KQL prevents enablement. Runtime evaluation errors skip that workflow,
+emit an audit/error metric, and do not fail scheduling for other matching
+workflows.
 
-This is a dedicated built-in trigger, not a generic custom trigger registered
-with `workflowsExtensions.registerTriggerDefinition`. The current custom
-trigger schema accepts only `{ type, on: { condition } }` and custom trigger IDs
-must be namespaced. Add a `WebhookTriggerSchema` to
-`@kbn/workflows/spec/schema/triggers` and include it in the main trigger union.
-Workflow parsing, validation, autocomplete, and trigger indexing must preserve
-`connector-id` and the top-level `condition`.
+Register `inboundWebhook.received` through
+`workflowsExtensions.registerTriggerDefinition` with the normalized event
+schema, documentation, and snippets. Extend the registered-trigger schema path
+for this connector-bound trigger so it preserves required `connector-id`
+alongside the standard `on` block. This is not a hand-written built-in trigger
+in `builtin_trigger_definitions.ts`, and it does not require a generic
+`ConnectorSpec.events` contract.
 
 The visual/YAML editor resolves `connector-id` through the existing Workflows
 connector API and offers only `.workflows-inbound-webhook` instances from the
@@ -169,7 +245,7 @@ connector with the same name or an internal execution path.
 The normalized event is strict:
 
 ```ts
-interface WebhookEvent {
+interface InboundWebhookReceivedEvent {
   connectorId: string;
   eventId: string;
   body: Record<string, unknown>;
@@ -179,13 +255,15 @@ interface WebhookEvent {
 }
 ```
 
-The `receive` sub-action emits one `webhook` event with `connectorId` taken from
-the resolved mapping, never from caller input. Matching runs in this order:
+The `receive` sub-action emits one `inboundWebhook.received` event with
+`connectorId` taken from the resolved mapping, never from caller input. Matching
+runs in this order:
 
 1. discover enabled workflows through the Workflows client scoped to the
    synthetic request;
-2. select `webhook` triggers whose `connector-id` equals `event.connectorId`;
-3. evaluate each trigger's optional `condition` as KQL against the event;
+2. select `inboundWebhook.received` triggers whose `connector-id` equals
+   `event.connectorId`;
+3. evaluate each trigger's optional `on.condition` as KQL against the event;
 4. schedule only matching workflows using the same synthetic request.
 
 Workflow discovery and scheduling must never use an internal client. This
@@ -229,11 +307,14 @@ Register the public connector model with
 `triggersActionsUi.actionTypeRegistry`, alongside the existing Workflows
 connector model.
 
-The `webhook` workflow trigger is registered as a built-in Workflows trigger,
-not as an Actions connector action type and not through the custom extension
-registry. Add its metadata/event schema to `builtin_trigger_definitions.ts` and
-teach the workflow trigger event handler to index and match `connector-id`
-before evaluating the top-level KQL `condition`.
+Register the `inboundWebhook.received` workflow trigger through the Workflows
+extension registry. Teach registered-trigger schema generation, autocomplete,
+and the workflow trigger event handler about its required `connector-id`. The
+event handler must match `connector-id` before evaluating `on.condition`.
+
+Register corresponding server and public trigger definitions during Workflows
+Management setup so execution, validation, autocomplete, hover documentation,
+and snippets use the same event ID and event schema.
 
 ## Mapping storage
 
@@ -393,7 +474,7 @@ Alerting/Task Manager credential strategy:
    promotion fails.
 
 This API key intentionally delegates the latest successful editor's privileges.
-Possession of the webhook URL therefore authorizes an external caller to
+Possession of the external event URL therefore authorizes an external caller to
 initiate the connector's fixed `receive` operation as that user. This is an
 explicit product trust decision, not accidental impersonation.
 
@@ -417,7 +498,7 @@ cross-plugin lifecycle listeners, which intentionally omit secrets.
    credentials for the authenticated editor.
 5. `preSaveHook` writes a pending encrypted record keyed by the unique
    `credentialRevision`; no active mapping exists yet.
-6. Actions persists the connector and encrypted webhook URL.
+6. Actions persists the connector and encrypted external event URL.
 7. `postSaveHook`, when `wasSuccessful: true`, decrypts the pending record,
    re-encrypts it as the active `<sha256(webhookKey)>` record, verifies it can be
    resolved, and deletes the pending record.
@@ -495,14 +576,12 @@ credentials referenced by the current active mapping.
 Initial route:
 
 ```text
-POST /api/webhooks/{webhookKey}
+POST /api/event/{webhookKey}
 ```
 
-For non-default spaces, the generated URL includes Kibana's space base path:
-
-```text
-POST /s/{spaceId}/api/webhooks/{webhookKey}
-```
+Generate the URL from Kibana's current public base path. When the editor is in a
+space, that base path already carries the space prefix; the public contract does
+not define a separate space-specific route shape.
 
 The route:
 
@@ -628,11 +707,11 @@ Proposed route options:
 
 ```ts
 {
-  path: '/api/webhooks/{webhookKey}',
+  path: '/api/event/{webhookKey}',
   security: {
     authc: {
       enabled: false,
-      reason: 'The webhook URL contains the credential used to authenticate the external caller',
+      reason: 'The external event URL contains the credential used to authenticate the caller',
     },
     authz: {
       enabled: false,
@@ -690,7 +769,7 @@ outcome, and safe request metadata.
 
 The form is intentionally small:
 
-- read-only webhook URL field;
+- read-only external event URL field;
 - copy-to-clipboard button;
 - generate button during creation;
 - rotate button during edit, with a confirmation that the old URL stops
@@ -718,10 +797,10 @@ Do not regenerate on each render. Generate only when the field has no value or
 when the user explicitly chooses **Rotate**.
 
 Actions does not return decrypted connector secrets when editing. Consequently,
-the existing full webhook URL cannot be reconstructed from
+the existing full external event URL cannot be reconstructed from
 `secrets.webhookUrl` in the edit form. The initial implementation should:
 
-- show "Webhook URL is configured" when editing;
+- show "External event URL is configured" when editing;
 - preserve the existing secret on normal edits;
 - show the newly generated URL only during explicit rotation;
 - warn users to copy a URL when it is first generated or rotated.
@@ -735,7 +814,7 @@ and auditing. Do not copy the raw URL into connector config.
 Initial request:
 
 ```http
-POST /api/webhooks/550e8400-e29b-41d4-a716-446655440000
+POST /api/event/550e8400-e29b-41d4-a716-446655440000
 Content-Type: application/json
 Idempotency-Key: deployment-dep-123-completed
 
@@ -820,7 +899,7 @@ type InboundWebhookHealth =
   | { status: 'disabled'; reason: 'missing_mapping' | 'encryption_unavailable' };
 ```
 
-The status response never contains the webhook URL, key hash, or API-key
+The status response never contains the external event URL, key hash, or API-key
 material. The connector UI displays degraded/disabled state and offers an
 authenticated **Repair credentials** action. Repair performs the same
 preflight and two-phase rotation as a normal save.
@@ -845,7 +924,7 @@ and credential version before invalidating anything.
 
 ## Copy, import, and space behavior
 
-Webhook URLs and delegated credentials are bound to one connector and one
+External event URLs and delegated credentials are bound to one connector and one
 space. Copy, import, clone, or copy-to-space must not transfer the active ESO,
 URL secret, API keys, pending records, or delivery records.
 
@@ -864,9 +943,8 @@ the webhook disabled until repaired.
 ```text
 src/platform/packages/shared/kbn-workflows/
   spec/
-    builtin_trigger_definitions.ts
     schema/triggers/
-      webhook_trigger_schema.ts
+      index.ts
 
 src/platform/plugins/shared/workflows_execution_engine/
   server/trigger_events/
@@ -886,10 +964,13 @@ src/platform/plugins/shared/workflows_management/
         executor.ts
         schema.ts
         types.ts
+    triggers/
+      inbound_webhook_received.ts
     api/routes/
+      external_event/
+        post_event.ts
+        post_event.test.ts
       inbound_webhook/
-        post_webhook.ts
-        post_webhook.test.ts
         get_webhook_status.ts
         repair_webhook.ts
     saved_objects/
@@ -905,6 +986,8 @@ src/platform/plugins/shared/workflows_management/
     tasks/
       inbound_webhook_cleanup_task.ts
   public/
+    triggers/
+      inbound_webhook_received.ts
     connectors/
       inbound_webhook/
         inbound_webhook.tsx
@@ -931,15 +1014,15 @@ User opens connector form
   -> connector postSaveHook promotes pending credentials with OCC
   -> old credentials are invalidated after verified promotion
 
-External system POSTs to webhook URL
+External system POSTs to external event URL
   -> WM route validates UUID and hashes it
   -> WM ESO repository resolves connector ID and decrypts delegated credentials
   -> WM builds a fake request for latest editor scope and space
   -> WM reserves eventId/idempotency record and builds fixed `receive` params
   -> secured ActionsClient authorizes and loads/decrypts the connector
   -> Inbound Webhook connector executes `receive`
-  -> receive emits a built-in `webhook` event using the fake request
-  -> enabled workflows match trigger.connector-id and optional condition
+  -> receive emits registered `inboundWebhook.received` using the fake request
+  -> enabled workflows match trigger.connector-id and optional on.condition
   -> matching workflows are durably scheduled under latest editor scope
   -> endpoint returns 202 with eventId
 ```
@@ -948,10 +1031,10 @@ External system POSTs to webhook URL
 
 ### Trigger schema and editor tests
 
-- accepts `type: webhook` with required `connector-id` and optional top-level
-  `condition`;
-- rejects missing connector ID, unknown fields, and the generic
-  `on.condition` shape for webhook triggers;
+- registers `inboundWebhook.received` with its strict event schema;
+- accepts `type: inboundWebhook.received` with required `connector-id` and
+  optional `on.condition`;
+- rejects missing connector ID, unknown fields, and a top-level `condition`;
 - indexes `connector-id` for subscription discovery;
 - editor autocomplete lists only inbound webhook connectors in the current
   space;
@@ -965,9 +1048,10 @@ External system POSTs to webhook URL
 - validates URL, UUID, and matching hash;
 - rejects mapping/connector credential-revision mismatch;
 - filters or rejects unsupported params;
-- emits the strict `webhook` event with connector ID from trusted mapping data;
+- emits the strict `inboundWebhook.received` event with connector ID from
+  trusted mapping data;
 - forwards the synthetic request to event discovery and scheduling;
-- matches `connector-id` before evaluating the optional KQL `condition`;
+- matches `connector-id` before evaluating the optional KQL `on.condition`;
 - returns typed executor results;
 - does not log URL, webhook key, or API-key credentials.
 
@@ -1010,7 +1094,7 @@ External system POSTs to webhook URL
 ### UI tests
 
 - creation generates exactly one UUID;
-- URL contains Kibana and space base paths;
+- URL uses `/api/event/{webhookKey}` under Kibana's current public base path;
 - URL and hash are submitted in secrets/config respectively;
 - copy action works;
 - ordinary edits preserve URL and show that credentials move to the editor;
@@ -1024,8 +1108,8 @@ External system POSTs to webhook URL
 ### Integration/Scout tests
 
 - create connector through UI/API;
-- create a workflow with `type: webhook`, matching `connector-id`, and KQL
-  condition;
+- create a workflow with `type: inboundWebhook.received`, matching
+  `connector-id`, and KQL `on.condition`;
 - invoke generated URL without a Kibana session;
 - assert only connector/condition-matching workflows run;
 - assert subscribed workflow actions run with the latest editor's privileges;
@@ -1050,11 +1134,25 @@ External system POSTs to webhook URL
    copy-on-create plus rotation sufficient?
 4. Which licenses and connector feature IDs should expose this connector?
 5. What deployment-level access-log redaction is required for URL bearer keys?
+6. Which additional consumer should trigger extraction to `stack_connectors`,
+   and should that extraction use the existing connector model or Connectors V2?
+7. What standard lifecycle contract should connectors use to create, update,
+   repair, and delete remote webhook subscriptions?
 
 ## Acceptance criteria
 
 - Connector source and UI live in `workflows_management`.
 - Connector is registered with Actions and is user-created.
+- The public endpoint is `POST /api/event/{webhookKey}` under Kibana's current
+  public base path.
+- The public route is not Workflows-specific and remains stable if ingress
+  ownership later moves to `stack_connectors` or Connectors V2.
+- A future ownership migration preserves existing URLs and credentials without
+  requiring external-system reconfiguration.
+- The future inbound-connector contract requires a fixed `receive` sub-action
+  and automatic remote subscription provisioning with cleanup and repair.
+- Connector-owned event IDs such as `jira.issueCreated` can be exposed to
+  Workflows without adding vendor-specific behavior to the public route.
 - The URL contains a cryptographically random UUID.
 - The full URL is encrypted in connector secrets.
 - The raw UUID is not stored in searchable mapping attributes.
@@ -1064,16 +1162,18 @@ External system POSTs to webhook URL
 - Mapping storage works across Kibana nodes and restarts.
 - Create, every edit, URL rotation, cleanup, and deletion keep mappings and
   managed credential lifecycles synchronized.
-- The public route resolves only within the URL's space.
+- The generated URL inherits the editor's current Kibana base path, and mapping
+  resolution remains namespace scoped.
 - The route always invokes the fixed `receive` sub-action.
 - The route uses a user-scoped Actions client, not `UnsecuredActionsClient`.
-- Workflows subscribe with `type: webhook`, required `connector-id`, and
-  optional top-level KQL `condition`.
+- Workflows subscribe with `type: inboundWebhook.received`, required
+  `connector-id`, and optional KQL `on.condition`.
 - Workflow discovery matches connector ID and condition using only the scoped
   synthetic request.
 - Subscribed workflow execution receives the saved fake request and runs with
   the latest successful editor's captured privileges.
-- External callers cannot execute arbitrary connector IDs or sub-actions.
+- External callers cannot select event IDs or execute arbitrary connector IDs
+  or sub-actions.
 - Sensitive request data and webhook keys are not logged or forwarded.
 - API-key-authenticated saves clone into framework-managed credentials.
 - Previous and abandoned credentials are invalidated without disrupting the
