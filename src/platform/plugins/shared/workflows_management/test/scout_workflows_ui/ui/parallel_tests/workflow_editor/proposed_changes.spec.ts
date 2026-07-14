@@ -11,10 +11,10 @@ import { tags } from '@kbn/scout';
 import { expect } from '@kbn/scout/ui';
 import { spaceTest as test } from '../../fixtures';
 import { cleanupWorkflowsAndRules } from '../../fixtures/cleanup';
-import { deleteGenAiConnector, ensureGenAiConnector } from '../../fixtures/llm_connector';
 
 /** Matches ProposalManager: always Ctrl in scout tests */
 const CHORD_MODIFIER = 'Control';
+const LLM_CONNECTOR_NAME = 'scout-workflows-gen-ai';
 
 const INITIAL_YAML = `name: Proposed Changes Test
 description: A test workflow for proposed changes
@@ -85,11 +85,23 @@ const ALL_STEPS_MODIFIED = INITIAL_YAML.replace(
 test.describe('Proposed changes accept and reject', { tag: [...tags.stateful.classic] }, () => {
   let llmConnectorId: string | undefined;
 
-  test.beforeAll(async ({ scoutSpace, kbnClient }) => {
+  test.beforeAll(async ({ scoutSpace, apiServices }) => {
     await scoutSpace.uiSettings.set({
       'agentBuilder:experimentalFeatures': true,
     });
-    const connector = await ensureGenAiConnector(kbnClient);
+    const connector = await apiServices.alerting.connectors.create(
+      {
+        name: LLM_CONNECTOR_NAME,
+        connectorTypeId: '.gen-ai',
+        config: {
+          apiProvider: 'OpenAI',
+          apiUrl: 'http://localhost:9999',
+          defaultModel: 'gpt-4',
+        },
+        secrets: { apiKey: 'scout-test-key' },
+      },
+      scoutSpace.id
+    );
     llmConnectorId = connector.id;
   });
 
@@ -100,10 +112,10 @@ test.describe('Proposed changes accept and reject', { tag: [...tags.stateful.cla
     await pageObjects.workflowEditor.waitForTestBridge();
   });
 
-  test.afterAll(async ({ scoutSpace, apiServices, kbnClient }) => {
+  test.afterAll(async ({ scoutSpace, apiServices }) => {
     await scoutSpace.uiSettings.unset('agentBuilder:experimentalFeatures');
     if (llmConnectorId) {
-      await deleteGenAiConnector(kbnClient, llmConnectorId);
+      await apiServices.alerting.connectors.delete(llmConnectorId, scoutSpace.id);
     }
     await cleanupWorkflowsAndRules({ scoutSpace, apiServices });
   });
