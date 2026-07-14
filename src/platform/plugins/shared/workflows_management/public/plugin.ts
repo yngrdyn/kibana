@@ -89,7 +89,11 @@ export class WorkflowsPlugin
     // Register workflows connector UI component lazily to reduce main bundle size
     const registerConnectorType = async () => {
       const { getWorkflowsConnectorType } = await import('./connectors/workflows');
+      const { getInboundWebhookConnectorType } = await import(
+        './connectors/inbound_webhook/inbound_webhook'
+      );
       plugins.triggersActionsUi.actionTypeRegistry.register(getWorkflowsConnectorType());
+      plugins.triggersActionsUi.actionTypeRegistry.register(getInboundWebhookConnectorType());
     };
 
     registerConnectorType();

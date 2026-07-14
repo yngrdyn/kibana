@@ -115,6 +115,9 @@ function createSubActionsMapping() {
   const CASES_WEBHOOK_SUB_ACTIONS = {
     PUSH_TO_SERVICE: 'pushToService',
   };
+  const INBOUND_WEBHOOK_SUB_ACTIONS = {
+    RECEIVE: 'receive',
+  };
 
   // Define all connector sub-actions
   const connectorSubActions = [
@@ -137,6 +140,7 @@ function createSubActionsMapping() {
     { id: '.servicenow-itom', actions: SERVICENOW_ITOM_SUB_ACTIONS },
     { id: '.swimlane', actions: SWIMLANE_SUB_ACTIONS },
     { id: '.cases-webhook', actions: CASES_WEBHOOK_SUB_ACTIONS },
+    { id: '.workflows-inbound-webhook', actions: INBOUND_WEBHOOK_SUB_ACTIONS },
   ];
 
   connectorSubActions.forEach(({ id, actions }) => {
