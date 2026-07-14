@@ -50,8 +50,8 @@ export const InboundWebhookConnectorFields = ({
       return;
     }
     const createWebhook = async () => {
-      const key = window.crypto.randomUUID();
-      const path = http.basePath.prepend(`/api/webhooks/${key}`);
+      const key = window.crypto.randomUUID().replaceAll('-', '');
+      const path = http.basePath.prepend(`/api/event/${key}`);
       setFieldValue('secrets.webhookUrl', `${window.location.origin}${path}`);
       setFieldValue('config.webhookKeyHash', await sha256(key));
       setFieldValue('config.credentialRevision', window.crypto.randomUUID());
@@ -82,6 +82,7 @@ export const InboundWebhookConnectorFields = ({
       <UseField path="config.credentialRevision" component={HiddenField} />
       {isEdit ? (
         <EuiCallOut
+          announceOnMount={false}
           title={i18n.translate('workflowsManagement.inboundWebhook.configuredTitle', {
             defaultMessage:
               'Webhook URL is configured{status, select, none {} other { ({status})}}',

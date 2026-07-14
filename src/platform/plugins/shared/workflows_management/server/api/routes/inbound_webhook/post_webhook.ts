@@ -67,7 +67,7 @@ export const registerPostInboundWebhookRoute = ({
 }: InboundWebhookRouteDependencies): void => {
   router.post(
     {
-      path: '/api/webhooks/{webhookKey}',
+      path: '/api/event/{webhookKey}',
       security: {
         authc: {
           enabled: false,
@@ -92,9 +92,7 @@ export const registerPostInboundWebhookRoute = ({
         params: schema.object({
           webhookKey: schema.string({
             validate: (value) =>
-              /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
-                ? undefined
-                : 'must be a UUID v4',
+              /^[0-9a-f]{32}$/i.test(value) ? undefined : 'must be a 32-character hexadecimal key',
           }),
         }),
         query: schema.recordOf(
