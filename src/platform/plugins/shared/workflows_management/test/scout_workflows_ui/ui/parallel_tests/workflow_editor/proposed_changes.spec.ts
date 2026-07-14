@@ -11,6 +11,7 @@ import { tags } from '@kbn/scout';
 import { expect } from '@kbn/scout/ui';
 import { spaceTest as test } from '../../fixtures';
 import { cleanupWorkflowsAndRules } from '../../fixtures/cleanup';
+import { deleteGenAiConnector, ensureGenAiConnector } from '../../fixtures/llm_connector';
 
 /** Matches ProposalManager: always Ctrl in scout tests */
 const CHORD_MODIFIER = 'Control';
@@ -82,10 +83,14 @@ const ALL_STEPS_MODIFIED = INITIAL_YAML.replace(
   .replace('message: "Hello from step three"', 'message: "Modified three"');
 
 test.describe('Proposed changes accept and reject', { tag: [...tags.stateful.classic] }, () => {
-  test.beforeAll(async ({ scoutSpace }) => {
+  let llmConnectorId: string | undefined;
+
+  test.beforeAll(async ({ scoutSpace, kbnClient }) => {
     await scoutSpace.uiSettings.set({
       'agentBuilder:experimentalFeatures': true,
     });
+    const connector = await ensureGenAiConnector(kbnClient);
+    llmConnectorId = connector.id;
   });
 
   test.beforeEach(async ({ browserAuth, pageObjects }) => {
@@ -95,8 +100,11 @@ test.describe('Proposed changes accept and reject', { tag: [...tags.stateful.cla
     await pageObjects.workflowEditor.waitForTestBridge();
   });
 
-  test.afterAll(async ({ scoutSpace, apiServices }) => {
+  test.afterAll(async ({ scoutSpace, apiServices, kbnClient }) => {
     await scoutSpace.uiSettings.unset('agentBuilder:experimentalFeatures');
+    if (llmConnectorId) {
+      await deleteGenAiConnector(kbnClient, llmConnectorId);
+    }
     await cleanupWorkflowsAndRules({ scoutSpace, apiServices });
   });
 
