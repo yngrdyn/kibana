@@ -9,6 +9,11 @@
 
 import type { Document } from 'yaml';
 import type { WorkflowSurfaceDefinition } from '@kbn/workflows';
+import {
+  type ConnectorIdBinding,
+  resolveConnectorIdBindingFromStepType,
+  resolveConnectorIdBindingFromSurface,
+} from './connector_id_binding';
 import { resolveSurfaceAtPath } from './resolve_surface_at_path';
 import type { StepInfo, StepPropInfo } from '../entities/workflows/store';
 import { resolveConnectorIdStepType } from '../widgets/workflow_yaml_editor/lib/autocomplete/suggestions/connector_id/resolve_connector_id_step_type';
@@ -21,27 +26,50 @@ export interface ConnectorIdProviderContext {
 }
 
 /**
- * Resolves the action type id used to filter connector instances for `connector-id` autocomplete.
- * Prefers connector-event trigger surfaces; falls back to legacy step connector resolution.
+ * Resolves the workflow surface for connector-id autocomplete at the cursor path.
  */
-export const resolveConnectorIdActionTypeId = ({
-  yamlDocument,
-  path,
-  focusedStepInfo,
-  focusedYamlPair,
-}: ConnectorIdProviderContext): string | null => {
-  if (path.length > 0) {
-    const resolvedSurface = resolveSurfaceAtPath(yamlDocument, [...path]);
-    const connectorTypeId = resolvedSurface?.surface.binding.connectorTypeId;
-    if (connectorTypeId) {
-      return connectorTypeId;
+export const resolveConnectorIdSurface = (
+  yamlDocument: Document,
+  path: ReadonlyArray<string | number>,
+  focusedStepInfo: StepInfo | null = null,
+  focusedYamlPair: StepPropInfo | null = null
+): WorkflowSurfaceDefinition | undefined =>
+  resolveSurfaceAtPath(yamlDocument, [...path], { focusedStepInfo, focusedYamlPair })?.surface;
+
+/**
+ * Resolves connector-id binding through workflow surfaces first, then legacy step fallback.
+ */
+export const resolveConnectorIdBinding = (
+  context: ConnectorIdProviderContext
+): ConnectorIdBinding | undefined => {
+  const surface = resolveConnectorIdSurface(
+    context.yamlDocument,
+    context.path,
+    context.focusedStepInfo,
+    context.focusedYamlPair
+  );
+  if (surface) {
+    const binding = resolveConnectorIdBindingFromSurface(surface);
+    if (binding) {
+      return binding;
     }
   }
 
-  return resolveConnectorIdStepType(focusedStepInfo, path, focusedYamlPair);
+  const stepType = resolveConnectorIdStepType(
+    context.focusedStepInfo,
+    context.path,
+    context.focusedYamlPair
+  );
+  if (!stepType) {
+    return undefined;
+  }
+
+  return resolveConnectorIdBindingFromStepType(stepType);
 };
 
-export const resolveConnectorIdSurface = (
-  yamlDocument: Document,
-  path: ReadonlyArray<string | number>
-): WorkflowSurfaceDefinition | undefined => resolveSurfaceAtPath(yamlDocument, [...path])?.surface;
+/**
+ * @deprecated Prefer {@link resolveConnectorIdBinding} — kept for callers that only need the lookup key.
+ */
+export const resolveConnectorIdActionTypeId = (
+  context: ConnectorIdProviderContext
+): string | null => resolveConnectorIdBinding(context)?.lookupKey ?? null;

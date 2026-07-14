@@ -116,6 +116,12 @@ const createMockDynamicConnectorTypes = (): Record<string, ConnectorTypeInfo> =>
   },
 });
 
+const createStepBinding = (lookupKey: string) => ({
+  connectorTypeId: `.${lookupKey.replace(/^\./, '').split('.')[0]}`,
+  requireConnectorTypeEvents: false,
+  lookupKey,
+});
+
 describe('getConnectorIdSuggestionsItems', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -128,7 +134,11 @@ describe('getConnectorIdSuggestionsItems', () => {
     const range = createMockRange();
     const dynamicConnectorTypes = createMockDynamicConnectorTypes();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('slack'),
+      range,
+      dynamicConnectorTypes
+    );
 
     expect(suggestions).toHaveLength(3);
     expect(suggestions[0].insertText).toBe('slack-001');
@@ -140,7 +150,11 @@ describe('getConnectorIdSuggestionsItems', () => {
     const range = createMockRange();
     const dynamicConnectorTypes = createMockDynamicConnectorTypes();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('slack'),
+      range,
+      dynamicConnectorTypes
+    );
 
     const deprecatedSuggestion = suggestions.find((s) => s.insertText === 'slack-003');
     expect(deprecatedSuggestion).toBeDefined();
@@ -153,7 +167,11 @@ describe('getConnectorIdSuggestionsItems', () => {
     const range = createMockRange();
     const dynamicConnectorTypes = createMockDynamicConnectorTypes();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('slack'),
+      range,
+      dynamicConnectorTypes
+    );
 
     const preconfiguredSuggestion = suggestions.find((s) => s.insertText === 'slack-002');
     expect(preconfiguredSuggestion).toBeDefined();
@@ -164,7 +182,11 @@ describe('getConnectorIdSuggestionsItems', () => {
     const range = createMockRange();
     const dynamicConnectorTypes = createMockDynamicConnectorTypes();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('slack'),
+      range,
+      dynamicConnectorTypes
+    );
 
     const activeSortText = suggestions.find((s) => s.insertText === 'slack-001')?.sortText ?? '';
     const deprecatedSortText =
@@ -175,7 +197,7 @@ describe('getConnectorIdSuggestionsItems', () => {
   it('should return empty array when no dynamic connector types are provided', () => {
     const range = createMockRange();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, undefined);
+    const suggestions = getConnectorIdSuggestionsItems(createStepBinding('slack'), range, undefined);
     expect(suggestions).toEqual([]);
   });
 
@@ -194,7 +216,11 @@ describe('getConnectorIdSuggestionsItems', () => {
       },
     };
 
-    const suggestions = getConnectorIdSuggestionsItems('empty', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('empty'),
+      range,
+      dynamicConnectorTypes
+    );
     expect(suggestions).toEqual([]);
   });
 
@@ -203,7 +229,11 @@ describe('getConnectorIdSuggestionsItems', () => {
     const range = createMockRange();
     const dynamicConnectorTypes = createMockDynamicConnectorTypes();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('slack'),
+      range,
+      dynamicConnectorTypes
+    );
 
     const createSuggestion = suggestions.find((s) => s.insertText === '');
     expect(createSuggestion).toBeDefined();
@@ -217,7 +247,11 @@ describe('getConnectorIdSuggestionsItems', () => {
     const range = createMockRange();
     const dynamicConnectorTypes = createMockDynamicConnectorTypes();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('slack'),
+      range,
+      dynamicConnectorTypes
+    );
 
     const createSuggestion = suggestions.find((s) => s.insertText === '');
     expect(createSuggestion).toBeUndefined();
@@ -227,7 +261,11 @@ describe('getConnectorIdSuggestionsItems', () => {
     const range = createMockRange();
     const dynamicConnectorTypes = createMockDynamicConnectorTypes();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('slack'),
+      range,
+      dynamicConnectorTypes
+    );
 
     suggestions.forEach((s) => {
       if (s.insertText !== '') {
@@ -240,11 +278,46 @@ describe('getConnectorIdSuggestionsItems', () => {
     const range = createMockRange();
     const dynamicConnectorTypes = createMockDynamicConnectorTypes();
 
-    const suggestions = getConnectorIdSuggestionsItems('slack', range, dynamicConnectorTypes);
+    const suggestions = getConnectorIdSuggestionsItems(
+      createStepBinding('slack'),
+      range,
+      dynamicConnectorTypes
+    );
 
     const firstSuggestion = suggestions[0];
     expect(firstSuggestion.filterText).toContain('slack-001');
     expect(firstSuggestion.filterText).toContain('Engineering Slack');
+  });
+
+  it('returns no suggestions when connector-event binding requires declared events', () => {
+    const range = createMockRange();
+    const binding = {
+      connectorTypeId: '.inboundWebhook',
+      requireConnectorTypeEvents: true,
+      lookupKey: '.inboundWebhook',
+    };
+
+    const suggestions = getConnectorIdSuggestionsItems(binding, range, {
+      '.inboundWebhook': {
+        actionTypeId: '.inboundWebhook',
+        displayName: 'Inbound Webhook',
+        enabled: true,
+        enabledInConfig: true,
+        enabledInLicense: true,
+        minimumLicenseRequired: 'gold',
+        subActions: [],
+        instances: [
+          {
+            id: 'sales-ingress',
+            name: 'Sales Ingress',
+            isPreconfigured: false,
+            isDeprecated: false,
+          },
+        ],
+      },
+    });
+
+    expect(suggestions).toEqual([]);
   });
 });
 

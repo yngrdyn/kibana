@@ -8,7 +8,7 @@
  */
 
 import { parseDocument } from 'yaml';
-import { resolveConnectorIdActionTypeId } from './connector_id_provider';
+import { resolveConnectorIdActionTypeId, resolveConnectorIdBinding } from './connector_id_provider';
 import type { StepInfo } from '../entities/workflows/store';
 
 jest.mock('./resolve_surface_at_path', () => ({
@@ -17,7 +17,18 @@ jest.mock('./resolve_surface_at_path', () => ({
       ? {
           role: 'connector-id',
           surface: {
+            id: 'inboundWebhook.received',
+            kind: 'trigger',
+            title: 'Webhook received',
+            description: 'desc',
+            stability: 'tech_preview',
             binding: { connectorTypeId: '.inboundWebhook', instanceRef: 'required' },
+            surfaces: {},
+            source: {
+              type: 'connector-event',
+              connectorTypeId: '.inboundWebhook',
+              eventKey: 'received',
+            },
           },
         }
       : undefined
@@ -38,6 +49,25 @@ describe('resolveConnectorIdActionTypeId', () => {
         focusedYamlPair: null,
       })
     ).toBe('.inboundWebhook');
+  });
+
+  it('requires connector types with declared events for connector-event surfaces', () => {
+    const yamlDocument = parseDocument(`triggers:
+  - type: inboundWebhook.received
+    connector-id: `);
+
+    expect(
+      resolveConnectorIdBinding({
+        yamlDocument,
+        path: ['triggers', 0, 'connector-id'],
+        focusedStepInfo: null,
+        focusedYamlPair: null,
+      })
+    ).toEqual({
+      connectorTypeId: '.inboundWebhook',
+      requireConnectorTypeEvents: true,
+      lookupKey: '.inboundWebhook',
+    });
   });
 
   it('falls back to step connector type resolution', () => {
