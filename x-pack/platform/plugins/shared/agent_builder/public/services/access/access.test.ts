@@ -98,16 +98,16 @@ describe('AgentBuilderAccessChecker', () => {
       connectorsReject: new Error('forbidden'),
     });
 
-    await expect(accessChecker.getEmbeddableChatAccess()).resolves.toEqual({
+    await expect(accessChecker.getAgentBuilderAccess()).resolves.toEqual({
       hasRequiredLicense: false,
       hasLlmConnector: false,
     });
   });
 
-  it('returns access from getEmbeddableChatAccess when initialization succeeds', async () => {
+  it('returns access from getAgentBuilderAccess when initialization succeeds', async () => {
     const accessChecker = createAccessChecker({ hasEnterpriseLicense: true, connectorCount: 1 });
 
-    await expect(accessChecker.getEmbeddableChatAccess()).resolves.toEqual({
+    await expect(accessChecker.getAgentBuilderAccess()).resolves.toEqual({
       hasRequiredLicense: true,
       hasLlmConnector: true,
     });

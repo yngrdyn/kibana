@@ -18,8 +18,8 @@ const createApplication = (hasShowPrivilege: boolean): ApplicationStart =>
 
 describe('createPublicEmbeddableChatAccess', () => {
   it('returns denied access without calling the checker when show capability is missing', async () => {
-    const getEmbeddableChatAccess = jest.fn();
-    const accessChecker = { getEmbeddableChatAccess } as unknown as AgentBuilderAccessChecker;
+    const getAgentBuilderAccess = jest.fn();
+    const accessChecker = { getAgentBuilderAccess } as unknown as AgentBuilderAccessChecker;
     const getAccess = createPublicEmbeddableChatAccess({
       accessChecker,
       application: createApplication(false),
@@ -30,15 +30,15 @@ describe('createPublicEmbeddableChatAccess', () => {
       hasLlmConnector: false,
     });
 
-    expect(getEmbeddableChatAccess).not.toHaveBeenCalled();
+    expect(getAgentBuilderAccess).not.toHaveBeenCalled();
   });
 
-  it('delegates to accessChecker.getEmbeddableChatAccess when show capability is granted', async () => {
-    const getEmbeddableChatAccess = jest.fn().mockResolvedValue({
+  it('delegates to accessChecker.getAgentBuilderAccess when show capability is granted', async () => {
+    const getAgentBuilderAccess = jest.fn().mockResolvedValue({
       hasRequiredLicense: true,
       hasLlmConnector: true,
     });
-    const accessChecker = { getEmbeddableChatAccess } as unknown as AgentBuilderAccessChecker;
+    const accessChecker = { getAgentBuilderAccess } as unknown as AgentBuilderAccessChecker;
     const getAccess = createPublicEmbeddableChatAccess({
       accessChecker,
       application: createApplication(true),
@@ -49,6 +49,6 @@ describe('createPublicEmbeddableChatAccess', () => {
       hasLlmConnector: true,
     });
 
-    expect(getEmbeddableChatAccess).toHaveBeenCalled();
+    expect(getAgentBuilderAccess).toHaveBeenCalled();
   });
 });

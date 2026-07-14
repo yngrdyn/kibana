@@ -101,7 +101,7 @@ export const useAgentBuilderIntegration = ({
     let cancelled = false;
 
     void agentBuilder
-      .getEmbeddableChatAccess()
+      .getAgentBuilderAccess()
       .then((access) => {
         if (!cancelled) {
           setIsChatAccessible(access.hasRequiredLicense && access.hasLlmConnector);

@@ -21,6 +21,6 @@ export const createPublicEmbeddableChatAccess = ({
       return Promise.resolve(deniedEmbeddableChatAccess());
     }
 
-    return accessChecker.getEmbeddableChatAccess();
+    return accessChecker.getAgentBuilderAccess();
   };
 };

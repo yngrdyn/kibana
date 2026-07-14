@@ -107,7 +107,7 @@ const createMockAgentBuilder = () => ({
   setChatConfig: jest.fn(),
   clearChatConfig: jest.fn(),
   openChat: jest.fn().mockReturnValue({ chatRef: { close: jest.fn() } }),
-  getEmbeddableChatAccess: jest.fn().mockResolvedValue(embeddableChatAccessReady),
+  getAgentBuilderAccess: jest.fn().mockResolvedValue(embeddableChatAccessReady),
   events: { chat$: { subscribe: jest.fn().mockReturnValue({ unsubscribe: jest.fn() }) } },
   tools: {},
   attachments: {},
@@ -630,7 +630,7 @@ describe('useAgentBuilderIntegration', () => {
 
     it('does not auto-open when no LLM connector is configured', async () => {
       const agentBuilder = createMockAgentBuilder();
-      agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
+      agentBuilder.getAgentBuilderAccess.mockResolvedValue({
         hasRequiredLicense: true,
         hasLlmConnector: false,
       });
@@ -1004,7 +1004,7 @@ describe('useAgentBuilderIntegration', () => {
 
     it('returns false when no LLM connector is configured', async () => {
       const agentBuilder = createMockAgentBuilder();
-      agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
+      agentBuilder.getAgentBuilderAccess.mockResolvedValue({
         hasRequiredLicense: true,
         hasLlmConnector: false,
       });
@@ -1044,7 +1044,7 @@ describe('useAgentBuilderIntegration', () => {
 
     it('returns false when enterprise license is missing', async () => {
       const agentBuilder = createMockAgentBuilder();
-      agentBuilder.getEmbeddableChatAccess.mockResolvedValue({
+      agentBuilder.getAgentBuilderAccess.mockResolvedValue({
         hasRequiredLicense: false,
         hasLlmConnector: true,
       });

@@ -320,7 +320,7 @@ export class AgentBuilderPlugin
       renderers: createPublicRenderersContract({ renderersService }),
       tools: createPublicToolContract({ toolsService }),
       events: createPublicEventsContract({ eventsService }),
-      getEmbeddableChatAccess: createPublicEmbeddableChatAccess({
+      getAgentBuilderAccess: createPublicEmbeddableChatAccess({
         accessChecker,
         application: core.application,
       }),

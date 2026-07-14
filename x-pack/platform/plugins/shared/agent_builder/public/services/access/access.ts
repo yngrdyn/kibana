@@ -76,7 +76,7 @@ export class AgentBuilderAccessChecker {
     return this.access;
   }
 
-  public async getEmbeddableChatAccess(): Promise<EmbeddableChatAccess> {
+  public async getAgentBuilderAccess(): Promise<EmbeddableChatAccess> {
     try {
       await this.initAccess();
       return this.getAccess();

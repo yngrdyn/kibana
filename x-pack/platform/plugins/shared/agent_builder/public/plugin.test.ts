@@ -179,7 +179,7 @@ describe('AgentBuilderPlugin', () => {
     MockAgentBuilderAccessChecker.mockImplementation(
       () =>
         ({
-          getEmbeddableChatAccess: jest.fn().mockResolvedValue({
+          getAgentBuilderAccess: jest.fn().mockResolvedValue({
             hasRequiredLicense: true,
             hasLlmConnector: true,
           }),
@@ -187,14 +187,14 @@ describe('AgentBuilderPlugin', () => {
     );
   });
 
-  describe('getEmbeddableChatAccess', () => {
-    it('delegates to accessChecker.getEmbeddableChatAccess when show privilege is granted', async () => {
-      const getEmbeddableChatAccess = jest.fn().mockResolvedValue({
+  describe('getAgentBuilderAccess', () => {
+    it('delegates to accessChecker.getAgentBuilderAccess when show privilege is granted', async () => {
+      const getAgentBuilderAccess = jest.fn().mockResolvedValue({
         hasRequiredLicense: true,
         hasLlmConnector: true,
       });
       MockAgentBuilderAccessChecker.mockImplementation(
-        () => ({ getEmbeddableChatAccess } as unknown as AgentBuilderAccessChecker)
+        () => ({ getAgentBuilderAccess } as unknown as AgentBuilderAccessChecker)
       );
 
       const sidebarApp = createMockSidebarApp();
@@ -208,18 +208,18 @@ describe('AgentBuilderPlugin', () => {
       plugin.setup(createMockCoreSetup(), createMockSetupDeps());
       const start = plugin.start(coreStart, createMockStartDeps());
 
-      await expect(start.getEmbeddableChatAccess()).resolves.toEqual({
+      await expect(start.getAgentBuilderAccess()).resolves.toEqual({
         hasRequiredLicense: true,
         hasLlmConnector: true,
       });
 
-      expect(getEmbeddableChatAccess).toHaveBeenCalled();
+      expect(getAgentBuilderAccess).toHaveBeenCalled();
     });
 
-    it('returns denied access without calling getEmbeddableChatAccess when show privilege is missing', async () => {
-      const getEmbeddableChatAccess = jest.fn();
+    it('returns denied access without calling getAgentBuilderAccess when show privilege is missing', async () => {
+      const getAgentBuilderAccess = jest.fn();
       MockAgentBuilderAccessChecker.mockImplementation(
-        () => ({ getEmbeddableChatAccess } as unknown as AgentBuilderAccessChecker)
+        () => ({ getAgentBuilderAccess } as unknown as AgentBuilderAccessChecker)
       );
 
       const sidebarApp = createMockSidebarApp();
@@ -228,21 +228,21 @@ describe('AgentBuilderPlugin', () => {
       plugin.setup(createMockCoreSetup(), createMockSetupDeps());
       const start = plugin.start(coreStart, createMockStartDeps());
 
-      await expect(start.getEmbeddableChatAccess()).resolves.toEqual({
+      await expect(start.getAgentBuilderAccess()).resolves.toEqual({
         hasRequiredLicense: false,
         hasLlmConnector: false,
       });
 
-      expect(getEmbeddableChatAccess).not.toHaveBeenCalled();
+      expect(getAgentBuilderAccess).not.toHaveBeenCalled();
     });
 
-    it('returns denied access when accessChecker.getEmbeddableChatAccess resolves denied', async () => {
-      const getEmbeddableChatAccess = jest.fn().mockResolvedValue({
+    it('returns denied access when accessChecker.getAgentBuilderAccess resolves denied', async () => {
+      const getAgentBuilderAccess = jest.fn().mockResolvedValue({
         hasRequiredLicense: false,
         hasLlmConnector: false,
       });
       MockAgentBuilderAccessChecker.mockImplementation(
-        () => ({ getEmbeddableChatAccess } as unknown as AgentBuilderAccessChecker)
+        () => ({ getAgentBuilderAccess } as unknown as AgentBuilderAccessChecker)
       );
 
       const sidebarApp = createMockSidebarApp();
@@ -256,12 +256,12 @@ describe('AgentBuilderPlugin', () => {
       plugin.setup(createMockCoreSetup(), createMockSetupDeps());
       const start = plugin.start(coreStart, createMockStartDeps());
 
-      await expect(start.getEmbeddableChatAccess()).resolves.toEqual({
+      await expect(start.getAgentBuilderAccess()).resolves.toEqual({
         hasRequiredLicense: false,
         hasLlmConnector: false,
       });
 
-      expect(getEmbeddableChatAccess).toHaveBeenCalled();
+      expect(getAgentBuilderAccess).toHaveBeenCalled();
     });
   });
 
