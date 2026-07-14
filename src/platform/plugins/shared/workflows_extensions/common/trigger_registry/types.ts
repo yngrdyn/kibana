@@ -34,10 +34,6 @@ export interface TriggerSnippets {
    * Must be valid KQL and only reference properties from the event schema (validated at registration).
    */
   condition?: string;
-  /**
-   * Connector instance id pre-filled in `connector-id` for connector-event triggers.
-   */
-  connectorId?: string;
 }
 
 /**

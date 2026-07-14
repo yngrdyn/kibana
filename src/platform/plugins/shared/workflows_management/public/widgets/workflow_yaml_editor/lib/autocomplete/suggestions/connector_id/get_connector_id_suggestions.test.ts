@@ -120,6 +120,11 @@ describe('getConnectorIdSuggestions', () => {
         stability: 'tech_preview',
         binding: { connectorTypeId: '.inboundWebhook', instanceRef: 'required' },
         surfaces: {},
+        source: {
+          type: 'connector-event',
+          connectorTypeId: '.inboundWebhook',
+          eventKey: 'received',
+        },
       },
     });
 

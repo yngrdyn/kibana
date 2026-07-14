@@ -10,8 +10,12 @@
 import type { WorkflowsExtensionsServerPluginSetup } from '@kbn/workflows-extensions/server';
 import { commonCustomTriggerDefinition } from '../../common/triggers/custom_trigger';
 import { commonLoopTriggerDefinition } from '../../common/triggers/loop_trigger';
+import { commonExampleInboundWebhookReceivedTriggerDefinition } from '../../common/connectors/example_inbound_webhook';
 
 export const registerTriggers = (workflowsExtensions: WorkflowsExtensionsServerPluginSetup) => {
   workflowsExtensions.registerTriggerDefinition(commonCustomTriggerDefinition);
   workflowsExtensions.registerTriggerDefinition(commonLoopTriggerDefinition);
+  workflowsExtensions.registerTriggerDefinition(
+    commonExampleInboundWebhookReceivedTriggerDefinition
+  );
 };
