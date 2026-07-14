@@ -196,4 +196,66 @@ describe('validateKqlAgainstSchema', () => {
       if (!result.valid) expect(result.error).toContain('other.*');
     });
   });
+
+  describe('open dynamic fields (z.unknown / z.record)', () => {
+    const inboundWebhookEventSchema = z.object({
+      connectorId: z.string(),
+      body: z.unknown(),
+      receivedAt: z.string(),
+    });
+
+    it('allows nested paths under z.unknown body', () => {
+      expect(
+        validateKqlAgainstSchema(
+          'event.body.eventType: "order.created"',
+          inboundWebhookEventSchema,
+          {
+            fieldPrefix: EVENT_FIELD_PREFIX,
+          }
+        )
+      ).toEqual({ valid: true });
+
+      expect(
+        validateKqlAgainstSchema(
+          'event.body.fields.priority.name: "Highest"',
+          inboundWebhookEventSchema,
+          {
+            fieldPrefix: EVENT_FIELD_PREFIX,
+          }
+        )
+      ).toEqual({ valid: true });
+    });
+
+    it('allows bracket notation under open fields', () => {
+      expect(
+        validateKqlAgainstSchema(
+          "event.body['eventType']: 'Ihor action'",
+          inboundWebhookEventSchema,
+          {
+            fieldPrefix: EVENT_FIELD_PREFIX,
+          }
+        )
+      ).toEqual({ valid: true });
+    });
+
+    it('allows event.body.* wildcard', () => {
+      expect(
+        validateKqlAgainstSchema('event.body.*: *', inboundWebhookEventSchema, {
+          fieldPrefix: EVENT_FIELD_PREFIX,
+        })
+      ).toEqual({ valid: true });
+    });
+
+    it('still rejects fields outside the schema and open prefixes', () => {
+      const result = validateKqlAgainstSchema(
+        'event.unknownField: "x"',
+        inboundWebhookEventSchema,
+        {
+          fieldPrefix: EVENT_FIELD_PREFIX,
+        }
+      );
+      expect(result.valid).toBe(false);
+      if (!result.valid) expect(result.error).toContain('event.unknownField');
+    });
+  });
 });
