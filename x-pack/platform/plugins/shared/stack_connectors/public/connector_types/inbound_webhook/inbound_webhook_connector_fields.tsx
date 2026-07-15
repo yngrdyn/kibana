@@ -5,9 +5,17 @@
  * 2.0.
  */
 
-import { EuiButton, EuiCopy, EuiSpacer } from '@elastic/eui';
-import React, { useEffect } from 'react';
-import { HiddenField, TextField } from '@kbn/es-ui-shared-plugin/static/forms/components';
+import {
+  EuiButton,
+  EuiCallOut,
+  EuiCopy,
+  EuiFieldText,
+  EuiFormRow,
+  EuiLoadingSpinner,
+  EuiSpacer,
+} from '@elastic/eui';
+import React, { useEffect, useRef, useState } from 'react';
+import { HiddenField } from '@kbn/es-ui-shared-plugin/static/forms/components';
 import {
   UseField,
   useFormContext,
@@ -18,95 +26,107 @@ import { FormattedMessage } from '@kbn/i18n-react';
 import type { ActionConnectorFieldsProps } from '@kbn/triggers-actions-ui-plugin/public';
 import { useKibana } from '@kbn/triggers-actions-ui-plugin/public';
 
-const computeIngestTokenHash = async ({
-  connectorId,
-  spaceId,
-  token,
-}: {
-  connectorId: string;
-  spaceId: string;
-  token: string;
-}): Promise<string> => {
-  const bytes = new TextEncoder().encode(`${connectorId}|${spaceId}|${token}`);
-  const digest = await window.crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-};
+import { rotateInboundWebhookUrl } from './api';
 
-export const InboundWebhookConnectorFields = ({
-  isEdit,
-  readOnly,
-  registerPreSubmitValidator,
-}: ActionConnectorFieldsProps) => {
+const CONNECTOR_ID_SETTLE_MS = 400;
+const CONNECTOR_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnectorFieldsProps) => {
   const { http } = useKibana().services;
   const { setFieldValue } = useFormContext();
   const [{ id, config }] = useFormData({ watch: ['id', 'config.webhookUrl'] });
-  const webhookUrl = config?.webhookUrl as string | undefined;
-
-  useEffect(() => {
-    registerPreSubmitValidator(async () => undefined);
-  }, [registerPreSubmitValidator]);
+  const webhookUrl = typeof config?.webhookUrl === 'string' ? config.webhookUrl : undefined;
+  const [isRotating, setIsRotating] = useState(false);
+  const [rotateError, setRotateError] = useState<string | undefined>();
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     setFieldValue('secrets.authType', 'none');
   }, [setFieldValue]);
 
   useEffect(() => {
-    if (isEdit || webhookUrl || !id) {
+    if (isEdit || readOnly) {
       return;
     }
-    const createWebhook = async () => {
-      const token =
-        window.crypto.randomUUID().replaceAll('-', '') +
-        window.crypto.randomUUID().replaceAll('-', '');
-      const path = http.basePath.prepend(`/api/events/v1/inboundWebhook/${id}?token=${token}`);
-      const spaceId = http.basePath.serverBasePath.includes('/s/')
-        ? http.basePath.serverBasePath.split('/s/')[1]?.split('/')[0] ?? 'default'
-        : 'default';
-      setFieldValue('config.webhookUrl', `${window.location.origin}${path}`);
-      setFieldValue(
-        'config.ingestTokenHash',
-        await computeIngestTokenHash({
-          connectorId: String(id),
-          spaceId,
-          token,
+
+    const connectorId = typeof id === 'string' ? id.trim() : '';
+    if (!connectorId || !CONNECTOR_ID_PATTERN.test(connectorId)) {
+      return;
+    }
+
+    if (webhookUrl?.includes(`/inboundWebhook/${connectorId}?`)) {
+      return;
+    }
+
+    if (webhookUrl) {
+      setFieldValue('config.webhookUrl', undefined);
+      setFieldValue('config.ingestTokenHash', undefined);
+    }
+
+    const timer = window.setTimeout(() => {
+      const requestId = ++requestIdRef.current;
+      setIsRotating(true);
+      setRotateError(undefined);
+
+      void rotateInboundWebhookUrl({ http, connectorId })
+        .then((credentials) => {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+          setFieldValue('config.webhookUrl', credentials.webhookUrl);
+          setFieldValue('config.ingestTokenHash', credentials.ingestTokenHash);
         })
-      );
+        .catch(() => {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+          setRotateError(
+            i18n.translate('stackConnectors.inboundWebhook.rotateUrlError', {
+              defaultMessage:
+                'Unable to generate the webhook URL. Check the connector ID and try again.',
+            })
+          );
+        })
+        .finally(() => {
+          if (requestId === requestIdRef.current) {
+            setIsRotating(false);
+          }
+        });
+    }, CONNECTOR_ID_SETTLE_MS);
+
+    return () => {
+      window.clearTimeout(timer);
     };
-    void createWebhook();
-  }, [http.basePath, id, isEdit, setFieldValue, webhookUrl]);
+  }, [http, id, isEdit, readOnly, setFieldValue, webhookUrl]);
 
   return (
     <>
       <UseField path="config.ingestTokenHash" component={HiddenField} />
+      <UseField path="config.webhookUrl" component={HiddenField} />
       <UseField path="secrets.authType" component={HiddenField} />
-      {!isEdit ? (
+      {webhookUrl ? (
         <>
-          <UseField
-            path="config.webhookUrl"
-            component={TextField}
-            config={{
-              label: i18n.translate('stackConnectors.inboundWebhook.urlLabel', {
-                defaultMessage: 'Webhook URL',
-              }),
-            }}
-            componentProps={{
-              euiFieldProps: {
-                readOnly: true,
-                fullWidth: true,
-                'data-test-subj': 'inboundWebhookUrl',
-              },
-            }}
-          />
+          <EuiFormRow
+            label={i18n.translate('stackConnectors.inboundWebhook.urlLabel', {
+              defaultMessage: 'Webhook URL',
+            })}
+            fullWidth
+          >
+            <EuiFieldText
+              value={webhookUrl}
+              readOnly
+              fullWidth
+              data-test-subj="inboundWebhookUrl"
+            />
+          </EuiFormRow>
           <EuiSpacer size="s" />
-          <EuiCopy textToCopy={webhookUrl ?? ''}>
+          <EuiCopy textToCopy={webhookUrl}>
             {(copy) => (
               <EuiButton
                 size="s"
                 iconType="copy"
                 onClick={copy}
-                disabled={!webhookUrl || readOnly}
+                disabled={readOnly || isRotating}
                 data-test-subj="copyInboundWebhookUrl"
               >
                 <FormattedMessage
@@ -117,7 +137,29 @@ export const InboundWebhookConnectorFields = ({
             )}
           </EuiCopy>
         </>
-      ) : null}
+      ) : (
+        <EuiCallOut
+          size="s"
+          announceOnMount={false}
+          color={rotateError ? 'danger' : 'primary'}
+          title={
+            rotateError ??
+            i18n.translate('stackConnectors.inboundWebhook.urlPendingTitle', {
+              defaultMessage: 'Webhook URL is generated from the connector ID',
+            })
+          }
+          data-test-subj="inboundWebhookUrlPending"
+        >
+          {isRotating ? (
+            <EuiLoadingSpinner size="m" data-test-subj="inboundWebhookUrlRotating" />
+          ) : (
+            <FormattedMessage
+              id="stackConnectors.inboundWebhook.urlPendingDescription"
+              defaultMessage="Enter a connector ID and wait a moment — the URL is minted on the server."
+            />
+          )}
+        </EuiCallOut>
+      )}
     </>
   );
 };

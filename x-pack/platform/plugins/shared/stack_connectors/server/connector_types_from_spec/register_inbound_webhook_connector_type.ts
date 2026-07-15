@@ -5,16 +5,13 @@
  * 2.0.
  */
 
-import { randomBytes } from 'node:crypto';
-
 import type { PluginSetupContract as ActionsPluginSetupContract } from '@kbn/actions-plugin/server';
 import { createConnectorTypeFromSpec } from '@kbn/actions-plugin/server/lib';
-import { INBOUND_WEBHOOK_CONNECTOR_TYPE_ID } from '@kbn/connector-specs';
 import { InboundWebhookConnector } from '@kbn/connector-specs/src/specs/inbound_webhook/inbound_webhook';
-import { computeIngestTokenHash } from '@kbn/connector-specs/src/inbound_webhook/compute_ingest_token_hash';
 import type { KibanaRequest, Logger, SecurityServiceStart } from '@kbn/core/server';
 import { z } from '@kbn/zod/v4';
 
+import { ensureInboundWebhookIngressCredentials } from './ensure_inbound_webhook_ingress_credentials';
 import {
   DELEGATED_API_KEY_ID_CONFIG,
   DELEGATED_API_KEY_SECRET,
@@ -62,29 +59,14 @@ export function registerInboundWebhookConnectorType({
       const configRecord = config as Record<string, unknown>;
       const secretsRecord = secrets as Record<string, unknown>;
 
-      const existingWebhookUrl =
-        typeof configRecord.webhookUrl === 'string' ? configRecord.webhookUrl : undefined;
-      let token: string | undefined;
-      if (existingWebhookUrl) {
-        try {
-          token = new URL(existingWebhookUrl).searchParams.get('token') ?? undefined;
-        } catch {
-          token = undefined;
-        }
-      }
-
-      if (!token && !isUpdate && typeof configRecord.ingestTokenHash !== 'string') {
-        token = randomBytes(32).toString('hex');
-      }
-
-      if (token) {
-        configRecord.ingestTokenHash = computeIngestTokenHash({
-          connectorId,
-          spaceId,
-          token,
-        });
-        configRecord.webhookUrl = `${getPublicBaseUrl()}/api/events/v1/inboundWebhook/${connectorId}?token=${token}`;
-      }
+      ensureInboundWebhookIngressCredentials({
+        config: configRecord,
+        connectorId,
+        spaceId,
+        publicBaseUrl: getPublicBaseUrl(),
+        isUpdate,
+        logger,
+      });
 
       const hasDelegatedKey =
         typeof secretsRecord[DELEGATED_API_KEY_SECRET] === 'string' &&
@@ -128,5 +110,3 @@ export function registerInboundWebhookConnectorType({
     },
   });
 }
-
-export { INBOUND_WEBHOOK_CONNECTOR_TYPE_ID };

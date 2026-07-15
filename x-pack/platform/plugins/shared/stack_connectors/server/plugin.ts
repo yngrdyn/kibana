@@ -10,6 +10,7 @@ import type {
   Plugin,
   CoreSetup,
   CoreStart,
+  KibanaRequest,
   Logger,
 } from '@kbn/core/server';
 import type { UsageCollectionSetup } from '@kbn/usage-collection-plugin/server';
@@ -28,6 +29,7 @@ import {
   getWellKnownEmailServiceRoute,
   getWebhookSecretHeadersKeyRoute,
   getHttpSecretQueryParamsKeyRoute,
+  rotateInboundWebhookUrlRoute,
 } from './routes';
 import type { ExperimentalFeatures } from '../common/experimental_features';
 import { parseExperimentalConfigValue } from '../common/experimental_features';
@@ -105,14 +107,25 @@ export class StackConnectorsPlugin
     });
 
     if (this.experimentalFeatures.connectorsFromSpecs) {
+      const getSpaceId = (request: KibanaRequest) =>
+        plugins.spaces?.spacesService.getSpaceId(request) ?? 'default';
+      const getPublicBaseUrl = () => core.http.basePath.publicBaseUrl ?? '';
+
       registerConnectorTypesFromSpecs({
         actions,
-        getSpaceId: (request) => plugins.spaces?.spacesService.getSpaceId(request) ?? 'default',
-        getPublicBaseUrl: () => core.http.basePath.publicBaseUrl ?? '',
+        getSpaceId,
+        getPublicBaseUrl,
         getSecurity: async () => {
           const [coreStart] = await core.getStartServices();
           return coreStart.security;
         },
+        logger: this.logger,
+      });
+      rotateInboundWebhookUrlRoute({
+        router,
+        getStartServices: core.getStartServices,
+        getPublicBaseUrl,
+        getSpaceId,
         logger: this.logger,
       });
       registerConnectorEventTriggers(plugins.workflowsExtensions);
