@@ -7,4 +7,15 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-export const InboundWebhookParamsFields = () => null;
+// eslint-disable-next-line import/no-nodejs-modules -- server-side ingress credential hashing
+import { createHash } from 'node:crypto';
+
+export const computeIngestTokenHash = ({
+  connectorId,
+  spaceId,
+  token,
+}: {
+  connectorId: string;
+  spaceId: string;
+  token: string;
+}): string => createHash('sha256').update(`${connectorId}|${spaceId}|${token}`).digest('hex');

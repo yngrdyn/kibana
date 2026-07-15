@@ -15,6 +15,7 @@ import type { EncryptedSavedObjectsPluginStart } from '@kbn/encrypted-saved-obje
 import type { CloudSetup } from '@kbn/cloud-plugin/server';
 import type { LicensingPluginStart } from '@kbn/licensing-plugin/server';
 import type { SpacesPluginSetup } from '@kbn/spaces-plugin/server';
+import type { WorkflowsExtensionsServerPluginSetup } from '@kbn/workflows-extensions/server';
 import { registerInferenceConnectorsUsageCollector } from './usage/inference/inference_connectors_usage_collector';
 import { registerConnectorTypes } from './connector_types';
 import {
@@ -26,11 +27,14 @@ import type { ExperimentalFeatures } from '../common/experimental_features';
 import { parseExperimentalConfigValue } from '../common/experimental_features';
 import type { ConfigSchema as StackConnectorsConfigType } from './config';
 import { registerConnectorTypesFromSpecs } from './connector_types_from_spec';
+import { registerConnectorEventTriggers } from './connector_events/register_connector_event_triggers';
 
 export interface ConnectorsPluginsSetup {
   actions: ActionsPluginSetupContract;
   usageCollection?: UsageCollectionSetup;
   cloud?: CloudSetup;
+  spaces?: SpacesPluginSetup;
+  workflowsExtensions?: WorkflowsExtensionsServerPluginSetup;
 }
 
 export interface ConnectorsPluginsStart {
@@ -93,7 +97,12 @@ export class StackConnectorsPlugin
     });
 
     if (this.experimentalFeatures.connectorsFromSpecs) {
-      registerConnectorTypesFromSpecs({ actions });
+      registerConnectorTypesFromSpecs({
+        actions,
+        getSpaceId: (request) => plugins.spaces?.spacesService.getSpaceId(request) ?? 'default',
+        getPublicBaseUrl: () => core.http.basePath.publicBaseUrl ?? '',
+      });
+      registerConnectorEventTriggers(plugins.workflowsExtensions);
     }
 
     if (plugins.usageCollection) {

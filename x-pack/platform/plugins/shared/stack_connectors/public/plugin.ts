@@ -43,6 +43,14 @@ export class StackConnectorsPublicPlugin
         validateEmailAddresses: actions.validateEmailAddresses,
       },
     });
+
+    if (this.experimentalFeatures.connectorsFromSpecs) {
+      void import('./connector_types/inbound_webhook/inbound_webhook').then(
+        ({ getInboundWebhookConnectorType }) => {
+          triggersActionsUi.actionTypeRegistry.register(getInboundWebhookConnectorType());
+        }
+      );
+    }
   }
 
   public start() {}

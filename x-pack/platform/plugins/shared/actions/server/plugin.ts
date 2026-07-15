@@ -67,12 +67,15 @@ import type {
   ActionsRequestHandlerContext,
   UnsecuredServices,
   ConnectorLifecycleListener,
+  ConnectorEventEmitter,
 } from './types';
 
 import type { ActionsConfigurationUtilities } from './actions_config';
 import { getActionsConfigurationUtilities } from './actions_config';
 
 import { defineRoutes } from './routes';
+import { registerInboundRoutes } from './inbound/register_inbound_routes';
+import { dispatchConnectorEvents } from './inbound/dispatch_connector_events';
 import { initializeActionsTelemetry, scheduleActionsTelemetry } from './usage/task';
 import {
   initializeOAuthStateCleanupTask,
@@ -156,6 +159,9 @@ export interface PluginSetupContract {
   isActionTypeEnabled(id: string, options?: { notifyUsage: boolean }): boolean;
 
   registerConnectorLifecycleListener(listener: ConnectorLifecycleListener): void;
+
+  /** Register a sink for connector events emitted by the inbound hub. */
+  registerConnectorEventEmitter(emitter: ConnectorEventEmitter): void;
 }
 
 export interface PluginStartContract {
@@ -271,6 +277,7 @@ export class ActionsPlugin
   private inMemoryMetrics: InMemoryMetrics;
   private connectorUsageReportingTask: ConnectorUsageReportingTask | undefined;
   private connectorLifecycleListeners: ConnectorLifecycleListener[] = [];
+  private connectorEventEmitters: ConnectorEventEmitter[] = [];
   private skippedPreconfiguredConnectorIds: Set<string> = new Set();
 
   constructor(initContext: PluginInitializerContext) {
@@ -458,6 +465,25 @@ export class ActionsPlugin
       oauthRateLimiter,
     });
 
+    registerInboundRoutes({
+      router: core.http.createRouter<ActionsRequestHandlerContext>(),
+      inboundConnectorsConfig: this.actionsConfig.inboundConnectors,
+      logger: this.logger.get('inboundConnectors'),
+      loaderDeps: {
+        getStartServices: core.getStartServices,
+        getSpaceId: (request) => plugins.spaces?.spacesService.getSpaceId(request) ?? 'default',
+        inMemoryConnectors: this.inMemoryConnectors,
+        actionTypeRegistry,
+        isESOCanEncrypt: Boolean(this.isESOCanEncrypt),
+      },
+      emitConnectorEvents: (params) =>
+        dispatchConnectorEvents({
+          emitters: this.connectorEventEmitters,
+          params,
+          logger: this.logger.get('inboundConnectors'),
+        }),
+    });
+
     return {
       registerType: <
         Config extends ActionTypeConfig = ActionTypeConfig,
@@ -515,6 +541,9 @@ export class ActionsPlugin
       },
       registerConnectorLifecycleListener: (listener: ConnectorLifecycleListener) => {
         this.connectorLifecycleListeners.push(listener);
+      },
+      registerConnectorEventEmitter: (emitter: ConnectorEventEmitter) => {
+        this.connectorEventEmitters.push(emitter);
       },
     };
   }

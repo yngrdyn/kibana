@@ -9,14 +9,25 @@ import { type PluginSetupContract as ActionsPluginSetupContract } from '@kbn/act
 
 import { connectorsSpecs } from '@kbn/connector-specs';
 import { createConnectorTypeFromSpec } from '@kbn/actions-plugin/server/lib';
+import { INBOUND_WEBHOOK_CONNECTOR_TYPE_ID } from '@kbn/connector-specs';
+
+import { registerInboundWebhookConnectorType } from './register_inbound_webhook_connector_type';
 
 export function registerConnectorTypesFromSpecs({
   actions,
+  getSpaceId,
+  getPublicBaseUrl,
 }: {
   actions: ActionsPluginSetupContract;
+  getSpaceId: (request: import('@kbn/core/server').KibanaRequest) => string;
+  getPublicBaseUrl: () => string;
 }) {
-  // Register connector specs
+  registerInboundWebhookConnectorType({ actions, getSpaceId, getPublicBaseUrl });
+
   for (const spec of Object.values(connectorsSpecs)) {
+    if (spec.metadata.id === INBOUND_WEBHOOK_CONNECTOR_TYPE_ID) {
+      continue;
+    }
     actions.registerType(createConnectorTypeFromSpec(spec, actions));
   }
 }

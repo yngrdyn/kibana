@@ -1,0 +1,15 @@
+{
+  "type": "plugin",
+  "id": "@kbn/connector-events-bridge-plugin",
+  "owner": ["@elastic/workflows-eng"],
+  "group": "platform",
+  "visibility": "shared",
+  "description": "Bridges connector ingress events from the Actions hub to workflow triggers (and later to the integration event bus).",
+  "plugin": {
+    "id": "connectorEventsBridge",
+    "browser": false,
+    "server": true,
+    "configPath": ["xpack", "connectorEventsBridge"],
+    "requiredPlugins": ["actions", "workflowsExtensions"]
+  }
+}

@@ -88,6 +88,10 @@ describe('custom_host_settings', () => {
           },
         },
       },
+      inboundConnectors: {
+        enabled: true,
+        maxBodyBytes: 1024 * 1024,
+      },
     };
 
     test('ensure it copies over the config parts that it does not touch', () => {

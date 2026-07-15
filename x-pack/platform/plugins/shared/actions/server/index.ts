@@ -27,6 +27,8 @@ export type {
   ConnectorLifecycleListener,
   ConnectorLifecyclePostCreateParams,
   ConnectorLifecyclePostDeleteParams,
+  ConnectorEventEmitter,
+  ConnectorEventEmitParams,
 } from './types';
 
 export type {

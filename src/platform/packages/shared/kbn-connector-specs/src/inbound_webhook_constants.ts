@@ -7,17 +7,6 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-declare module '@elastic/eui/es/components/icon/assets/*' {
-  import type * as React from 'react';
-
-  interface SVGRProps {
-    title?: string;
-    titleId?: string;
-  }
-  export const icon: ({
-    title,
-    titleId,
-    ...props
-  }: React.SVGProps<SVGSVGElement> & SVGRProps) => React.JSX.Element;
-  export {};
-}
+export const INBOUND_WEBHOOK_CONNECTOR_TYPE_ID = '.inboundWebhook' as const;
+export const INBOUND_WEBHOOK_RECEIVED_EVENT_ID = 'inboundWebhook.received' as const;
+export const INBOUND_WEBHOOK_RECEIVED_EVENT_KEY = 'received' as const;

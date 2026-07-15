@@ -38,6 +38,14 @@ export {
 } from './src/list_connector_event_infos';
 export { resolveRegisteredConnectorEventByEventId } from './src/resolve_registered_connector_event_by_event_id';
 export { inboundWebhookReceivedEventSchema } from './src/inbound_webhook_received_event_schema';
+export {
+  INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+  INBOUND_WEBHOOK_RECEIVED_EVENT_ID,
+  INBOUND_WEBHOOK_RECEIVED_EVENT_KEY,
+} from './src/inbound_webhook_constants';
+export { computeIngestTokenHash } from './src/inbound_webhook/compute_ingest_token_hash';
+export { filterInboundHeaders } from './src/inbound_webhook/filter_inbound_headers';
+export { InboundWebhookConnector } from './src/specs/inbound_webhook/inbound_webhook';
 export { isToolAction, TEST_CONNECTOR_SUB_ACTION } from './src/connector_spec';
 export {
   getConnectorActionErrorMeta,
