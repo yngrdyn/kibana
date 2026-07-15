@@ -13,8 +13,11 @@ import type {
   Plugin,
   PluginInitializerContext,
 } from '@kbn/core/server';
+import { SECURITY_EXTENSION_ID } from '@kbn/core/server';
 
 import { defineRoutes } from './api/routes';
+import { registerGetInboundWebhookStatusRoute } from './api/routes/inbound_webhook/get_webhook_status';
+import { registerPostInboundWebhookRoute } from './api/routes/inbound_webhook/post_webhook';
 import { WorkflowManagementAuditLog } from './api/routes/utils/workflow_audit_logging';
 import { WorkflowsManagementApi } from './api/workflows_management_api';
 import { WorkflowsService } from './api/workflows_management_service';
@@ -24,12 +27,24 @@ import {
   createWorkflowsClientProvider,
 } from './client/workflows_client';
 import type { WorkflowsManagementConfig } from './config';
+import { getInboundWebhookConnectorType } from './connectors/inbound_webhook';
 import {
   getWorkflowsConnectorAdapter,
   getConnectorType as getWorkflowsConnectorType,
 } from './connectors/workflows';
 import { WorkflowsManagementFeatureConfig } from './features';
 import { createWorkflowsInboxProvider } from './inbox/workflows_inbox_provider';
+import {
+  INBOUND_WEBHOOK_SAVED_OBJECT_TYPE,
+  inboundWebhookSavedObjectType,
+} from './saved_objects/inbound_webhook';
+import { InboundWebhookApiKeyService } from './services/inbound_webhook_api_key_service';
+import { InboundWebhookRequestStore } from './services/inbound_webhook_request_store';
+import { InboundWebhookMappingRepository } from './storage/inbound_webhook_mapping_repository';
+import {
+  registerInboundWebhookCleanupTask,
+  scheduleInboundWebhookCleanupTask,
+} from './tasks/inbound_webhook_cleanup_task';
 import type {
   WorkflowsRequestHandlerContext,
   WorkflowsServerPluginSetup,
@@ -55,6 +70,10 @@ export class WorkflowsPlugin
   private availabilityUpdater: AvailabilityUpdater | null = null;
   private api: WorkflowsManagementApi | null = null;
   private workflowsService: WorkflowsService | null = null;
+  private canEncryptInboundWebhooks = false;
+  private inboundWebhookApiKeyService?: InboundWebhookApiKeyService;
+  private inboundWebhookMappingRepository?: InboundWebhookMappingRepository;
+  private readonly inboundWebhookRequestStore = new InboundWebhookRequestStore();
 
   constructor(initializerContext: PluginInitializerContext<WorkflowsManagementConfig>) {
     this.logger = initializerContext.logger.get();
@@ -80,8 +99,46 @@ export class WorkflowsPlugin
     const api = new WorkflowsManagementApi(workflowsService, this.config.available);
     this.api = api;
 
+    core.savedObjects.registerType(inboundWebhookSavedObjectType);
+    if (plugins.encryptedSavedObjects) {
+      this.canEncryptInboundWebhooks = plugins.encryptedSavedObjects.canEncrypt;
+      plugins.encryptedSavedObjects.registerType({
+        type: INBOUND_WEBHOOK_SAVED_OBJECT_TYPE,
+        enforceRandomId: false,
+        attributesToEncrypt: new Set(['payload']),
+      });
+    }
+    if (plugins.taskManager) {
+      registerInboundWebhookCleanupTask({
+        taskManager: plugins.taskManager,
+        getApiKeyService: () => this.getInboundWebhookApiKeyService(),
+        getMappingRepository: () => this.getInboundWebhookMappingRepository(),
+      });
+    }
+
     if (plugins.actions) {
       plugins.actions.registerType(getWorkflowsConnectorType(api));
+      plugins.actions.registerType(
+        getInboundWebhookConnectorType({
+          canEncrypt: () => this.canEncryptInboundWebhooks,
+          emitEvent: async (request, triggerId, event) => {
+            const [, startPlugins] = await core.getStartServices();
+            const workflowsClient = await startPlugins.workflowsExtensions.getClient(request);
+            await workflowsClient.emitEvent(triggerId, event);
+          },
+          getApiKeyService: () => this.getInboundWebhookApiKeyService(),
+          getMappingRepository: () => this.getInboundWebhookMappingRepository(),
+          getSavedObjectsClient: async (request) => {
+            const [coreStart] = await core.getStartServices();
+            return coreStart.savedObjects.getScopedClient(request, {
+              includedHiddenTypes: [INBOUND_WEBHOOK_SAVED_OBJECT_TYPE],
+              excludedExtensions: [SECURITY_EXTENSION_ID],
+            });
+          },
+          getSpaceId: (request) => plugins.spaces.spacesService.getSpaceId(request),
+          takeRequest: (eventId) => this.inboundWebhookRequestStore.take(eventId),
+        })
+      );
 
       if (plugins.alerting) {
         plugins.alerting.registerConnectorAdapter(getWorkflowsConnectorAdapter());
@@ -99,6 +156,24 @@ export class WorkflowsPlugin
 
     const router = core.http.createRouter<WorkflowsRequestHandlerContext>();
     const audit = new WorkflowManagementAuditLog({ service: workflowsService });
+
+    registerPostInboundWebhookRoute({
+      router,
+      getActionsClient: async (request, spaceId) => {
+        const [, startPlugins] = await core.getStartServices();
+        return startPlugins.actions.getActionsClientWithRequestInSpace(request, spaceId);
+      },
+      getApiKeyService: () => this.getInboundWebhookApiKeyService(),
+      getMappingRepository: () => this.getInboundWebhookMappingRepository(),
+      getSpaceId: (request) => plugins.spaces.spacesService.getSpaceId(request),
+      logger: this.logger.get('inboundWebhookRoute'),
+      requestStore: this.inboundWebhookRequestStore,
+    });
+    registerGetInboundWebhookStatusRoute({
+      router,
+      getMappingRepository: () => this.getInboundWebhookMappingRepository(),
+      getSpaceId: (request) => plugins.spaces.spacesService.getSpaceId(request),
+    });
 
     defineRoutes({
       router,
@@ -124,6 +199,23 @@ export class WorkflowsPlugin
 
   public start(core: CoreStart, plugins: WorkflowsServerPluginStartDeps) {
     this.logger.debug('Workflows Management: Start');
+
+    if (plugins.encryptedSavedObjects) {
+      this.inboundWebhookApiKeyService = new InboundWebhookApiKeyService(
+        core.security,
+        this.logger.get('inboundWebhookApiKey')
+      );
+      this.inboundWebhookMappingRepository = new InboundWebhookMappingRepository(
+        core.savedObjects.createInternalRepository([INBOUND_WEBHOOK_SAVED_OBJECT_TYPE]),
+        plugins.encryptedSavedObjects.getClient({
+          includedHiddenTypes: [INBOUND_WEBHOOK_SAVED_OBJECT_TYPE],
+        }),
+        (spaceId) => plugins.spaces.spacesService.spaceIdToNamespace(spaceId)
+      );
+      void scheduleInboundWebhookCleanupTask(plugins.taskManager).catch((error) => {
+        this.logger.warn('Failed to schedule inbound webhook cleanup task', { error });
+      });
+    }
 
     stepSchemas.initialize(plugins.workflowsExtensions);
 
@@ -164,5 +256,19 @@ export class WorkflowsPlugin
 
   public stop() {
     this.availabilityUpdater?.stop();
+  }
+
+  private getInboundWebhookApiKeyService(): InboundWebhookApiKeyService {
+    if (!this.inboundWebhookApiKeyService) {
+      throw new Error('Inbound webhook API key service is unavailable');
+    }
+    return this.inboundWebhookApiKeyService;
+  }
+
+  private getInboundWebhookMappingRepository(): InboundWebhookMappingRepository {
+    if (!this.inboundWebhookMappingRepository) {
+      throw new Error('Inbound webhook mapping repository is unavailable');
+    }
+    return this.inboundWebhookMappingRepository;
   }
 }

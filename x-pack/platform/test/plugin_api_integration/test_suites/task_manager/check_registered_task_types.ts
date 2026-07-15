@@ -109,6 +109,7 @@ export default function ({ getService }: FtrProviderContext) {
         'actions:.torq',
         'actions:.webhook',
         'actions:.workflows',
+        'actions:.workflows-inbound-webhook',
         'actions:.xmatters',
         'actions:.xsoar',
         'actions:connector_usage_reporting',
@@ -271,6 +272,7 @@ export default function ({ getService }: FtrProviderContext) {
         'workflow:resume',
         'workflow:run',
         'workflow:scheduled',
+        'workflows:inbound-webhook-cleanup',
       ]);
     });
   });

@@ -1,0 +1,55 @@
+/*
+ * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+ * or more contributor license agreements. Licensed under the "Elastic License
+ * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
+ * Public License v 1"; you may not use this file except in compliance with, at
+ * your election, the "Elastic License 2.0", the "GNU Affero General Public
+ * License v3.0 only", or the "Server Side Public License, v 1".
+ */
+
+import { lazy } from 'react';
+import { i18n } from '@kbn/i18n';
+import type {
+  ActionTypeModel,
+  GenericValidationResult,
+} from '@kbn/triggers-actions-ui-plugin/public';
+
+interface InboundWebhookConfig {
+  webhookKeyHash: string;
+  credentialRevision: string;
+}
+
+interface InboundWebhookSecrets {
+  webhookUrl?: string;
+}
+
+interface InboundWebhookParams {
+  subAction: 'receive';
+  subActionParams: Record<string, unknown>;
+}
+
+export const getInboundWebhookConnectorType = (): ActionTypeModel<
+  InboundWebhookConfig,
+  InboundWebhookSecrets,
+  InboundWebhookParams
+> => ({
+  id: '.workflows-inbound-webhook',
+  iconClass: 'link',
+  selectMessage: i18n.translate('workflowsManagement.inboundWebhook.connectorSelectDescription', {
+    defaultMessage: 'Receive JSON events from an external webhook.',
+  }),
+  actionTypeTitle: i18n.translate('workflowsManagement.inboundWebhook.connectorTitle', {
+    defaultMessage: 'Inbound Webhook',
+  }),
+  validateParams: async (): Promise<GenericValidationResult<unknown>> => ({ errors: {} }),
+  actionConnectorFields: lazy(() =>
+    import('./inbound_webhook_connector_fields').then(({ InboundWebhookConnectorFields }) => ({
+      default: InboundWebhookConnectorFields,
+    }))
+  ),
+  actionParamsFields: lazy(() =>
+    import('./inbound_webhook_params_fields').then(({ InboundWebhookParamsFields }) => ({
+      default: InboundWebhookParamsFields,
+    }))
+  ),
+});
