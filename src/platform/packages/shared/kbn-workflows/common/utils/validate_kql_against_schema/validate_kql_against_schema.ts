@@ -11,7 +11,9 @@ import { fromKueryExpression, getKqlFieldNames } from '@kbn/es-query';
 import { i18n } from '@kbn/i18n';
 import { isZod } from '@kbn/zod/v4';
 import type { z } from '@kbn/zod/v4';
+import { extractOpenFieldPrefixesFromSchema } from '../extract_open_field_prefixes_from_schema/extract_open_field_prefixes_from_schema';
 import { extractSchemaPropertyPaths } from '../extract_schema_property_paths/extract_schema_property_paths';
+import { normalizeKqlFieldPath } from '../normalize_kql_field_path/normalize_kql_field_path';
 
 export type ValidateKqlAgainstSchemaResult = { valid: true } | { valid: false; error: string };
 
@@ -97,14 +99,26 @@ export function validateKqlAgainstSchema(
     allowedSet.add(fullPath);
   }
 
+  const openFieldPrefixes = new Set<string>();
+  for (const openPrefix of extractOpenFieldPrefixesFromSchema(schema)) {
+    const fullPath = fieldPrefix ? `${fieldPrefix}${openPrefix}` : openPrefix;
+    openFieldPrefixes.add(fullPath);
+    allowedSet.add(fullPath);
+  }
+
   const kqlFieldPaths = getKqlFieldNames(ast);
   const normalizedFields = kqlFieldPaths.map(normalizeFieldPath).filter(Boolean);
 
   for (const field of normalizedFields) {
-    const isWildcard = field.endsWith('.*');
-    const pathToCheck = isWildcard ? field.slice(0, -2) : field;
+    const normalizedField = normalizeKqlFieldPath(field);
+    const isWildcard = normalizedField.endsWith('.*');
+    const pathToCheck = isWildcard ? normalizedField.slice(0, -2) : normalizedField;
 
-    if (!allowedSet.has(pathToCheck)) {
+    const isUnderOpenPrefix = [...openFieldPrefixes].some(
+      (openPrefix) => pathToCheck === openPrefix || pathToCheck.startsWith(`${openPrefix}.`)
+    );
+
+    if (!allowedSet.has(pathToCheck) && !isUnderOpenPrefix) {
       return {
         valid: false,
         error: fieldPrefix

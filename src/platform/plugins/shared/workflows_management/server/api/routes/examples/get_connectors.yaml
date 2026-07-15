@@ -34,6 +34,24 @@ responses:
                   subActions:
                     - name: send
                       displayName: Send
+                .inboundWebhook:
+                  actionTypeId: .inboundWebhook
+                  displayName: Inbound Webhook
+                  instances:
+                    - id: sales-ingress
+                      name: sales-ingress
+                      isPreconfigured: false
+                      isDeprecated: false
+                  enabled: true
+                  enabledInConfig: true
+                  enabledInLicense: true
+                  minimumLicenseRequired: gold
+                  events:
+                    - eventKey: received
+                      eventId: inboundWebhook.received
+                      title: Webhook received
+                      description: Fires when an authenticated request hits this connector endpoint.
+                      stability: tech_preview
               totalConnectors: 1
 x-codeSamples:
   - lang: curl

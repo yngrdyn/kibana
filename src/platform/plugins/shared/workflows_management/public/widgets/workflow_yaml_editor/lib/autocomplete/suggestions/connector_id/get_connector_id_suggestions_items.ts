@@ -17,75 +17,47 @@ import {
 } from '../../../../../../shared/lib/action_type_utils';
 import {
   getConnectorTypesFromStepType,
-  getCustomStepConnectorIdSelectionHandler,
-  getInferenceConnectorTaskTypeFromSubAction,
   isCreateConnectorEnabledForStepType,
 } from '../../../../../../shared/lib/connectors_utils';
+import { listConnectorInstancesForBinding } from '../../../../../../workflow_surface/connector_id_binding';
+import type { ConnectorIdBinding } from '../../../../../../workflow_surface/connector_id_binding';
 
 /**
- * Generate connector-id suggestions for a specific connector type
+ * Generate connector-id suggestions from a resolved workflow-surface binding.
  */
 export function getConnectorIdSuggestionsItems(
-  stepType: string,
+  binding: ConnectorIdBinding,
   range: monaco.IRange | monaco.languages.CompletionItemRanges,
   dynamicConnectorTypes?: Record<string, ConnectorTypeInfo>
 ): monaco.languages.CompletionItem[] {
   const suggestions: monaco.languages.CompletionItem[] = [];
 
-  const instances = getConnectorInstancesForType(stepType, dynamicConnectorTypes);
+  const instances = listConnectorInstancesForBinding(binding, dynamicConnectorTypes ?? {});
 
   instances.forEach((instance) =>
-    suggestions.push(createConnectorSuggestion(instance, stepType, range))
+    suggestions.push(createConnectorSuggestion(instance, binding.lookupKey, range))
   );
 
-  if (isCreateConnectorEnabledForStepType(stepType)) {
-    const connectorType = getConnectorTypesFromStepType(stepType)[0];
+  if (isCreateConnectorEnabledForStepType(binding.lookupKey)) {
+    const connectorType = getConnectorTypesFromStepType(binding.lookupKey)[0];
     suggestions.push(createConnectorCreationSuggestion(connectorType, range));
   }
   return suggestions;
 }
 
-/**
- * Get connector instances for a list of connector types
- */
+/** @deprecated Use {@link getConnectorIdSuggestionsItems} with a {@link ConnectorIdBinding}. */
 export function getConnectorInstancesForType(
   stepType: string,
   dynamicConnectorTypes?: Record<string, ConnectorTypeInfo>
 ): Array<ConnectorInstance & { connectorType: string }> {
-  if (!dynamicConnectorTypes) {
-    return [];
-  }
-  const customStepSelectionHandler = getCustomStepConnectorIdSelectionHandler(stepType);
-  const connectorTypes = customStepSelectionHandler?.connectorTypes ?? [stepType];
-
-  return connectorTypes.flatMap((connectorType) => {
-    // Remove the leading dot just in case. e.g. .inference.completion -> inference.completion
-    const cleanStepType = connectorType.startsWith('.') ? connectorType.slice(1) : connectorType;
-    // Split base connector type and sub action e.g. inference.completion -> inference, completion
-    const [baseConnectorType, subAction] = cleanStepType.split('.');
-    // Use the exact action type ID to lookup the connector e.g. ['.inference']
-    const actionTypeId = getActionTypeIdFromStepType(baseConnectorType);
-    const connectorTypeInfo = dynamicConnectorTypes[actionTypeId];
-
-    if (connectorTypeInfo?.instances?.length > 0) {
-      let instances = connectorTypeInfo.instances;
-      // Apply extra filtering for inference connectors based on the sub action
-      if (baseConnectorType === 'inference' && subAction) {
-        const taskType = getInferenceConnectorTaskTypeFromSubAction(subAction);
-        if (taskType) {
-          instances = instances.filter(({ config }) => config?.taskType === taskType);
-        }
-      }
-
-      // Return the connector instances for the specific action type ID
-      return instances.map((instance) => ({
-        ...instance,
-        connectorType: connectorTypeInfo.actionTypeId,
-      }));
-    }
-
-    return [];
-  });
+  return listConnectorInstancesForBinding(
+    {
+      connectorTypeId: getActionTypeIdFromStepType(stepType),
+      requireConnectorTypeEvents: false,
+      lookupKey: stepType,
+    },
+    dynamicConnectorTypes ?? {}
+  );
 }
 
 /**

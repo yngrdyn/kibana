@@ -63,6 +63,18 @@ describe('event_schema_to_stub_data_view', () => {
     expect(names).toEqual(['event.items.id']);
   });
 
+  it('eventSchemaPropertiesToFieldSpecs includes open dynamic paths as leaf fields only', () => {
+    const schema = z.object({
+      connectorId: z.string(),
+      body: z.unknown(),
+      receivedAt: z.string(),
+    });
+    const names = eventSchemaPropertiesToFieldSpecs(schema)
+      .map((s) => s.name)
+      .sort();
+    expect(names).toEqual(['event.body', 'event.connectorId', 'event.receivedAt']);
+  });
+
   it('getOrCreateStubDataViewForTriggerEventSchema returns the same DataView for the same schema reference', () => {
     const fieldFormats = fieldFormatsServiceMock.createStartContract();
     const first = getOrCreateStubDataViewForTriggerEventSchema(eventSchema, fieldFormats);

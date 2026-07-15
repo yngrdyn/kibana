@@ -12,6 +12,7 @@
 import { useMemo } from 'react';
 import { getWorkflowJsonSchema } from '@kbn/workflows';
 import type { z } from '@kbn/zod/v4';
+import { mapRegisteredTriggersForSchema } from '../../../../common/lib/map_registered_triggers_for_schema';
 import { getWorkflowZodSchema, getWorkflowZodSchemaLoose } from '../../../../common/schema';
 import { useAvailableConnectors } from '../../../entities/connectors/model/use_available_connectors';
 import { triggerSchemas } from '../../../trigger_schemas';
@@ -53,10 +54,12 @@ export const useWorkflowJsonSchema = ({
           : WorkflowSchemaUriStrictWithDynamicConnectors;
       }
       const connectorTypes = connectorsData?.connectorTypes ?? {};
-      const registeredTriggerIds = triggerSchemas.getRegisteredIds();
+      const registeredTriggers = mapRegisteredTriggersForSchema(
+        triggerSchemas.getTriggerDefinitions()
+      );
       const zodSchema = loose
         ? getWorkflowZodSchemaLoose(connectorTypes)
-        : getWorkflowZodSchema(connectorTypes, registeredTriggerIds); // TODO: remove this once we move the schema generation up to detail page or some wrapper component
+        : getWorkflowZodSchema(connectorTypes, registeredTriggers); // TODO: remove this once we move the schema generation up to detail page or some wrapper component
       const jsonSchema = getWorkflowJsonSchema(zodSchema);
 
       return {

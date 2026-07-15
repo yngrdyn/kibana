@@ -9,7 +9,8 @@
 
 import type { ToStringOptions } from 'yaml';
 import { stringify } from 'yaml';
-import { isTriggerType } from '@kbn/workflows';
+import { isTriggerType, resolveConnectorEventWorkflowSurface } from '@kbn/workflows';
+import { triggerSchemas } from '../../../../trigger_schemas';
 
 /** Comment added above condition in custom trigger snippets to explain KQL and event.* usage. */
 const CUSTOM_TRIGGER_CONDITION_COMMENT =
@@ -21,6 +22,8 @@ interface GenerateTriggerSnippetOptions {
   withTriggersSection?: boolean;
   /** Default KQL condition for custom triggers (used when inserting trigger from UI). */
   defaultCondition?: string;
+  /** Default connector instance id for connector-event triggers. */
+  defaultConnectorId?: string;
 }
 
 /**
@@ -39,10 +42,20 @@ export function generateTriggerSnippet(
     monacoSuggestionFormat,
     withTriggersSection,
     defaultCondition,
+    defaultConnectorId,
   }: GenerateTriggerSnippetOptions = {}
 ): string {
   const stringifyOptions: ToStringOptions = { indent: 2 };
   let parameters: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const triggerDefinition = triggerSchemas.getTriggerDefinition(triggerType);
+  const connectorEventSurface = resolveConnectorEventWorkflowSurface(triggerType);
+  const requiresConnectorId =
+    connectorEventSurface?.binding.instanceRef === 'required' ||
+    triggerDefinition?.requiresConnectorId === true;
+  const resolvedConnectorId =
+    defaultConnectorId ?? (monacoSuggestionFormat ? '${1:<connector-id>}' : '<connector-id>');
+  const resolvedCondition = defaultCondition ?? triggerDefinition?.snippets?.condition ?? '';
 
   switch (triggerType) {
     case 'alert':
@@ -80,9 +93,17 @@ export function generateTriggerSnippet(
       break;
 
     default:
+      if (requiresConnectorId) {
+        parameters = {
+          'connector-id': resolvedConnectorId,
+          on: { condition: resolvedCondition },
+        };
+        break;
+      }
+
       // Custom triggers: include on/condition so users can add a KQL filter (use defaultCondition when provided)
       parameters = {
-        on: { condition: defaultCondition ?? '' },
+        on: { condition: resolvedCondition },
       };
       break;
   }

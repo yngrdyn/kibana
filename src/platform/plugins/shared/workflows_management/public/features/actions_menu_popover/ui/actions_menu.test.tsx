@@ -15,6 +15,10 @@ import type { ActionGroup, ActionOption, ActionOptionData } from '../types';
 
 jest.mock('../../../hooks/use_kibana');
 
+jest.mock('../../../entities/connectors/model/use_available_connectors', () => ({
+  useAvailableConnectors: jest.fn(() => ({ connectorTypes: {} })),
+}));
+
 const mockLeafOption: ActionOption = {
   id: 'manual',
   label: 'Manual',
