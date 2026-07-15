@@ -6,7 +6,7 @@
  */
 
 import type { AttachmentTypeDefinition } from '@kbn/agent-builder-server/attachments';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import {
   CONNECTOR_SETUP_ATTACHMENT_TYPE,
   connectorSetupAttachmentDataSchema,

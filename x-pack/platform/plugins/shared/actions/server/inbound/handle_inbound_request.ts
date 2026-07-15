@@ -7,7 +7,8 @@
 
 import type { EncryptedSavedObjectsClient } from '@kbn/encrypted-saved-objects-plugin/server';
 import type { Logger, SavedObjectsClientContract } from '@kbn/core/server';
-import { getConnectorSpec, normalizeConnectorTypeId } from '@kbn/connector-specs';
+import { normalizeConnectorTypeId } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 
 import type { ActionsConfig } from '../config';
 import type { ActionTypeRegistry, ConnectorEventEmitParams, InMemoryConnector } from '../types';

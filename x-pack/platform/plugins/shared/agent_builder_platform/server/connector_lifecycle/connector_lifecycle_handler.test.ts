@@ -11,7 +11,7 @@ import {
   AGENT_BUILDER_EXPERIMENTAL_FEATURES_SETTING_ID,
   CONTEXT_ENGINE_ENABLED_SETTING_ID,
 } from '@kbn/management-settings-ids';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import { createConnectorLifecycleHandler } from './connector_lifecycle_handler';
 
 jest.mock('@kbn/connector-specs', () => ({

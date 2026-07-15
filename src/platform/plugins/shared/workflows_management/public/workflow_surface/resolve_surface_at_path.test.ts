@@ -8,45 +8,38 @@
  */
 
 import { parseDocument } from 'yaml';
-import { z } from '@kbn/zod/v4';
-
-const mockInboundWebhookReceivedEventSchema = z.object({
-  connectorId: z.string(),
-  body: z.unknown(),
-});
-
-jest.mock('@kbn/workflows', () => {
-  const actual = jest.requireActual('@kbn/workflows');
-  return {
-    ...actual,
-    resolveConnectorEventWorkflowSurface: jest.fn((eventId: string) =>
-      eventId === 'inboundWebhook.received'
-        ? {
-            id: 'inboundWebhook.received',
-            kind: 'trigger',
-            title: 'Webhook received',
-            description: 'Fires when an authenticated request hits this connector endpoint.',
-            stability: 'tech_preview',
-            binding: {
-              connectorTypeId: '.inboundWebhook',
-              instanceRef: 'required',
-            },
-            surfaces: {
-              filter: {
-                schema: mockInboundWebhookReceivedEventSchema,
-                language: 'kql',
-                yamlPath: 'on.condition',
-              },
-            },
-          }
-        : undefined
-    ),
-  };
-});
-
+import type { ConnectorTypeInfo } from '@kbn/workflows';
 import { resolveSurfaceAtPath } from './resolve_surface_at_path';
+import { triggerSchemas } from '../trigger_schemas';
+
+jest.mock('../trigger_schemas', () => ({
+  triggerSchemas: {
+    getTriggerDefinition: jest.fn(),
+  },
+}));
 
 describe('resolveSurfaceAtPath', () => {
+  const connectorTypes: Record<string, ConnectorTypeInfo> = {
+    '.inboundWebhook': {
+      actionTypeId: '.inboundWebhook',
+      displayName: 'Inbound Webhook',
+      instances: [],
+      enabled: true,
+      enabledInConfig: true,
+      enabledInLicense: true,
+      minimumLicenseRequired: 'gold',
+      subActions: [],
+      events: [
+        {
+          eventKey: 'received',
+          eventId: 'inboundWebhook.received',
+          title: 'Webhook received',
+          description: 'Fires when an authenticated request hits this connector endpoint.',
+        },
+      ],
+    },
+  };
+
   const yaml = `triggers:
   - type: inboundWebhook.received
     connector-id: sales-ingress
@@ -54,9 +47,23 @@ describe('resolveSurfaceAtPath', () => {
       condition: 'event.body.eventType: "order.created"'
 `;
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (triggerSchemas.getTriggerDefinition as jest.Mock).mockReturnValue(undefined);
+  });
+
   it('resolves connector-id role on triggers[i].connector-id', () => {
+    (triggerSchemas.getTriggerDefinition as jest.Mock).mockReturnValue({
+      id: 'inboundWebhook.received',
+      title: 'Webhook received',
+      description: 'Fires when an authenticated request hits this connector endpoint.',
+      stability: 'tech_preview',
+      requiresConnectorId: true,
+    });
     const doc = parseDocument(yaml);
-    expect(resolveSurfaceAtPath(doc, ['triggers', 0, 'connector-id'])).toEqual({
+    expect(
+      resolveSurfaceAtPath(doc, ['triggers', 0, 'connector-id'], { connectorTypes })
+    ).toEqual({
       role: 'connector-id',
       surface: expect.objectContaining({
         id: 'inboundWebhook.received',
@@ -66,8 +73,17 @@ describe('resolveSurfaceAtPath', () => {
   });
 
   it('resolves kql-filter role on triggers[i].on.condition', () => {
+    (triggerSchemas.getTriggerDefinition as jest.Mock).mockReturnValue({
+      id: 'inboundWebhook.received',
+      title: 'Webhook received',
+      description: 'Fires when an authenticated request hits this connector endpoint.',
+      stability: 'tech_preview',
+      requiresConnectorId: true,
+    });
     const doc = parseDocument(yaml);
-    expect(resolveSurfaceAtPath(doc, ['triggers', 0, 'on', 'condition'])).toEqual({
+    expect(
+      resolveSurfaceAtPath(doc, ['triggers', 0, 'on', 'condition'], { connectorTypes })
+    ).toEqual({
       role: 'kql-filter',
       surface: expect.objectContaining({ id: 'inboundWebhook.received' }),
     });
@@ -79,6 +95,8 @@ describe('resolveSurfaceAtPath', () => {
     on:
       condition: 'event.severity: "high"'
 `);
-    expect(resolveSurfaceAtPath(doc, ['triggers', 0, 'on', 'condition'])).toBeUndefined();
+    expect(
+      resolveSurfaceAtPath(doc, ['triggers', 0, 'on', 'condition'], { connectorTypes })
+    ).toBeUndefined();
   });
 });

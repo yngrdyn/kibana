@@ -13,7 +13,7 @@ import { connectorTypes } from './mocks/connector_types';
 import { actionsConfigMock } from '../actions_config.mock';
 import { loggerMock } from '@kbn/logging-mocks';
 import type { ActionTypeConfig, Services } from '../types';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 
 jest.mock('../action_type_registry', () => {
   const actual = jest.requireActual('../action_type_registry');

@@ -14,8 +14,8 @@ import {
   workflowMatchesTriggerCondition,
 } from './filter_workflows_by_trigger_condition';
 
-jest.mock('@kbn/workflows', () => ({
-  ...jest.requireActual('@kbn/workflows'),
+jest.mock('@kbn/workflows/server', () => ({
+  ...jest.requireActual('@kbn/workflows/server'),
   resolveConnectorEventTriggerDefinition: jest.fn((triggerId: string) =>
     triggerId === 'inboundWebhook.received' ? { id: triggerId } : undefined
   ),

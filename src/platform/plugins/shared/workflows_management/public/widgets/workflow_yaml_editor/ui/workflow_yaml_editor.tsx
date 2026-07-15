@@ -20,9 +20,9 @@ import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
 import {
   isTriggerType,
-  resolveConnectorEventWorkflowSurface,
   WORKFLOWS_EXPERIMENTAL_FEATURES_SETTING_ID,
 } from '@kbn/workflows';
+import { isConnectorEventTriggerId } from '../../../../common/lib/is_connector_event_trigger_id';
 import { useWorkflowsMonacoTheme, WORKFLOW_MONACO_LAYOUT_OPTIONS } from '@kbn/workflows-ui';
 import type { z } from '@kbn/zod/v4';
 import { ActionsMenuButton } from './actions_menu_button';
@@ -656,7 +656,7 @@ export const WorkflowYAMLEditor = ({
       if (
         isTriggerType(action.id) ||
         triggerSchemas.isRegisteredTriggerId(action.id) ||
-        resolveConnectorEventWorkflowSurface(action.id) !== undefined
+        isConnectorEventTriggerId(action.id)
       ) {
         const triggerDefinition = triggerSchemas.getTriggerDefinition(action.id);
         insertTriggerSnippet(

@@ -7,7 +7,7 @@
 
 import { timingSafeEqual } from 'node:crypto';
 
-import { computeIngestTokenHash } from '@kbn/connector-specs';
+import { computeIngestTokenHash } from '@kbn/connector-specs/src/inbound_webhook/compute_ingest_token_hash';
 
 export const extractIngestToken = ({
   query,

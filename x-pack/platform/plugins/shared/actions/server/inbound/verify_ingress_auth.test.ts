@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import { computeIngestTokenHash } from '@kbn/connector-specs';
+import { computeIngestTokenHash } from '@kbn/connector-specs/src/inbound_webhook/compute_ingest_token_hash';
 
 import { extractIngestToken, verifyIngestToken } from './verify_ingress_auth';
 

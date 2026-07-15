@@ -9,7 +9,8 @@
 
 import { loggingSystemMock } from '@kbn/core/server/mocks';
 
-import { InboundWebhookConnector, INBOUND_WEBHOOK_RECEIVED_EVENT_ID } from '@kbn/connector-specs';
+import { INBOUND_WEBHOOK_RECEIVED_EVENT_ID } from '@kbn/connector-specs';
+import { InboundWebhookConnector } from './inbound_webhook';
 
 describe('InboundWebhookConnector.handleEvents', () => {
   it('returns inboundWebhook.received payload', async () => {

@@ -19,31 +19,20 @@ const mockConnectorEventSchema = z.object({
   body: z.unknown(),
 });
 
-jest.mock('@kbn/workflows', () => {
-  const actual = jest.requireActual('@kbn/workflows');
-  return {
-    ...actual,
-    resolveConnectorEventTriggerDefinition: jest.fn((triggerId: string) =>
-      triggerId === 'inboundWebhook.received'
-        ? {
-            id: 'inboundWebhook.received',
-            title: 'Webhook received',
-            description: 'Fires when an authenticated request hits this connector endpoint.',
-            stability: 'tech_preview',
-            eventSchema: mockConnectorEventSchema,
-          }
-        : undefined
-    ),
-  };
-});
-
 describe('getTriggerConditionDefinition', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
   it('returns connector-event trigger definitions with eventSchema for KQL autocomplete', () => {
-    jest.spyOn(triggerSchemas, 'getTriggerDefinition').mockReturnValue(undefined);
+    jest.spyOn(triggerSchemas, 'getTriggerDefinition').mockReturnValue({
+      id: 'inboundWebhook.received',
+      title: 'Webhook received',
+      description: 'Fires when an authenticated request hits this connector endpoint.',
+      stability: 'tech_preview',
+      requiresConnectorId: true,
+      eventSchema: mockConnectorEventSchema,
+    });
 
     const doc = parseDocument(`triggers:
   - type: inboundWebhook.received
@@ -57,6 +46,7 @@ describe('getTriggerConditionDefinition', () => {
       title: 'Webhook received',
       description: 'Fires when an authenticated request hits this connector endpoint.',
       stability: 'tech_preview',
+      requiresConnectorId: true,
       eventSchema: mockConnectorEventSchema,
     });
   });

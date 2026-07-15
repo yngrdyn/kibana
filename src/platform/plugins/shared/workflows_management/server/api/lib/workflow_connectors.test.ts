@@ -7,15 +7,15 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-jest.mock('@kbn/connector-specs', () => {
-  const actual = jest.requireActual('@kbn/connector-specs');
+jest.mock('@kbn/connector-specs/server', () => {
+  const actual = jest.requireActual('@kbn/connector-specs/server');
   return {
     ...actual,
     listConnectorEventInfosForType: jest.fn(() => []),
   };
 });
 
-import { listConnectorEventInfosForType } from '@kbn/connector-specs';
+import { listConnectorEventInfosForType } from '@kbn/connector-specs/server';
 
 import { getAvailableConnectors } from './workflow_connectors';
 

@@ -7,11 +7,10 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { resolveRegisteredConnectorEventByEventId } from '@kbn/connector-specs';
-import type { ConnectorTypeInfo, WorkflowSurfaceDefinition } from '@kbn/workflows';
-import {
-  connectorEventToWorkflowSurface,
-  resolveConnectorEventWorkflowSurface,
+import type {
+  ConnectorEventInfo,
+  ConnectorTypeInfo,
+  WorkflowSurfaceDefinition,
 } from '@kbn/workflows';
 import type { PublicTriggerDefinition } from '@kbn/workflows-extensions/public';
 
@@ -23,36 +22,84 @@ export const inferConnectorTypeIdFromEventId = (eventId: string): string | undef
   return `.${eventId.slice(0, dotIndex)}`;
 };
 
+export const findConnectorEventForTrigger = (
+  triggerId: string,
+  connectorTypes: Record<string, ConnectorTypeInfo>
+): { event: ConnectorEventInfo; connectorTypeId: string } | undefined => {
+  for (const connectorType of Object.values(connectorTypes)) {
+    const event = connectorType.events?.find((candidate) => candidate.eventId === triggerId);
+    if (event) {
+      return { event, connectorTypeId: connectorType.actionTypeId };
+    }
+  }
+
+  return undefined;
+};
+
 export const findConnectorTypeIdForEventTrigger = (
   triggerId: string,
   connectorTypes: Record<string, ConnectorTypeInfo>
 ): string | undefined => {
-  for (const connectorType of Object.values(connectorTypes)) {
-    if (connectorType.events?.some((event) => event.eventId === triggerId)) {
-      return connectorType.actionTypeId;
-    }
-  }
+  return (
+    findConnectorEventForTrigger(triggerId, connectorTypes)?.connectorTypeId ??
+    inferConnectorTypeIdFromEventId(triggerId)
+  );
+};
 
-  return inferConnectorTypeIdFromEventId(triggerId);
+const connectorEventInfoToWorkflowSurface = ({
+  event,
+  connectorTypeId,
+  extensionTrigger,
+}: {
+  event: ConnectorEventInfo;
+  connectorTypeId: string;
+  extensionTrigger?: PublicTriggerDefinition;
+}): WorkflowSurfaceDefinition => {
+  const eventSchema = extensionTrigger?.eventSchema;
+
+  return {
+    id: event.eventId,
+    kind: 'trigger',
+    title: event.title,
+    description: event.description,
+    stability: event.stability ?? extensionTrigger?.stability ?? 'tech_preview',
+    binding: {
+      connectorTypeId,
+      instanceRef: 'required',
+    },
+    surfaces: eventSchema
+      ? {
+          input: eventSchema,
+          filter: {
+            schema: eventSchema,
+            language: 'kql',
+            yamlPath: 'on.condition',
+          },
+        }
+      : {},
+    source: {
+      type: 'connector-event',
+      connectorTypeId,
+      eventKey: event.eventKey,
+    },
+  };
 };
 
 /**
- * Resolves a connector-event workflow surface for a trigger id using ConnectorSpec,
- * dynamic connector types from the API, or extension trigger metadata.
+ * Resolves a connector-event workflow surface for a trigger id using connector types
+ * from the API and extension trigger metadata (never ConnectorSpec in the browser).
  */
 export const resolveConnectorEventSurfaceForTriggerId = (
   triggerId: string,
   connectorTypes: Record<string, ConnectorTypeInfo>,
   extensionTrigger?: PublicTriggerDefinition
 ): WorkflowSurfaceDefinition | undefined => {
-  const fromRegisteredSpec = resolveConnectorEventWorkflowSurface(triggerId);
-  if (fromRegisteredSpec) {
-    return fromRegisteredSpec;
-  }
-
-  const registeredEvent = resolveRegisteredConnectorEventByEventId(triggerId);
-  if (registeredEvent) {
-    return connectorEventToWorkflowSurface(registeredEvent);
+  const connectorEvent = findConnectorEventForTrigger(triggerId, connectorTypes);
+  if (connectorEvent) {
+    return connectorEventInfoToWorkflowSurface({
+      ...connectorEvent,
+      extensionTrigger,
+    });
   }
 
   const connectorTypeId = findConnectorTypeIdForEventTrigger(triggerId, connectorTypes);
@@ -74,7 +121,16 @@ export const resolveConnectorEventSurfaceForTriggerId = (
       connectorTypeId,
       instanceRef: 'required',
     },
-    surfaces: {},
+    surfaces: extensionTrigger.eventSchema
+      ? {
+          input: extensionTrigger.eventSchema,
+          filter: {
+            schema: extensionTrigger.eventSchema,
+            language: 'kql',
+            yamlPath: 'on.condition',
+          },
+        }
+      : {},
     source: {
       type: 'connector-event',
       connectorTypeId,

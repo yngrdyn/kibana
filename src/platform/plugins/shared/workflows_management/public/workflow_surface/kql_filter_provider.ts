@@ -8,7 +8,6 @@
  */
 
 import type { Document } from 'yaml';
-import { resolveConnectorEventTriggerDefinition } from '@kbn/workflows';
 import type { PublicTriggerDefinition } from '@kbn/workflows-extensions/public';
 import { triggerSchemas } from '../trigger_schemas';
 import {
@@ -18,7 +17,7 @@ import {
 
 /**
  * Returns the trigger definition used for KQL autocomplete on `triggers[i].on.condition`.
- * Checks workflows_extensions first, then connector-event triggers from ConnectorSpec.events.
+ * Checks workflows_extensions registered trigger definitions (including connector events).
  */
 export const getTriggerConditionDefinition = (
   yamlDocument: Document,
@@ -34,21 +33,5 @@ export const getTriggerConditionDefinition = (
     return undefined;
   }
 
-  const registered = triggerSchemas.getTriggerDefinition(triggerType);
-  if (registered) {
-    return registered;
-  }
-
-  const connectorEventDefinition = resolveConnectorEventTriggerDefinition(triggerType);
-  if (!connectorEventDefinition) {
-    return undefined;
-  }
-
-  return {
-    id: connectorEventDefinition.id,
-    title: connectorEventDefinition.title,
-    description: connectorEventDefinition.description,
-    stability: connectorEventDefinition.stability,
-    eventSchema: connectorEventDefinition.eventSchema,
-  };
+  return triggerSchemas.getTriggerDefinition(triggerType);
 };

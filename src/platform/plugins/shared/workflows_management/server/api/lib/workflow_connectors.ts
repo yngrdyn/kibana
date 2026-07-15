@@ -10,7 +10,7 @@
 import { WorkflowsConnectorFeatureId } from '@kbn/actions-plugin/common/connector_feature_config';
 import type { ActionsClient, IUnsecuredActionsClient } from '@kbn/actions-plugin/server';
 import type { FindActionResult } from '@kbn/actions-plugin/server/types';
-import { listConnectorEventInfosForType } from '@kbn/connector-specs';
+import { listConnectorEventInfosForType } from '@kbn/connector-specs/server';
 import type { KibanaRequest } from '@kbn/core/server';
 import type { PublicMethodsOf } from '@kbn/utility-types';
 import type { ConnectorEventInfo, ConnectorTypeInfo } from '@kbn/workflows';

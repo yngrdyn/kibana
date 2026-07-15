@@ -8,6 +8,7 @@
 import type { CoreSetup, Plugin, PluginInitializerContext } from '@kbn/core/public';
 import type { TriggersAndActionsUIPublicPluginSetup } from '@kbn/triggers-actions-ui-plugin/public';
 import type { ActionsPublicPluginSetup } from '@kbn/actions-plugin/public';
+import type { WorkflowsExtensionsPublicPluginSetup } from '@kbn/workflows-extensions/public';
 import type { ConfigSchema as StackConnectorsConfigType } from '../server/config';
 import { registerConnectorTypes } from './connector_types';
 import { ExperimentalFeaturesService } from './common/experimental_features_service';
@@ -21,6 +22,7 @@ export type Start = void;
 export interface StackConnectorsPublicSetupDeps {
   triggersActionsUi: TriggersAndActionsUIPublicPluginSetup;
   actions: ActionsPublicPluginSetup;
+  workflowsExtensions?: WorkflowsExtensionsPublicPluginSetup;
 }
 
 export class StackConnectorsPublicPlugin
@@ -33,7 +35,10 @@ export class StackConnectorsPublicPlugin
     this.config = ctx.config.get();
     this.experimentalFeatures = parseExperimentalConfigValue(this.config.enableExperimental || []);
   }
-  public setup(core: CoreSetup, { triggersActionsUi, actions }: StackConnectorsPublicSetupDeps) {
+  public setup(
+    core: CoreSetup,
+    { triggersActionsUi, actions, workflowsExtensions }: StackConnectorsPublicSetupDeps
+  ) {
     ExperimentalFeaturesService.init({ experimentalFeatures: this.experimentalFeatures });
     ConfigService.init({ config: this.config });
 
@@ -48,6 +53,11 @@ export class StackConnectorsPublicPlugin
       void import('./connector_types/inbound_webhook/inbound_webhook').then(
         ({ getInboundWebhookConnectorType }) => {
           triggersActionsUi.actionTypeRegistry.register(getInboundWebhookConnectorType());
+        }
+      );
+      void import('./connector_events/register_connector_event_triggers').then(
+        ({ registerConnectorEventTriggers }) => {
+          registerConnectorEventTriggers(workflowsExtensions);
         }
       );
     }

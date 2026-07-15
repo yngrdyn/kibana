@@ -7,7 +7,6 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { resolveRegisteredConnectorEventByEventId } from '@kbn/connector-specs';
 import { collectConnectorEventsFromTypes } from './collect_connector_events_from_types';
 import type { ConnectorEventInfo, ConnectorTypeInfo, StabilityLevel } from '../../../types/latest';
 
@@ -50,27 +49,15 @@ export const collectConnectorEventsForTriggerSchema = (
   const connectorEventIds = new Set(connectorEvents.map((event) => event.eventId));
 
   for (const trigger of normalizedTriggers) {
-    if (!connectorEventIds.has(trigger.id)) {
-      const fromSpec = resolveRegisteredConnectorEventByEventId(trigger.id);
-      if (fromSpec) {
-        connectorEvents.push({
-          eventKey: fromSpec.eventKey,
-          eventId: fromSpec.eventId,
-          title: fromSpec.title,
-          description: fromSpec.description,
-          stability: fromSpec.stability,
-        });
-        connectorEventIds.add(fromSpec.eventId);
-      } else if (trigger.requiresConnectorId) {
-        connectorEvents.push({
-          eventKey: eventKeyFromTriggerId(trigger.id),
-          eventId: trigger.id,
-          title: trigger.title,
-          description: trigger.description,
-          stability: trigger.stability,
-        });
-        connectorEventIds.add(trigger.id);
-      }
+    if (!connectorEventIds.has(trigger.id) && trigger.requiresConnectorId) {
+      connectorEvents.push({
+        eventKey: eventKeyFromTriggerId(trigger.id),
+        eventId: trigger.id,
+        title: trigger.title,
+        description: trigger.description,
+        stability: trigger.stability,
+      });
+      connectorEventIds.add(trigger.id);
     }
   }
 

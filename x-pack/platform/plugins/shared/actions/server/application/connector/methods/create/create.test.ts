@@ -807,8 +807,8 @@ describe('create()', () => {
 
       expect(preSaveHook).toHaveBeenCalledWith({
         connectorId: 'mock-saved-object-id',
-        config: { foo: 'bar' },
-        secrets: { apiKey: 'secret' },
+        config: {},
+        secrets: {},
         logger,
         request,
         services: { scopedClusterClient },

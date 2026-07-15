@@ -35,8 +35,8 @@ const mockInboundWebhookReceivedEvent = toRegisteredConnectorEvent(
   })
 );
 
-jest.mock('@kbn/connector-specs', () => {
-  const actual = jest.requireActual('@kbn/connector-specs');
+jest.mock('@kbn/connector-specs/server', () => {
+  const actual = jest.requireActual('@kbn/connector-specs/server');
   return {
     ...actual,
     resolveRegisteredConnectorEventByEventId: jest.fn((eventId: string) =>

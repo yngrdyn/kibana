@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 import { httpServiceMock, docLinksServiceMock } from '@kbn/core/public/mocks';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import { serializeConnectorSpec } from '@kbn/connector-specs/src/lib/serialize_connector_spec';
 import type { ConnectorSpecWireResponse } from '../apis/fetch_connector_spec';
 import {

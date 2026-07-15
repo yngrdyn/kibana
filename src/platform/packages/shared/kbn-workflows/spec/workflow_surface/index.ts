@@ -20,5 +20,3 @@ export {
   connectorEventToTriggerDefinition,
   type ConnectorEventTriggerDefinition,
 } from './connector_event_to_trigger_definition';
-export { resolveConnectorEventTriggerDefinition } from './resolve_connector_event_trigger_definition';
-export { resolveConnectorEventWorkflowSurface } from './resolve_connector_event_workflow_surface';

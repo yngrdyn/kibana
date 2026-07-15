@@ -109,6 +109,12 @@ export async function update({ context, id, action }: ConnectorUpdateParams): Pr
   const validatedActionTypeSecrets = validateSecrets(actionType, secrets, {
     configurationUtilities,
   });
+  const configForSaveHook = {
+    ...(validatedActionTypeConfig as Record<string, unknown>),
+  };
+  const secretsForSaveHook = {
+    ...(validatedActionTypeSecrets as Record<string, unknown>),
+  };
   if (actionType.validate?.connector) {
     validateConnector(actionType, { config, secrets });
   }
@@ -123,8 +129,8 @@ export async function update({ context, id, action }: ConnectorUpdateParams): Pr
     try {
       await actionType.preSaveHook({
         connectorId: id,
-        config,
-        secrets,
+        config: configForSaveHook,
+        secrets: secretsForSaveHook,
         logger: context.logger,
         request: context.request,
         services: hookServices,
@@ -152,11 +158,8 @@ export async function update({ context, id, action }: ConnectorUpdateParams): Pr
 
   const configForSave =
     actionType.source === ACTION_TYPE_SOURCES.spec
-      ? ensureConfigAuthType(
-          validatedActionTypeConfig as Record<string, unknown>,
-          validatedActionTypeSecrets as Record<string, unknown>
-        )
-      : validatedActionTypeConfig;
+      ? ensureConfigAuthType(configForSaveHook, secretsForSaveHook)
+      : configForSaveHook;
 
   const result = await tryCatch(
     async () =>
@@ -168,7 +171,7 @@ export async function update({ context, id, action }: ConnectorUpdateParams): Pr
           name,
           isMissingSecrets: false,
           config: configForSave as SavedObjectAttributes,
-          secrets: validatedActionTypeSecrets as SavedObjectAttributes,
+          secrets: secretsForSaveHook as SavedObjectAttributes,
         },
         omitBy(
           {

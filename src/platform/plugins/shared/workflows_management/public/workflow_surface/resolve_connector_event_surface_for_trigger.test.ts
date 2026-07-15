@@ -14,18 +14,6 @@ import {
   resolveConnectorEventSurfaceForTriggerId,
 } from './resolve_connector_event_surface_for_trigger';
 
-jest.mock('@kbn/workflows', () => {
-  const actual = jest.requireActual('@kbn/workflows');
-  return {
-    ...actual,
-    resolveConnectorEventWorkflowSurface: jest.fn(() => undefined),
-  };
-});
-
-jest.mock('@kbn/connector-specs', () => ({
-  resolveRegisteredConnectorEventByEventId: jest.fn(() => undefined),
-}));
-
 describe('resolve_connector_event_surface_for_trigger', () => {
   const extensionTrigger = {
     id: 'exampleInboundWebhook.received',

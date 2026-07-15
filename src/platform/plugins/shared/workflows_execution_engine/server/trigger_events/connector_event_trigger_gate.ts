@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { resolveConnectorEventTriggerDefinition } from '@kbn/workflows';
+import { resolveConnectorEventTriggerDefinition } from '@kbn/workflows/server';
 
 export const isConnectorEventTriggerId = (triggerId: string): boolean =>
   resolveConnectorEventTriggerDefinition(triggerId) !== undefined;

@@ -50,23 +50,6 @@ export const InboundWebhookConnector: ConnectorSpec = {
             defaultMessage: 'Ingest token hash',
           }),
         }),
-      ingestToken: z
-        .string()
-        .min(32)
-        .optional()
-        .meta({
-          sensitive: true,
-          label: i18n.translate('core.kibanaConnectorSpecs.inboundWebhook.secrets.ingestToken', {
-            defaultMessage: 'Ingest token',
-          }),
-          helpText: i18n.translate(
-            'core.kibanaConnectorSpecs.inboundWebhook.secrets.ingestTokenHelp',
-            {
-              defaultMessage:
-                'Secret token for authenticating inbound HTTP requests. Leave blank on create to auto-generate.',
-            }
-          ),
-        }),
       webhookUrl: z
         .string()
         .url()

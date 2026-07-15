@@ -52,7 +52,7 @@
     "@kbn/core-http-server-mocks",
     "@kbn/usage-collection-plugin",
     "@kbn/react-query",
-    "@kbn/zod",
+    "@kbn/workflows-extensions",
     "@kbn/connector-schemas",
     "@kbn/connector-specs",
     "@kbn/actions-utils",

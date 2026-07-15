@@ -12,7 +12,7 @@ import type { FC, PropsWithChildren } from 'react';
 import { waitFor, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@kbn/react-query';
 import { docLinksServiceMock } from '@kbn/core/public/mocks';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import { serializeConnectorSpec } from '@kbn/connector-specs/src/lib/serialize_connector_spec';
 import { actionTypeRegistryMock } from '../test_utils/action_type_registry.mock';
 import type { ActionTypeModel } from '../types';

@@ -27,6 +27,30 @@ export const getInboundWebhookConnectorType = (): ActionTypeModel<
     defaultMessage: 'Inbound Webhook',
   }),
   validateParams: async (): Promise<GenericValidationResult<unknown>> => ({ errors: {} }),
+  connectorForm: {
+    serializer: ((formData: Record<string, unknown>) => {
+      const secrets = formData?.secrets as Record<string, unknown> | undefined;
+      if (!secrets?.authType) {
+        return formData;
+      }
+
+      const config = formData?.config as Record<string, unknown> | undefined;
+      return {
+        ...formData,
+        config: { ...config, authType: secrets.authType },
+      };
+    }) as unknown as NonNullable<ActionTypeModel['connectorForm']>['serializer'],
+    deserializer: ((apiData: Record<string, unknown>) => {
+      const config = apiData?.config as Record<string, unknown> | undefined;
+      const secrets = apiData?.secrets as Record<string, unknown> | undefined;
+
+      if (!config?.authType || secrets?.authType) {
+        return apiData;
+      }
+
+      return { ...apiData, secrets: { ...(secrets ?? {}), authType: config.authType } };
+    }) as unknown as NonNullable<ActionTypeModel['connectorForm']>['deserializer'],
+  },
   actionParamsFields: lazy(async () => ({ default: () => null })),
   actionConnectorFields: lazy(() =>
     import('./inbound_webhook_connector_fields').then(({ InboundWebhookConnectorFields }) => ({

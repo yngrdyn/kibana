@@ -7,16 +7,13 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { resolveConnectorEventTriggerDefinition } from '@kbn/workflows';
+import { resolveConnectorEventTriggerDefinition } from '@kbn/workflows/server';
 import { resolveTriggerDefinition } from './resolve_trigger_definition';
 
-jest.mock('@kbn/workflows', () => {
-  const actual = jest.requireActual('@kbn/workflows');
-  return {
-    ...actual,
-    resolveConnectorEventTriggerDefinition: jest.fn(),
-  };
-});
+jest.mock('@kbn/workflows/server', () => ({
+  ...jest.requireActual('@kbn/workflows/server'),
+  resolveConnectorEventTriggerDefinition: jest.fn(),
+}));
 
 const mockResolveConnectorEventTriggerDefinition =
   resolveConnectorEventTriggerDefinition as jest.MockedFunction<

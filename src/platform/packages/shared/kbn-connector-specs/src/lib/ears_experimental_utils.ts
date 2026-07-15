@@ -8,7 +8,6 @@
  */
 
 import { isString } from 'lodash';
-import * as allSpecs from '../all_specs';
 import { EARS_AUTH_ID } from '../auth_types/ears';
 import type { AuthTypeDef } from '../connector_spec';
 
@@ -17,11 +16,12 @@ export const isEarsExperimentalAuthType = (
 ): authType is AuthTypeDef =>
   !isString(authType) && authType.type === EARS_AUTH_ID && authType.isExperimental === true;
 
-const experimentalEarsConnectorIds = new Set(
-  Object.values(allSpecs)
-    .filter((spec) => spec.auth?.types.some(isEarsExperimentalAuthType))
-    .map((spec) => spec.metadata.id)
-);
+/** Connector type IDs that use experimental EARS auth — kept explicit so public UI can tree-shake all_specs. */
+const EXPERIMENTAL_EARS_CONNECTOR_TYPE_IDS = new Set([
+  '.gmail',
+  '.google_calendar',
+  '.google_drive',
+]);
 
 export const isEarsExperimentalConnector = (connectorTypeId: string): boolean =>
-  experimentalEarsConnectorIds.has(connectorTypeId);
+  EXPERIMENTAL_EARS_CONNECTOR_TYPE_IDS.has(connectorTypeId);

@@ -9,7 +9,8 @@
 
 import type { ToStringOptions } from 'yaml';
 import { stringify } from 'yaml';
-import { isTriggerType, resolveConnectorEventWorkflowSurface } from '@kbn/workflows';
+import { isTriggerType } from '@kbn/workflows';
+import { isConnectorEventTriggerId } from '../../../../../common/lib/is_connector_event_trigger_id';
 import { triggerSchemas } from '../../../../trigger_schemas';
 
 /** Comment added above condition in custom trigger snippets to explain KQL and event.* usage. */
@@ -49,10 +50,8 @@ export function generateTriggerSnippet(
   let parameters: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   const triggerDefinition = triggerSchemas.getTriggerDefinition(triggerType);
-  const connectorEventSurface = resolveConnectorEventWorkflowSurface(triggerType);
   const requiresConnectorId =
-    connectorEventSurface?.binding.instanceRef === 'required' ||
-    triggerDefinition?.requiresConnectorId === true;
+    triggerDefinition?.requiresConnectorId === true || isConnectorEventTriggerId(triggerType);
   const resolvedConnectorId =
     defaultConnectorId ?? (monacoSuggestionFormat ? '${1:<connector-id>}' : '<connector-id>');
   const resolvedCondition = defaultCondition ?? triggerDefinition?.snippets?.condition ?? '';

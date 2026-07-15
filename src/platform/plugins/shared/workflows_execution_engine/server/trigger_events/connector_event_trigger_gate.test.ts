@@ -14,8 +14,8 @@ import {
   readTriggerConnectorId,
 } from './connector_event_trigger_gate';
 
-jest.mock('@kbn/workflows', () => ({
-  ...jest.requireActual('@kbn/workflows'),
+jest.mock('@kbn/workflows/server', () => ({
+  ...jest.requireActual('@kbn/workflows/server'),
   resolveConnectorEventTriggerDefinition: jest.fn((triggerId: string) =>
     triggerId === 'inboundWebhook.received' ? { id: triggerId } : undefined
   ),

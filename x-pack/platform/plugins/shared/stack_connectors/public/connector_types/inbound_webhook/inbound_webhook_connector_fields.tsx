@@ -49,6 +49,10 @@ export const InboundWebhookConnectorFields = ({
   }, [registerPreSubmitValidator]);
 
   useEffect(() => {
+    setFieldValue('secrets.authType', 'none');
+  }, [setFieldValue]);
+
+  useEffect(() => {
     if (isEdit || webhookUrl || !id) {
       return;
     }
@@ -76,6 +80,7 @@ export const InboundWebhookConnectorFields = ({
   return (
     <>
       <UseField path="config.ingestTokenHash" component={HiddenField} />
+      <UseField path="secrets.authType" component={HiddenField} />
       {!isEdit ? (
         <>
           <UseField

@@ -6,7 +6,7 @@
  */
 
 import Boom from '@hapi/boom';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import { serializeConnectorSpec } from '@kbn/connector-specs/src/lib/serialize_connector_spec';
 import { ConnectorAuditAction, connectorAuditEvent } from '../../../../lib/audit_events';
 import type { GetConnectorSpecParams } from './types';

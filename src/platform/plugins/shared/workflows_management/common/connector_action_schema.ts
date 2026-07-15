@@ -17,7 +17,7 @@ import {
   XSOARRunActionParamsSchema,
   XSOARRunActionResponseSchema,
 } from '@kbn/connector-schemas/xsoar';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import { i18n } from '@kbn/i18n';
 import type { BaseConnectorContract } from '@kbn/workflows';
 import { FetcherConfigSchema, KibanaHttpMethodSchema, KibanaStepMetaSchema } from '@kbn/workflows';

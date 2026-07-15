@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { resolveConnectorEventTriggerDefinition } from '@kbn/workflows';
+import { resolveConnectorEventTriggerDefinition } from '@kbn/workflows/server';
 import type { WorkflowsExtensionsServerPluginStart } from '@kbn/workflows-extensions/server';
 import type { ServerTriggerDefinition } from '@kbn/workflows-extensions/server/types';
 

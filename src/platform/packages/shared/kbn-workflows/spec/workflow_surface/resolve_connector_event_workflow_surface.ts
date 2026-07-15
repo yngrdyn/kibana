@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { resolveRegisteredConnectorEventByEventId } from '@kbn/connector-specs';
+import { resolveRegisteredConnectorEventByEventId } from '@kbn/connector-specs/server';
 import { connectorEventToWorkflowSurface } from './connector_event_to_workflow_surface';
 import type { WorkflowSurfaceDefinition } from './types';
 

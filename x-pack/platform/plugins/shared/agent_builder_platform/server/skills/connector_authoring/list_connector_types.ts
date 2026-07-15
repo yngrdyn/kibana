@@ -12,7 +12,7 @@ import { getToolResultId, createErrorResult } from '@kbn/agent-builder-server';
 import type { BuiltinSkillBoundedTool } from '@kbn/agent-builder-server/skills';
 import { AgentBuilderConnectorFeatureId } from '@kbn/actions-plugin/common';
 import type { ActionType } from '@kbn/actions-plugin/common';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import type { PluginStartContract as ActionsPluginStart } from '@kbn/actions-plugin/server';
 import {
   getConnectorTypeDisplayName,

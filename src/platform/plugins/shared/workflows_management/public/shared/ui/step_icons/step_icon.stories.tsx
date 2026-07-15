@@ -18,7 +18,8 @@ import {
 } from '@elastic/eui';
 import React, { Suspense, useEffect, useState } from 'react';
 import { TypeRegistry } from '@kbn/alerts-ui-shared/lib';
-import { type ConnectorSpec, connectorsSpecs } from '@kbn/connector-specs';
+import type { ConnectorSpec } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import { ConnectorIconsMap } from '@kbn/connector-specs/icons';
 import { KibanaContextProvider } from '@kbn/kibana-react-plugin/public';
 import type { Logger } from '@kbn/logging';

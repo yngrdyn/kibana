@@ -7,7 +7,7 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { inboundWebhookReceivedEventSchema } from './inbound_webhook_received_event_schema';
+import { inboundWebhookReceivedEventSchema } from '@kbn/connector-specs';
 import type { ConnectorMetadata } from './connector_spec';
 import { defineConnectorEvent } from './define_connector_event';
 import {

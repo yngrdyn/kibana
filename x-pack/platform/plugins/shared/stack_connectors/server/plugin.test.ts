@@ -18,7 +18,7 @@ import type { ConnectorsPluginsStart } from './plugin';
 import { actionsMock } from '@kbn/actions-plugin/server/mocks';
 import { experimentalFeaturesMock } from '../public/mocks';
 import { parseExperimentalConfigValue } from '../common/experimental_features';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 
 jest.mock('../common/experimental_features');
 

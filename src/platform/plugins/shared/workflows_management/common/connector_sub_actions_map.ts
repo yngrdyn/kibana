@@ -56,7 +56,7 @@ import {
   SUB_ACTION as XSOAR_SUB_ACTION,
 } from '@kbn/connector-schemas/xsoar/constants';
 
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 
 // Helper function to format sub-action names for display
 function formatSubActionName(action: string): string {

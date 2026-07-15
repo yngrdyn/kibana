@@ -7,9 +7,9 @@
 
 import { type PluginSetupContract as ActionsPluginSetupContract } from '@kbn/actions-plugin/server';
 
-import { connectorsSpecs } from '@kbn/connector-specs';
-import { createConnectorTypeFromSpec } from '@kbn/actions-plugin/server/lib';
 import { INBOUND_WEBHOOK_CONNECTOR_TYPE_ID } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
+import { createConnectorTypeFromSpec } from '@kbn/actions-plugin/server/lib';
 
 import { registerInboundWebhookConnectorType } from './register_inbound_webhook_connector_type';
 

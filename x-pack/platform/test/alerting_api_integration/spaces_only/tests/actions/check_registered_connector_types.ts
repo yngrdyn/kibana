@@ -6,7 +6,7 @@
  */
 
 import expect from '@kbn/expect';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import type { FtrProviderContext } from '../../../common/ftr_provider_context';
 
 const connectorIdsFromSpecs = new Set(

@@ -7,7 +7,7 @@
 
 import expect from '@kbn/expect';
 import type { Response as SupertestResponse } from 'supertest';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import type { FtrProviderContext } from '../../ftr_provider_context';
 
 const actionTypeIdsFromSpecs = new Set(
