@@ -434,6 +434,46 @@ describe('validateConnectorIds', () => {
     });
   });
 
+  describe('connector-event triggers', () => {
+    it('should validate connector-id against the backing connector type for event triggers', () => {
+      const connectorTypes: Record<string, ConnectorTypeInfo> = {
+        '.workflows-inbound-webhook': {
+          actionTypeId: '.workflows-inbound-webhook',
+          displayName: 'Inbound Webhook',
+          instances: [
+            {
+              id: 'tesyng1',
+              name: 'tesyng1',
+              isPreconfigured: false,
+              isDeprecated: false,
+            },
+          ],
+          enabled: true,
+          enabledInConfig: true,
+          enabledInLicense: true,
+          minimumLicenseRequired: 'basic',
+          subActions: [],
+        },
+      };
+
+      const connectorIdItems: ConnectorIdItem[] = [
+        createConnectorIdItem({
+          key: 'tesyng1',
+          connectorType: 'inboundWebhook.received',
+          yamlPath: ['triggers', 0, 'connector-id'],
+        }),
+      ];
+
+      const results = validateConnectorIds(connectorIdItems, connectorTypes, '');
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        severity: 'info',
+        beforeMessage: '✓ tesyng1',
+      });
+    });
+  });
+
   describe('when handling empty input', () => {
     it('should return empty array for empty connector items', () => {
       const results = validateConnectorIds([], mockConnectorTypes, '');

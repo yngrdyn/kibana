@@ -12,7 +12,9 @@ import { i18n } from '@kbn/i18n';
 import type {
   ActionTypeModel,
   GenericValidationResult,
+  IErrorObject,
 } from '@kbn/triggers-actions-ui-plugin/public';
+import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
 
 interface InboundWebhookConfig {
   webhookKeyHash: string;
@@ -41,7 +43,27 @@ export const getInboundWebhookConnectorType = (): ActionTypeModel<
   actionTypeTitle: i18n.translate('workflowsManagement.inboundWebhook.connectorTitle', {
     defaultMessage: 'Inbound Webhook',
   }),
-  validateParams: async (): Promise<GenericValidationResult<unknown>> => ({ errors: {} }),
+  validateParams: async (actionParams): Promise<GenericValidationResult<unknown>> => {
+    const errors: IErrorObject = {};
+
+    if (actionParams.subAction !== INBOUND_WEBHOOK_RECEIVE_SUB_ACTION) {
+      errors.subAction = [
+        i18n.translate('workflowsManagement.inboundWebhook.missingSubActionError', {
+          defaultMessage: 'Sub action must be "receive".',
+        }),
+      ];
+    }
+
+    if (!actionParams.subActionParams || typeof actionParams.subActionParams !== 'object') {
+      errors.subActionParams = [
+        i18n.translate('workflowsManagement.inboundWebhook.missingSubActionParamsError', {
+          defaultMessage: 'Sub action parameters are required.',
+        }),
+      ];
+    }
+
+    return { errors };
+  },
   actionConnectorFields: lazy(() =>
     import('./inbound_webhook_connector_fields').then(({ InboundWebhookConnectorFields }) => ({
       default: InboundWebhookConnectorFields,

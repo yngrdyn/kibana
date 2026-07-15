@@ -34,11 +34,16 @@ import type {
   InboundWebhookApiKeyService,
 } from '../../services/inbound_webhook_api_key_service';
 import type { InboundWebhookMappingRepository } from '../../storage/inbound_webhook_mapping_repository';
+import { INBOUND_WEBHOOK_RECEIVED_TRIGGER_ID } from '../../../common/inbound_webhook/constants';
+import {
+  createDelegatedInboundWebhookExecutionRequest,
+  type CreateDelegatedExecutionRequestDependencies,
+} from './create_delegated_execution_request';
 
 export const INBOUND_WEBHOOK_CONNECTOR_TYPE_ID = '.workflows-inbound-webhook' as const;
-const INBOUND_WEBHOOK_TRIGGER_ID = 'webhook';
 
-export interface InboundWebhookConnectorDependencies {
+export interface InboundWebhookConnectorDependencies
+  extends CreateDelegatedExecutionRequestDependencies {
   canEncrypt: () => boolean;
   emitEvent: (
     request: KibanaRequest,
@@ -195,10 +200,21 @@ export const getInboundWebhookConnectorType = (
       InboundWebhookParams
     >
   ): Promise<ActionTypeExecutorResult<InboundWebhookResult>> => {
-    const { actionId, config, logger, params, request } = options;
-    const scopedRequest = request ?? dependencies.takeRequest(params.subActionParams.eventId);
+    const { actionId, config, logger, params, request, services } = options;
+    let scopedRequest = request ?? dependencies.takeRequest(params.subActionParams.eventId);
+
     if (!scopedRequest) {
-      throw new Error('Inbound webhook execution requires a scoped request');
+      scopedRequest = await createDelegatedInboundWebhookExecutionRequest(dependencies, {
+        connectorId: actionId,
+        credentialRevision: params.subActionParams.credentialRevision,
+        savedObjectsClient: services.savedObjectsClient,
+      });
+    }
+
+    if (!scopedRequest) {
+      throw new Error(
+        'Inbound webhook execution requires active delegated credentials. Save the connector and wait until its status is active before testing.'
+      );
     }
     if (config.credentialRevision !== params.subActionParams.credentialRevision) {
       throw new Error('Inbound webhook credential revision is stale');
@@ -213,8 +229,7 @@ export const getInboundWebhookConnectorType = (
       receivedAt: params.subActionParams.receivedAt,
     };
     logger.debug(`Inbound webhook event received: ${JSON.stringify(event)}`);
-    // Uncomment when the webhook trigger is wired up
-    // await dependencies.emitEvent(scopedRequest, INBOUND_WEBHOOK_TRIGGER_ID, event);
+    await dependencies.emitEvent(scopedRequest, INBOUND_WEBHOOK_RECEIVED_TRIGGER_ID, event);
     return {
       status: 'ok',
       actionId,

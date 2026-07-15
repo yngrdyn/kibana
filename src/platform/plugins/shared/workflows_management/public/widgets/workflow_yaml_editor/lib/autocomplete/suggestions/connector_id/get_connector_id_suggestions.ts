@@ -8,7 +8,7 @@
  */
 
 import { getConnectorIdSuggestionsItems } from './get_connector_id_suggestions_items';
-import { resolveConnectorIdStepType } from './resolve_connector_id_step_type';
+import { resolveConnectorIdBinding } from '../../../../../../workflow_surface/resolve_connector_id_binding';
 import type { AutocompleteContext } from '../../context/autocomplete.types';
 
 export function getConnectorIdSuggestions({
@@ -18,12 +18,18 @@ export function getConnectorIdSuggestions({
   focusedStepInfo,
   focusedYamlPair,
   path,
+  yamlDocument,
   dynamicConnectorTypes,
 }: AutocompleteContext) {
-  const stepConnectorType = resolveConnectorIdStepType(focusedStepInfo, path, focusedYamlPair);
+  const binding = resolveConnectorIdBinding({
+    focusedStepInfo,
+    focusedYamlPair,
+    path,
+    yamlDocument,
+  });
 
   if (
-    !stepConnectorType ||
+    !binding ||
     !lineParseResult ||
     lineParseResult.matchType !== 'connector-id' ||
     !dynamicConnectorTypes
@@ -37,8 +43,8 @@ export function getConnectorIdSuggestions({
       startColumn: lineParseResult.valueStartIndex + 1,
       endColumn: line.length + 1,
     };
-    return getConnectorIdSuggestionsItems(stepConnectorType, replaceRange, dynamicConnectorTypes);
+    return getConnectorIdSuggestionsItems(binding, replaceRange, dynamicConnectorTypes);
   }
 
-  return getConnectorIdSuggestionsItems(stepConnectorType, range, dynamicConnectorTypes);
+  return getConnectorIdSuggestionsItems(binding, range, dynamicConnectorTypes);
 }
