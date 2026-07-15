@@ -41,7 +41,15 @@ export const getInboundWebhookConnectorType = (): ActionTypeModel<
   actionTypeTitle: i18n.translate('workflowsManagement.inboundWebhook.connectorTitle', {
     defaultMessage: 'Inbound Webhook',
   }),
-  validateParams: async (): Promise<GenericValidationResult<unknown>> => ({ errors: {} }),
+  validateParams: async (): Promise<GenericValidationResult<unknown>> => ({
+    errors: {
+      subAction: [
+        i18n.translate('inboundEvents.inboundWebhook.manualExecutionDisabledError', {
+          defaultMessage: 'Inbound webhook events can only be received through the webhook URL.',
+        }),
+      ],
+    },
+  }),
   actionConnectorFields: lazy(() =>
     import('./inbound_webhook_connector_fields').then(({ InboundWebhookConnectorFields }) => ({
       default: InboundWebhookConnectorFields,
