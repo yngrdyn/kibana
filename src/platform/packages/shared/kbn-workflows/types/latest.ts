@@ -59,6 +59,7 @@ export type {
   // connector types
   ConnectorSubAction,
   ConnectorInstance,
+  ConnectorEventInfo,
   ConnectorTypeInfo,
   ConnectorContractUnion,
   InternalConnectorContract,

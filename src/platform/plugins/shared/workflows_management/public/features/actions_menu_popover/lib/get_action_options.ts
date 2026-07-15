@@ -13,8 +13,13 @@ import { i18n } from '@kbn/i18n';
 import { getBuiltInStepDefinition, isDynamicConnector, StepCategory } from '@kbn/workflows';
 import type { WorkflowsExtensionsPublicPluginStart } from '@kbn/workflows-extensions/public';
 import { ParallelIcon } from '@kbn/workflows-ui';
+import { buildConnectorEventTriggerOptions } from './build_connector_event_trigger_options';
 import { buildBuiltInTriggerOptions, buildRegisteredTriggerOptions } from './build_trigger_options';
-import { getAllConnectors, isDeprecatedStepType } from '../../../../common/schema';
+import {
+  getAllConnectors,
+  getCachedDynamicConnectorTypes,
+  isDeprecatedStepType,
+} from '../../../../common/schema';
 import { triggerSchemas } from '../../../trigger_schemas';
 import type { ActionConnectorGroup, ActionGroup, ActionOptionData } from '../types';
 import { isActionGroup } from '../types';
@@ -52,9 +57,17 @@ export function getActionOptions(
   workflowsExtensions: WorkflowsExtensionsPublicPluginStart
 ): ActionOptionData[] {
   const connectors = getAllConnectors();
+  const connectorTypes = getCachedDynamicConnectorTypes() ?? {};
   const builtInTriggerOptions = buildBuiltInTriggerOptions(euiTheme);
+  const registeredTriggerDefinitions = triggerSchemas.getTriggerDefinitions();
+  const registeredTriggerIds = new Set(registeredTriggerDefinitions.map((trigger) => trigger.id));
   const registeredTriggerOptions = buildRegisteredTriggerOptions(
-    triggerSchemas.getTriggerDefinitions(),
+    registeredTriggerDefinitions,
+    euiTheme
+  );
+  const connectorEventTriggerOptions = buildConnectorEventTriggerOptions(
+    connectorTypes,
+    registeredTriggerIds,
     euiTheme
   );
   const triggersGroup: ActionOptionData = {
@@ -67,7 +80,11 @@ export function getActionOptions(
     description: i18n.translate('workflows.actionsMenu.triggersDescription', {
       defaultMessage: 'Choose which event starts a workflow',
     }),
-    options: [...builtInTriggerOptions, ...registeredTriggerOptions],
+    options: [
+      ...builtInTriggerOptions,
+      ...registeredTriggerOptions,
+      ...connectorEventTriggerOptions,
+    ],
   };
 
   const kibanaCasesGroup: ActionGroup = {

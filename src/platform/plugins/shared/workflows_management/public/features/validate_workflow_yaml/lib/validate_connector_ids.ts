@@ -18,6 +18,7 @@ import {
   getConnectorTypesFromStepType,
   isCreateConnectorEnabledForStepType,
 } from '../../../shared/lib/connectors_utils';
+import { resolveConnectorIdLookupKeyFromYamlType } from '../../../../common/lib/resolve_connector_id_lookup_key';
 import { getConnectorInstancesForType } from '../../../widgets/workflow_yaml_editor/lib/autocomplete/suggestions/connector_id/get_connector_id_suggestions_items';
 import {
   getCreateConnectorHoverCommandLink,
@@ -66,12 +67,12 @@ export function validateConnectorIds(
   );
 
   for (const connectorIdItem of notReferenceConnectorIds) {
-    const stepType = connectorIdItem.connectorType;
-
-    const connectorType = dynamicConnectorTypes[stepType];
+    const lookupKey = resolveConnectorIdLookupKeyFromYamlType(connectorIdItem.connectorType);
+    const actionTypeId = getActionTypeIdFromStepType(lookupKey);
+    const connectorType = dynamicConnectorTypes[actionTypeId];
     const displayName =
-      connectorType?.displayName ?? getActionTypeDisplayNameFromStepType(stepType);
-    const instances = getConnectorInstancesForType(stepType, dynamicConnectorTypes);
+      connectorType?.displayName ?? getActionTypeDisplayNameFromStepType(lookupKey);
+    const instances = getConnectorInstancesForType(lookupKey, dynamicConnectorTypes);
 
     const instance = instances.find((ins) => ins.id === connectorIdItem.key);
     // Create insert position at the start of the connector-id value
@@ -84,8 +85,8 @@ export function validateConnectorIds(
 
     if (!instance) {
       const actions: string[] = [];
-      if (isCreateConnectorEnabledForStepType(stepType)) {
-        const resolvedConnectorType = getConnectorTypesFromStepType(stepType)[0];
+      if (isCreateConnectorEnabledForStepType(lookupKey)) {
+        const resolvedConnectorType = getConnectorTypesFromStepType(lookupKey)[0];
         const createConnectorLink = getCreateConnectorHoverCommandLink({
           text: TRANSLATIONS.createConnector,
           connectorType: getActionTypeIdFromStepType(resolvedConnectorType),
@@ -121,7 +122,7 @@ export function validateConnectorIds(
           connectorId: instance.id,
         })
       );
-      if (isCreateConnectorEnabledForStepType(stepType)) {
+      if (isCreateConnectorEnabledForStepType(lookupKey)) {
         actions.push(
           getCreateConnectorHoverCommandLink({
             text: TRANSLATIONS.createConnector,

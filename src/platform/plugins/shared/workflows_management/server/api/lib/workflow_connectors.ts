@@ -12,13 +12,14 @@ import type { ActionsClient, IUnsecuredActionsClient } from '@kbn/actions-plugin
 import type { FindActionResult } from '@kbn/actions-plugin/server/types';
 import type { KibanaRequest } from '@kbn/core/server';
 import type { PublicMethodsOf } from '@kbn/utility-types';
-import type { ConnectorTypeInfo } from '@kbn/workflows';
+import type { ConnectorEventInfo, ConnectorTypeInfo } from '@kbn/workflows';
 import type {
   ConnectorInstanceConfig,
   GetAvailableConnectorsResponse,
 } from '@kbn/workflows/types/v1';
 
 import { CONNECTOR_SUB_ACTIONS_MAP } from '../../../common/connector_sub_actions_map';
+import { getConnectorTriggerEventsForType } from '../../../common/inbound_webhook/connector_trigger_events';
 
 const getConnectorInstanceConfig = (
   connector: FindActionResult
@@ -27,6 +28,11 @@ const getConnectorInstanceConfig = (
     return { config: { taskType: connector.config?.taskType } };
   }
   return undefined;
+};
+
+const getConnectorEventsForType = (actionTypeId: string): ConnectorEventInfo[] | undefined => {
+  const events = getConnectorTriggerEventsForType(actionTypeId);
+  return events.length > 0 ? events : undefined;
 };
 
 /**
@@ -54,6 +60,7 @@ export const getAvailableConnectors = async (params: {
 
   actionTypes.forEach((actionType) => {
     const subActions = CONNECTOR_SUB_ACTIONS_MAP[actionType.id];
+    const events = getConnectorEventsForType(actionType.id);
 
     connectorTypes[actionType.id] = {
       actionTypeId: actionType.id,
@@ -64,6 +71,7 @@ export const getAvailableConnectors = async (params: {
       enabledInLicense: actionType.enabledInLicense,
       minimumLicenseRequired: actionType.minimumLicenseRequired,
       ...(subActions && { subActions }),
+      ...(events && { events }),
     };
   });
 

@@ -53,6 +53,7 @@ import type {
   WorkflowsServerPluginStartDeps,
 } from './types';
 import { registerUISettings } from './ui_settings';
+import { registerTriggerDefinitions } from './triggers';
 import { stepSchemas } from '../common/step_schemas';
 
 export class WorkflowsPlugin
@@ -88,6 +89,8 @@ export class WorkflowsPlugin
     this.logger.debug('Workflows Management: Setup');
 
     registerUISettings(core, plugins);
+
+    registerTriggerDefinitions(plugins.workflowsExtensions);
 
     plugins.features?.registerKibanaFeature(WorkflowsManagementFeatureConfig);
 
@@ -136,6 +139,8 @@ export class WorkflowsPlugin
             });
           },
           getSpaceId: (request) => plugins.spaces.spacesService.getSpaceId(request),
+          namespaceToSpaceId: (namespace) =>
+            plugins.spaces.spacesService.namespaceToSpaceId(namespace),
           takeRequest: (eventId) => this.inboundWebhookRequestStore.take(eventId),
         })
       );

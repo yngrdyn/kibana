@@ -9,6 +9,8 @@
 
 import type { ConnectorTypeInfo } from '@kbn/workflows';
 import { parseLineForCompletion } from '@kbn/workflows-yaml';
+import { parseDocument } from 'yaml';
+import { INBOUND_WEBHOOK_RECEIVED_TRIGGER_ID } from '../../../../../../../common/inbound_webhook/constants';
 import { getConnectorIdSuggestions } from './get_connector_id_suggestions';
 import type { AutocompleteContext } from '../../context/autocomplete.types';
 
@@ -38,6 +40,23 @@ describe('getConnectorIdSuggestions', () => {
       instances: [
         { id: 'openai', name: 'OpenAI', isPreconfigured: false, isDeprecated: false },
         { id: 'gemini', name: 'Gemini', isPreconfigured: false, isDeprecated: false },
+      ],
+    },
+    '.workflows-inbound-webhook': {
+      actionTypeId: '.workflows-inbound-webhook',
+      displayName: 'Inbound Webhook',
+      enabled: true,
+      enabledInConfig: true,
+      enabledInLicense: true,
+      minimumLicenseRequired: 'basic',
+      subActions: [],
+      instances: [
+        {
+          id: 'webhook-prod',
+          name: 'Production Webhook',
+          isPreconfigured: false,
+          isDeprecated: false,
+        },
       ],
     },
   };
@@ -89,5 +108,30 @@ describe('getConnectorIdSuggestions', () => {
 
     expect(result).toHaveLength(3);
     expect(result[0].insertText).toBe('public-slack');
+  });
+
+  it('should suggest inbound webhook connectors for trigger connector-id', () => {
+    const line = '    connector-id: ';
+    const yamlDocument = parseDocument(`
+triggers:
+  - type: ${INBOUND_WEBHOOK_RECEIVED_TRIGGER_ID}
+    connector-id:
+`);
+
+    const result = getConnectorIdSuggestions({
+      line,
+      lineParseResult: parseLineForCompletion(line),
+      range: { startLineNumber: 3, endLineNumber: 3, startColumn: 19, endColumn: 19 },
+      focusedStepInfo: null,
+      focusedYamlPair: null,
+      path: ['triggers', 0, 'connector-id'],
+      yamlDocument,
+      dynamicConnectorTypes: fakeConnectorTypes,
+    } as unknown as AutocompleteContext);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].insertText).toBe('webhook-prod');
+    expect(result[0].label).toBe('Production Webhook • webhook-prod');
+    expect(result[1].label).toBe('Create a new connector');
   });
 });

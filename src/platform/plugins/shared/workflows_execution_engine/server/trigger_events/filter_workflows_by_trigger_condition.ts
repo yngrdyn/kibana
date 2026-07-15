@@ -10,6 +10,7 @@
 import type { Logger } from '@kbn/core/server';
 import { evaluateKql } from '@kbn/eval-kql';
 import type { WorkflowDetailDto } from '@kbn/workflows';
+import { connectorBoundTriggerInstanceMatches } from './connector_bound_trigger_gate';
 
 /**
  * Why a subscribed workflow did or did not match an emitted trigger event (for funnel telemetry).
@@ -17,7 +18,8 @@ import type { WorkflowDetailDto } from '@kbn/workflows';
 export type WorkflowTriggerMatchOutcome = 'matched' | 'disabled' | 'kql_false' | 'kql_error';
 
 /**
- * Classifies a workflow for a given trigger id and event payload (enabled gate, trigger block, KQL).
+ * Classifies a workflow for a given trigger id and event payload (enabled gate, trigger block,
+ * connector-instance gate, then KQL).
  */
 export function classifyWorkflowTriggerMatch(
   workflow: WorkflowDetailDto,
@@ -36,6 +38,10 @@ export function classifyWorkflowTriggerMatch(
 
   const matchingTrigger = triggers.find((t) => t && t.type === triggerId);
   if (!matchingTrigger) {
+    return 'kql_false';
+  }
+
+  if (!connectorBoundTriggerInstanceMatches(matchingTrigger, payload)) {
     return 'kql_false';
   }
 

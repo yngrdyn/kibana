@@ -13,6 +13,7 @@ import type {
   ActionTypeModel,
   GenericValidationResult,
 } from '@kbn/triggers-actions-ui-plugin/public';
+import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
 
 interface InboundWebhookConfig {
   webhookKeyHash: string;
@@ -28,6 +29,21 @@ interface InboundWebhookParams {
   subActionParams: Record<string, unknown>;
 }
 
+const isConnectorTestParams = (params: unknown): boolean => {
+  if (!params || typeof params !== 'object') {
+    return false;
+  }
+
+  const subActionParams = params as Record<string, unknown>;
+  return (
+    typeof subActionParams.eventId === 'string' &&
+    typeof subActionParams.credentialRevision === 'string' &&
+    typeof subActionParams.body === 'object' &&
+    subActionParams.body !== null &&
+    typeof subActionParams.receivedAt === 'string'
+  );
+};
+
 export const getInboundWebhookConnectorType = (): ActionTypeModel<
   InboundWebhookConfig,
   InboundWebhookSecrets,
@@ -41,15 +57,26 @@ export const getInboundWebhookConnectorType = (): ActionTypeModel<
   actionTypeTitle: i18n.translate('workflowsManagement.inboundWebhook.connectorTitle', {
     defaultMessage: 'Inbound Webhook',
   }),
-  validateParams: async (): Promise<GenericValidationResult<unknown>> => ({
-    errors: {
-      subAction: [
-        i18n.translate('inboundEvents.inboundWebhook.manualExecutionDisabledError', {
-          defaultMessage: 'Inbound webhook events can only be received through the webhook URL.',
-        }),
-      ],
-    },
-  }),
+  validateParams: async (
+    actionParams
+  ): Promise<GenericValidationResult<unknown>> => {
+    if (
+      actionParams.subAction === INBOUND_WEBHOOK_RECEIVE_SUB_ACTION &&
+      isConnectorTestParams(actionParams.subActionParams)
+    ) {
+      return { errors: {} };
+    }
+
+    return {
+      errors: {
+        subAction: [
+          i18n.translate('inboundEvents.inboundWebhook.manualExecutionDisabledError', {
+            defaultMessage: 'Inbound webhook events can only be received through the webhook URL.',
+          }),
+        ],
+      },
+    };
+  },
   actionConnectorFields: lazy(() =>
     import('./inbound_webhook_connector_fields').then(({ InboundWebhookConnectorFields }) => ({
       default: InboundWebhookConnectorFields,
