@@ -10,6 +10,7 @@ import { type PluginSetupContract as ActionsPluginSetupContract } from '@kbn/act
 import { INBOUND_WEBHOOK_CONNECTOR_TYPE_ID } from '@kbn/connector-specs';
 import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import { createConnectorTypeFromSpec } from '@kbn/actions-plugin/server/lib';
+import type { KibanaRequest, Logger, SecurityServiceStart } from '@kbn/core/server';
 
 import { registerInboundWebhookConnectorType } from './register_inbound_webhook_connector_type';
 
@@ -17,12 +18,22 @@ export function registerConnectorTypesFromSpecs({
   actions,
   getSpaceId,
   getPublicBaseUrl,
+  getSecurity,
+  logger,
 }: {
   actions: ActionsPluginSetupContract;
-  getSpaceId: (request: import('@kbn/core/server').KibanaRequest) => string;
+  getSpaceId: (request: KibanaRequest) => string;
   getPublicBaseUrl: () => string;
+  getSecurity: () => Promise<SecurityServiceStart>;
+  logger: Logger;
 }) {
-  registerInboundWebhookConnectorType({ actions, getSpaceId, getPublicBaseUrl });
+  registerInboundWebhookConnectorType({
+    actions,
+    getSpaceId,
+    getPublicBaseUrl,
+    getSecurity,
+    logger,
+  });
 
   for (const spec of Object.values(connectorsSpecs)) {
     if (spec.metadata.id === INBOUND_WEBHOOK_CONNECTOR_TYPE_ID) {

@@ -35,6 +35,13 @@ export {
   INBOUND_WEBHOOK_RECEIVED_EVENT_ID,
   INBOUND_WEBHOOK_RECEIVED_EVENT_KEY,
 } from './src/inbound_webhook_constants';
+export {
+  getInboundWebhookAuthorizationHeader,
+  INBOUND_WEBHOOK_DELEGATED_API_KEY_ID_CONFIG,
+  INBOUND_WEBHOOK_DELEGATED_API_KEY_SECRET,
+  INBOUND_WEBHOOK_DELEGATED_UIAM_API_KEY_ID_CONFIG,
+  INBOUND_WEBHOOK_DELEGATED_UIAM_API_KEY_SECRET,
+} from './src/inbound_webhook/delegated_execution_credentials';
 export { isToolAction, TEST_CONNECTOR_SUB_ACTION } from './src/connector_spec';
 export {
   getConnectorActionErrorMeta,

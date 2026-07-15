@@ -7,7 +7,10 @@
 
 import type { EncryptedSavedObjectsClient } from '@kbn/encrypted-saved-objects-plugin/server';
 import type { Logger, SavedObjectsClientContract } from '@kbn/core/server';
-import { normalizeConnectorTypeId } from '@kbn/connector-specs';
+import {
+  getInboundWebhookAuthorizationHeader,
+  normalizeConnectorTypeId,
+} from '@kbn/connector-specs';
 import { getConnectorSpec } from '@kbn/connector-specs/server';
 
 import type { ActionsConfig } from '../config';
@@ -121,6 +124,13 @@ export async function handleInboundRequest({
     });
   }
 
+  const authorizationHeader = getInboundWebhookAuthorizationHeader(connector.secrets);
+  if (!authorizationHeader) {
+    logger.warn(
+      `Inbound connector ${connectorId} is missing delegated execution credentials; workflow scheduling may fail`
+    );
+  }
+
   for (const event of result.events ?? []) {
     await emitConnectorEvents({
       eventId: event.eventId,
@@ -133,6 +143,7 @@ export async function handleInboundRequest({
       spaceId,
       connectorId,
       connectorTypeId,
+      ...(authorizationHeader ? { authorizationHeader } : {}),
     });
   }
 

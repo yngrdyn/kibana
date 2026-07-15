@@ -60,6 +60,30 @@ export const InboundWebhookConnector: ConnectorSpec = {
             defaultMessage: 'Webhook URL',
           }),
         }),
+      delegatedApiKeyId: z
+        .string()
+        .optional()
+        .meta({
+          hidden: true,
+          label: i18n.translate(
+            'core.kibanaConnectorSpecs.inboundWebhook.config.delegatedApiKeyId',
+            {
+              defaultMessage: 'Delegated API key id',
+            }
+          ),
+        }),
+      delegatedUiamApiKeyId: z
+        .string()
+        .optional()
+        .meta({
+          hidden: true,
+          label: i18n.translate(
+            'core.kibanaConnectorSpecs.inboundWebhook.config.delegatedUiamApiKeyId',
+            {
+              defaultMessage: 'Delegated UIAM API key id',
+            }
+          ),
+        }),
     })
   ),
 

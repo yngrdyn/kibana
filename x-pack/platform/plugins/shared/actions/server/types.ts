@@ -220,6 +220,11 @@ export interface ConnectorEventEmitParams {
   spaceId: string;
   connectorId: string;
   connectorTypeId: string;
+  /**
+   * Optional `ApiKey …` Authorization header from delegated connector credentials.
+   * Required for Task Manager to schedule workflows from unauthenticated ingress.
+   */
+  authorizationHeader?: string;
 }
 
 /**

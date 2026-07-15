@@ -8,6 +8,7 @@
 import { schema } from '@kbn/config-schema';
 import { kibanaRequestFactory } from '@kbn/core-http-server-utils';
 import { asSpaceId } from '@kbn/core-spaces-common';
+import { SECURITY_EXTENSION_ID } from '@kbn/core-saved-objects-server';
 import type { EncryptedSavedObjectsClient } from '@kbn/encrypted-saved-objects-plugin/server';
 import type {
   CoreSetup,
@@ -18,6 +19,7 @@ import type {
 } from '@kbn/core/server';
 
 import type { ActionsConfig } from '../config';
+import { ACTION_SAVED_OBJECT_TYPE } from '../constants/saved_objects';
 import type {
   ActionsRequestHandlerContext,
   ActionTypeRegistry,
@@ -99,9 +101,12 @@ export function registerInboundRoutes({
         headers: {},
         spaceId: asSpaceId(spaceId),
       });
-      const unsecuredSavedObjectsClient = coreStart.savedObjects.getScopedClient(internalRequest);
+      const unsecuredSavedObjectsClient = coreStart.savedObjects.getScopedClient(internalRequest, {
+        excludedExtensions: [SECURITY_EXTENSION_ID],
+        includedHiddenTypes: [ACTION_SAVED_OBJECT_TYPE],
+      });
       const encryptedSavedObjectsClient = startPlugins.encryptedSavedObjects.getClient({
-        includedHiddenTypes: ['action'],
+        includedHiddenTypes: [ACTION_SAVED_OBJECT_TYPE],
       });
 
       return handleInboundRequest({

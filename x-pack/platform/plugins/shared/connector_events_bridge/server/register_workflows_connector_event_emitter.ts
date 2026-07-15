@@ -31,7 +31,7 @@ export function registerWorkflowsConnectorEventEmitter({
   logger: Logger;
 }): void {
   const emitter: ConnectorEventEmitter = {
-    emit: async ({ eventId, payload, spaceId }) => {
+    emit: async ({ eventId, payload, spaceId, authorizationHeader }) => {
       const workflowsExtensions = await getWorkflowsExtensionsStart();
       if (!workflowsExtensions) {
         logger.warn(
@@ -41,7 +41,7 @@ export function registerWorkflowsConnectorEventEmitter({
       }
 
       const request = kibanaRequestFactory({
-        headers: {},
+        headers: authorizationHeader ? { authorization: authorizationHeader } : {},
         spaceId: asSpaceId(spaceId),
       });
 
