@@ -30,6 +30,11 @@ const buildConnectorIngressUrl = ({
   token: string;
 }): string => {
   const base = publicBaseUrl.replace(/\/$/, '');
+  if (!base || !/^https?:\/\//i.test(base)) {
+    throw new Error(
+      'Cannot mint connector ingress URL without an absolute Kibana public base URL. Configure server.publicBaseUrl.'
+    );
+  }
   const spacePrefix = spaceId !== 'default' ? `/s/${encodeURIComponent(spaceId)}` : '';
   const ingressPath = buildConnectorIngressEventsPath({ connectorTypeId, connectorId });
   return `${base}${spacePrefix}${ingressPath}?token=${token}`;

@@ -36,7 +36,7 @@ export function registerInboundWebhookConnectorType({
 }: {
   actions: ActionsPluginSetupContract;
   getSpaceId: (request: KibanaRequest) => string;
-  getPublicBaseUrl: () => string;
+  getPublicBaseUrl: (request: KibanaRequest) => string;
   getSecurity: () => Promise<SecurityServiceStart>;
   logger: Logger;
 }): void {
@@ -63,7 +63,7 @@ export function registerInboundWebhookConnectorType({
         connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
         connectorId,
         spaceId,
-        publicBaseUrl: getPublicBaseUrl(),
+        publicBaseUrl: getPublicBaseUrl(request),
         isUpdate,
         logger,
       });

@@ -35,6 +35,7 @@ import type { ExperimentalFeatures } from '../common/experimental_features';
 import { parseExperimentalConfigValue } from '../common/experimental_features';
 import type { ConfigSchema as StackConnectorsConfigType } from './config';
 import { registerConnectorTypesFromSpecs } from './connector_types_from_spec';
+import { resolveConnectorIngressPublicBaseUrl } from './connector_types_from_spec/resolve_connector_ingress_public_base_url';
 import { registerConnectorEventTriggers } from './connector_events/register_connector_event_triggers';
 
 export interface ConnectorsPluginsSetup {
@@ -109,7 +110,13 @@ export class StackConnectorsPlugin
     if (this.experimentalFeatures.connectorsFromSpecs) {
       const getSpaceId = (request: KibanaRequest) =>
         plugins.spaces?.spacesService.getSpaceId(request) ?? 'default';
-      const getPublicBaseUrl = () => core.http.basePath.publicBaseUrl ?? '';
+      const getPublicBaseUrl = (request: KibanaRequest) =>
+        resolveConnectorIngressPublicBaseUrl({
+          publicBaseUrl: core.http.basePath.publicBaseUrl,
+          serverBasePath: core.http.basePath.serverBasePath,
+          request,
+          serverInfo: core.http.getServerInfo(),
+        });
 
       registerConnectorTypesFromSpecs({
         actions,

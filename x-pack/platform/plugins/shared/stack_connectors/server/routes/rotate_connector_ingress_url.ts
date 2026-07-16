@@ -25,7 +25,7 @@ export const rotateConnectorIngressUrlRoute = ({
 }: {
   router: IRouter;
   getStartServices: StartServicesAccessor<ConnectorsPluginsStart, unknown>;
-  getPublicBaseUrl: () => string;
+  getPublicBaseUrl: (request: KibanaRequest) => string;
   getSpaceId: (request: KibanaRequest) => string;
   logger: Logger;
 }): void => {
@@ -80,7 +80,7 @@ export const rotateConnectorIngressUrlRoute = ({
             connectorTypeId,
             connectorId,
             spaceId: getSpaceId(req),
-            publicBaseUrl: getPublicBaseUrl(),
+            publicBaseUrl: getPublicBaseUrl(req),
           }),
         });
       } catch (error) {

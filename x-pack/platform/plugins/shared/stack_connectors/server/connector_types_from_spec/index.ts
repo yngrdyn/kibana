@@ -23,7 +23,7 @@ export function registerConnectorTypesFromSpecs({
 }: {
   actions: ActionsPluginSetupContract;
   getSpaceId: (request: KibanaRequest) => string;
-  getPublicBaseUrl: () => string;
+  getPublicBaseUrl: (request: KibanaRequest) => string;
   getSecurity: () => Promise<SecurityServiceStart>;
   logger: Logger;
 }) {

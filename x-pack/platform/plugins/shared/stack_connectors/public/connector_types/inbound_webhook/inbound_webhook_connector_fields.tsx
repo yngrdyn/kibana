@@ -140,6 +140,36 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
     void mintIngressUrl(connectorId);
   }, [id, mintIngressUrl]);
 
+  const renderWebhookUrlField = (url: string) => (
+    <>
+      <EuiFormRow
+        label={i18n.translate('stackConnectors.inboundWebhook.urlLabel', {
+          defaultMessage: 'Webhook URL',
+        })}
+        fullWidth
+      >
+        <EuiFieldText value={url} readOnly fullWidth data-test-subj="inboundWebhookUrl" />
+      </EuiFormRow>
+      <EuiSpacer size="s" />
+      <EuiCopy textToCopy={url}>
+        {(copy) => (
+          <EuiButton
+            size="s"
+            iconType="copy"
+            onClick={copy}
+            disabled={readOnly || isRotating}
+            data-test-subj="copyInboundWebhookUrl"
+          >
+            <FormattedMessage
+              id="stackConnectors.inboundWebhook.copyUrlButtonLabel"
+              defaultMessage="Copy webhook URL"
+            />
+          </EuiButton>
+        )}
+      </EuiCopy>
+    </>
+  );
+
   const hiddenFields = (
     <>
       <UseField path="config.ingestTokenHash" component={HiddenField} />
@@ -149,26 +179,14 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
   );
 
   if (isEdit) {
+    const showRotatedUrl = rotateSuccess && Boolean(webhookUrl);
+
     return (
       <>
         {hiddenFields}
-        <EuiFormRow
-          label={i18n.translate('stackConnectors.inboundWebhook.urlLabel', {
-            defaultMessage: 'Webhook URL',
-          })}
-          fullWidth
-        >
-          <EuiText size="s" color="subdued" data-test-subj="inboundWebhookUrlHidden">
-            <p>
-              <FormattedMessage
-                id="stackConnectors.inboundWebhook.urlHiddenDescription"
-                defaultMessage="The webhook URL is only shown when the connector is created. Rotate to generate a new URL and save the connector to apply it."
-              />
-            </p>
-          </EuiText>
-        </EuiFormRow>
-        {rotateSuccess ? (
+        {showRotatedUrl && webhookUrl ? (
           <>
+            {renderWebhookUrlField(webhookUrl)}
             <EuiSpacer size="s" />
             <EuiCallOut
               size="s"
@@ -180,7 +198,23 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
               data-test-subj="inboundWebhookRotateSuccess"
             />
           </>
-        ) : null}
+        ) : (
+          <EuiFormRow
+            label={i18n.translate('stackConnectors.inboundWebhook.urlLabel', {
+              defaultMessage: 'Webhook URL',
+            })}
+            fullWidth
+          >
+            <EuiText size="s" color="subdued" data-test-subj="inboundWebhookUrlHidden">
+              <p>
+                <FormattedMessage
+                  id="stackConnectors.inboundWebhook.urlHiddenDescription"
+                  defaultMessage="The webhook URL is only shown when the connector is created. Rotate to generate a new URL and save the connector to apply it."
+                />
+              </p>
+            </EuiText>
+          </EuiFormRow>
+        )}
         {rotateError ? (
           <>
             <EuiSpacer size="s" />
@@ -193,45 +227,52 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
             />
           </>
         ) : null}
-        <EuiSpacer size="s" />
-        <EuiButton
-          size="s"
-          iconType="refresh"
-          onClick={() => setShowRotateConfirm(true)}
-          disabled={readOnly || isRotating}
-          isLoading={isRotating}
-          data-test-subj="rotateInboundWebhookUrl"
-        >
-          <FormattedMessage
-            id="stackConnectors.inboundWebhook.rotateUrlButtonLabel"
-            defaultMessage="Rotate webhook URL"
-          />
-        </EuiButton>
-        {showRotateConfirm ? (
-          <EuiConfirmModal
-            aria-labelledby={rotateConfirmTitleId}
-            titleProps={{ id: rotateConfirmTitleId }}
-            title={i18n.translate('stackConnectors.inboundWebhook.rotateUrlConfirmTitle', {
-              defaultMessage: 'Rotate webhook URL?',
-            })}
-            onCancel={() => setShowRotateConfirm(false)}
-            onConfirm={handleConfirmRotate}
-            cancelButtonText={i18n.translate('stackConnectors.inboundWebhook.rotateUrlCancel', {
-              defaultMessage: 'Cancel',
-            })}
-            confirmButtonText={i18n.translate('stackConnectors.inboundWebhook.rotateUrlConfirm', {
-              defaultMessage: 'Rotate URL',
-            })}
-            buttonColor="danger"
-            data-test-subj="rotateInboundWebhookUrlConfirm"
-          >
-            <p>
+        {!showRotatedUrl ? (
+          <>
+            <EuiSpacer size="s" />
+            <EuiButton
+              size="s"
+              iconType="refresh"
+              onClick={() => setShowRotateConfirm(true)}
+              disabled={readOnly || isRotating}
+              isLoading={isRotating}
+              data-test-subj="rotateInboundWebhookUrl"
+            >
               <FormattedMessage
-                id="stackConnectors.inboundWebhook.rotateUrlConfirmBody"
-                defaultMessage="This invalidates the current webhook URL. External systems using the old URL will stop working until you update them with the new URL after saving."
+                id="stackConnectors.inboundWebhook.rotateUrlButtonLabel"
+                defaultMessage="Rotate webhook URL"
               />
-            </p>
-          </EuiConfirmModal>
+            </EuiButton>
+            {showRotateConfirm ? (
+              <EuiConfirmModal
+                aria-labelledby={rotateConfirmTitleId}
+                titleProps={{ id: rotateConfirmTitleId }}
+                title={i18n.translate('stackConnectors.inboundWebhook.rotateUrlConfirmTitle', {
+                  defaultMessage: 'Rotate webhook URL?',
+                })}
+                onCancel={() => setShowRotateConfirm(false)}
+                onConfirm={handleConfirmRotate}
+                cancelButtonText={i18n.translate('stackConnectors.inboundWebhook.rotateUrlCancel', {
+                  defaultMessage: 'Cancel',
+                })}
+                confirmButtonText={i18n.translate(
+                  'stackConnectors.inboundWebhook.rotateUrlConfirm',
+                  {
+                    defaultMessage: 'Rotate URL',
+                  }
+                )}
+                buttonColor="danger"
+                data-test-subj="rotateInboundWebhookUrlConfirm"
+              >
+                <p>
+                  <FormattedMessage
+                    id="stackConnectors.inboundWebhook.rotateUrlConfirmBody"
+                    defaultMessage="This invalidates the current webhook URL. External systems using the old URL will stop working until you update them with the new URL after saving."
+                  />
+                </p>
+              </EuiConfirmModal>
+            ) : null}
+          </>
         ) : null}
       </>
     );
@@ -241,38 +282,7 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
     <>
       {hiddenFields}
       {webhookUrl ? (
-        <>
-          <EuiFormRow
-            label={i18n.translate('stackConnectors.inboundWebhook.urlLabel', {
-              defaultMessage: 'Webhook URL',
-            })}
-            fullWidth
-          >
-            <EuiFieldText
-              value={webhookUrl}
-              readOnly
-              fullWidth
-              data-test-subj="inboundWebhookUrl"
-            />
-          </EuiFormRow>
-          <EuiSpacer size="s" />
-          <EuiCopy textToCopy={webhookUrl}>
-            {(copy) => (
-              <EuiButton
-                size="s"
-                iconType="copy"
-                onClick={copy}
-                disabled={readOnly || isRotating}
-                data-test-subj="copyInboundWebhookUrl"
-              >
-                <FormattedMessage
-                  id="stackConnectors.inboundWebhook.copyUrlButtonLabel"
-                  defaultMessage="Copy webhook URL"
-                />
-              </EuiButton>
-            )}
-          </EuiCopy>
-        </>
+        renderWebhookUrlField(webhookUrl)
       ) : (
         <EuiCallOut
           size="s"
