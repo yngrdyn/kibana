@@ -23,7 +23,5 @@ export const mapRegisteredTriggersForSchema = (
     title: trigger.title,
     description: trigger.description,
     stability: trigger.stability,
-    requiresConnectorId:
-      trigger.requiresConnectorId ??
-      ('eventSchema' in trigger && trigger.eventSchema !== undefined),
+    requiresConnectorId: trigger.requiresConnectorId === true,
   }));
