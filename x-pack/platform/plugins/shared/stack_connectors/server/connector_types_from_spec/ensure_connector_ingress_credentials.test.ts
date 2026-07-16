@@ -5,58 +5,48 @@
  * 2.0.
  */
 
+import { INBOUND_WEBHOOK_CONNECTOR_TYPE_ID } from '@kbn/connector-specs';
 import { loggingSystemMock } from '@kbn/core/server/mocks';
 import { computeIngestTokenHash } from '@kbn/connector-specs/src/inbound_webhook/compute_ingest_token_hash';
 
 import {
-  buildInboundWebhookUrl,
-  ensureInboundWebhookIngressCredentials,
-  mintInboundWebhookIngressCredentials,
-} from './ensure_inbound_webhook_ingress_credentials';
+  ensureConnectorIngressCredentials,
+  mintConnectorIngressCredentials,
+} from './ensure_connector_ingress_credentials';
 
-describe('buildInboundWebhookUrl', () => {
-  it('omits space prefix for the default space', () => {
-    expect(
-      buildInboundWebhookUrl({
-        publicBaseUrl: 'https://kibana.example.com',
-        spaceId: 'default',
-        connectorId: 'conn-1',
-        token: 'abc',
-      })
-    ).toBe('https://kibana.example.com/api/events/v1/inboundWebhook/conn-1?token=abc');
-  });
-
-  it('includes space prefix for non-default spaces and strips trailing slash', () => {
-    expect(
-      buildInboundWebhookUrl({
-        publicBaseUrl: 'https://kibana.example.com/kb/',
-        spaceId: 'security',
-        connectorId: 'conn-1',
-        token: 'abc',
-      })
-    ).toBe(
-      'https://kibana.example.com/kb/s/security/api/events/v1/inboundWebhook/conn-1?token=abc'
-    );
-  });
-});
-
-describe('ensureInboundWebhookIngressCredentials', () => {
+describe('ensureConnectorIngressCredentials', () => {
   const logger = loggingSystemMock.createLogger();
+  const connectorTypeId = INBOUND_WEBHOOK_CONNECTOR_TYPE_ID;
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
+  it('builds space-aware URLs when minting credentials', () => {
+    const minted = mintConnectorIngressCredentials({
+      connectorTypeId,
+      connectorId: 'conn-1',
+      spaceId: 'team-a',
+      publicBaseUrl: 'https://kibana.example.com/kb/',
+    });
+
+    expect(minted.webhookUrl).toMatch(
+      /^https:\/\/kibana\.example\.com\/kb\/s\/team-a\/api\/events\/v1\/inboundWebhook\/conn-1\?token=[a-f0-9]{64}$/
+    );
+  });
+
   it('keeps verified credentials from rotate-URL on create', () => {
-    const minted = mintInboundWebhookIngressCredentials({
+    const minted = mintConnectorIngressCredentials({
+      connectorTypeId,
       connectorId: 'conn-1',
       spaceId: 'default',
       publicBaseUrl: 'https://kibana.example.com',
     });
     const config: Record<string, unknown> = { ...minted };
 
-    ensureInboundWebhookIngressCredentials({
+    ensureConnectorIngressCredentials({
       config,
+      connectorTypeId,
       connectorId: 'conn-1',
       spaceId: 'default',
       publicBaseUrl: 'https://kibana.example.com',
@@ -78,8 +68,9 @@ describe('ensureInboundWebhookIngressCredentials', () => {
       }),
     };
 
-    ensureInboundWebhookIngressCredentials({
+    ensureConnectorIngressCredentials({
       config,
+      connectorTypeId,
       connectorId: 'conn-1',
       spaceId: 'default',
       publicBaseUrl: 'https://kibana.example.com',
@@ -105,8 +96,9 @@ describe('ensureInboundWebhookIngressCredentials', () => {
       ingestTokenHash: 'a'.repeat(64),
     };
 
-    ensureInboundWebhookIngressCredentials({
+    ensureConnectorIngressCredentials({
       config,
+      connectorTypeId,
       connectorId: 'conn-1',
       spaceId: 'default',
       publicBaseUrl: 'https://kibana.example.com',
@@ -129,15 +121,17 @@ describe('ensureInboundWebhookIngressCredentials', () => {
   });
 
   it('remints on create when connector id no longer matches rotated URL', () => {
-    const minted = mintInboundWebhookIngressCredentials({
+    const minted = mintConnectorIngressCredentials({
+      connectorTypeId,
       connectorId: 'old-id',
       spaceId: 'default',
       publicBaseUrl: 'https://kibana.example.com',
     });
     const config: Record<string, unknown> = { ...minted };
 
-    ensureInboundWebhookIngressCredentials({
+    ensureConnectorIngressCredentials({
       config,
+      connectorTypeId,
       connectorId: 'new-id',
       spaceId: 'default',
       publicBaseUrl: 'https://kibana.example.com',
@@ -160,8 +154,9 @@ describe('ensureInboundWebhookIngressCredentials', () => {
     };
     const original = { ...config };
 
-    ensureInboundWebhookIngressCredentials({
+    ensureConnectorIngressCredentials({
       config,
+      connectorTypeId,
       connectorId: 'conn-1',
       spaceId: 'default',
       publicBaseUrl: 'https://kibana.example.com',
@@ -176,8 +171,9 @@ describe('ensureInboundWebhookIngressCredentials', () => {
   it('remints on update when credentials are missing', () => {
     const config: Record<string, unknown> = {};
 
-    ensureInboundWebhookIngressCredentials({
+    ensureConnectorIngressCredentials({
       config,
+      connectorTypeId,
       connectorId: 'conn-1',
       spaceId: 'team-a',
       publicBaseUrl: 'https://kibana.example.com',

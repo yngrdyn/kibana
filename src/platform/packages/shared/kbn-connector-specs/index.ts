@@ -12,6 +12,7 @@ export type * from './src/connector_spec_events';
 export { defineConnectorEvent } from './src/define_connector_event';
 export {
   buildConnectorEventId,
+  buildConnectorIngressEventsPath,
   connectorTypeToEventNamespace,
   normalizeConnectorTypeId,
 } from './src/connector_event_type_id';

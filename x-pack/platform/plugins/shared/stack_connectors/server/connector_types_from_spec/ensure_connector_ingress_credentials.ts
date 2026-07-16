@@ -7,55 +7,69 @@
 
 import { randomBytes } from 'node:crypto';
 
+import { buildConnectorIngressEventsPath } from '@kbn/connector-specs';
 import { computeIngestTokenHash } from '@kbn/connector-specs/src/inbound_webhook/compute_ingest_token_hash';
 import type { Logger } from '@kbn/logging';
 
-export interface InboundWebhookIngressCredentials {
+export interface ConnectorIngressCredentials {
   readonly ingestTokenHash: string;
   readonly webhookUrl: string;
 }
 
-export const buildInboundWebhookUrl = ({
+const buildConnectorIngressUrl = ({
   publicBaseUrl,
   spaceId,
+  connectorTypeId,
   connectorId,
   token,
 }: {
   publicBaseUrl: string;
   spaceId: string;
+  connectorTypeId: string;
   connectorId: string;
   token: string;
 }): string => {
   const base = publicBaseUrl.replace(/\/$/, '');
   const spacePrefix = spaceId !== 'default' ? `/s/${encodeURIComponent(spaceId)}` : '';
-  return `${base}${spacePrefix}/api/events/v1/inboundWebhook/${connectorId}?token=${token}`;
+  const ingressPath = buildConnectorIngressEventsPath({ connectorTypeId, connectorId });
+  return `${base}${spacePrefix}${ingressPath}?token=${token}`;
 };
 
-export const mintInboundWebhookIngressCredentials = ({
+export const mintConnectorIngressCredentials = ({
+  connectorTypeId,
   connectorId,
   spaceId,
   publicBaseUrl,
 }: {
+  connectorTypeId: string;
   connectorId: string;
   spaceId: string;
   publicBaseUrl: string;
-}): InboundWebhookIngressCredentials => {
+}): ConnectorIngressCredentials => {
   const token = randomBytes(32).toString('hex');
   return {
     ingestTokenHash: computeIngestTokenHash({ connectorId, spaceId, token }),
-    webhookUrl: buildInboundWebhookUrl({ publicBaseUrl, spaceId, connectorId, token }),
+    webhookUrl: buildConnectorIngressUrl({
+      publicBaseUrl,
+      spaceId,
+      connectorTypeId,
+      connectorId,
+      token,
+    }),
   };
 };
 
-/** Returns the token when URL + hash were minted for this connectorId/spaceId. */
+/** Returns the token when URL + hash were minted for this connector type/id/space. */
 const getVerifiedIngestToken = ({
   webhookUrl,
   ingestTokenHash,
+  connectorTypeId,
   connectorId,
   spaceId,
 }: {
   webhookUrl: unknown;
   ingestTokenHash: unknown;
+  connectorTypeId: string;
   connectorId: string;
   spaceId: string;
 }): string | undefined => {
@@ -65,7 +79,7 @@ const getVerifiedIngestToken = ({
 
   try {
     const url = new URL(webhookUrl);
-    const expectedPathEnd = `/api/events/v1/inboundWebhook/${connectorId}`;
+    const expectedPathEnd = buildConnectorIngressEventsPath({ connectorTypeId, connectorId });
     if (!url.pathname.endsWith(expectedPathEnd)) {
       return undefined;
     }
@@ -84,14 +98,15 @@ const getVerifiedIngestToken = ({
 
 const applyCredentials = (
   config: Record<string, unknown>,
-  credentials: InboundWebhookIngressCredentials
+  credentials: ConnectorIngressCredentials
 ): void => {
   config.ingestTokenHash = credentials.ingestTokenHash;
   config.webhookUrl = credentials.webhookUrl;
 };
 
-export const ensureInboundWebhookIngressCredentials = ({
+export const ensureConnectorIngressCredentials = ({
   config,
+  connectorTypeId,
   connectorId,
   spaceId,
   publicBaseUrl,
@@ -99,6 +114,7 @@ export const ensureInboundWebhookIngressCredentials = ({
   logger,
 }: {
   config: Record<string, unknown>;
+  connectorTypeId: string;
   connectorId: string;
   spaceId: string;
   publicBaseUrl: string;
@@ -109,13 +125,15 @@ export const ensureInboundWebhookIngressCredentials = ({
     const token = getVerifiedIngestToken({
       webhookUrl: config.webhookUrl,
       ingestTokenHash: config.ingestTokenHash,
+      connectorTypeId,
       connectorId,
       spaceId,
     });
     if (token) {
-      config.webhookUrl = buildInboundWebhookUrl({
+      config.webhookUrl = buildConnectorIngressUrl({
         publicBaseUrl,
         spaceId,
+        connectorTypeId,
         connectorId,
         token,
       });
@@ -123,7 +141,7 @@ export const ensureInboundWebhookIngressCredentials = ({
     }
     applyCredentials(
       config,
-      mintInboundWebhookIngressCredentials({ connectorId, spaceId, publicBaseUrl })
+      mintConnectorIngressCredentials({ connectorTypeId, connectorId, spaceId, publicBaseUrl })
     );
     return;
   }
@@ -138,10 +156,10 @@ export const ensureInboundWebhookIngressCredentials = ({
   }
 
   logger.warn(
-    `Inbound webhook credentials missing on update for connector ${connectorId}; minting new credentials`
+    `Connector ingress credentials missing on update for connector ${connectorId} (${connectorTypeId}); minting new credentials`
   );
   applyCredentials(
     config,
-    mintInboundWebhookIngressCredentials({ connectorId, spaceId, publicBaseUrl })
+    mintConnectorIngressCredentials({ connectorTypeId, connectorId, spaceId, publicBaseUrl })
   );
 };

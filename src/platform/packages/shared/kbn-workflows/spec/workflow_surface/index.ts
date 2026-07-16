@@ -15,7 +15,6 @@ export type {
   WorkflowSurfaceKind,
   WorkflowSurfaceSource,
 } from './types';
-export { connectorEventToWorkflowSurface } from './connector_event_to_workflow_surface';
 export {
   connectorEventToTriggerDefinition,
   type ConnectorEventTriggerDefinition,

@@ -8,14 +8,16 @@
 import type { HttpSetup } from '@kbn/core/public';
 import { INTERNAL_BASE_STACK_CONNECTORS_API_PATH } from '../../../common';
 
-export async function rotateInboundWebhookUrl({
+export async function rotateConnectorIngressUrl({
   http,
   connectorId,
+  connectorTypeId,
 }: {
   http: HttpSetup;
   connectorId: string;
+  connectorTypeId: string;
 }): Promise<{ webhookUrl: string; ingestTokenHash: string }> {
-  return http.post(`${INTERNAL_BASE_STACK_CONNECTORS_API_PATH}/inbound_webhook/_rotate_url`, {
-    body: JSON.stringify({ connectorId }),
+  return http.post(`${INTERNAL_BASE_STACK_CONNECTORS_API_PATH}/connector_ingress/_rotate_url`, {
+    body: JSON.stringify({ connectorId, connectorTypeId }),
   });
 }

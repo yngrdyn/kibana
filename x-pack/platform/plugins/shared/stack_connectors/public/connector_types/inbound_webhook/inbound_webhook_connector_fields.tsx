@@ -21,12 +21,16 @@ import {
   useFormContext,
   useFormData,
 } from '@kbn/es-ui-shared-plugin/static/forms/hook_form_lib';
+import {
+  buildConnectorIngressEventsPath,
+  INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+} from '@kbn/connector-specs';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
 import type { ActionConnectorFieldsProps } from '@kbn/triggers-actions-ui-plugin/public';
 import { useKibana } from '@kbn/triggers-actions-ui-plugin/public';
 
-import { rotateInboundWebhookUrl } from './api';
+import { rotateConnectorIngressUrl } from './api';
 
 const CONNECTOR_ID_SETTLE_MS = 400;
 const CONNECTOR_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -54,7 +58,14 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
       return;
     }
 
-    if (webhookUrl?.includes(`/inboundWebhook/${connectorId}?`)) {
+    if (
+      webhookUrl?.includes(
+        `${buildConnectorIngressEventsPath({
+          connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+          connectorId,
+        })}?`
+      )
+    ) {
       return;
     }
 
@@ -68,7 +79,11 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
       setIsRotating(true);
       setRotateError(undefined);
 
-      void rotateInboundWebhookUrl({ http, connectorId })
+      void rotateConnectorIngressUrl({
+        http,
+        connectorId,
+        connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+      })
         .then((credentials) => {
           if (requestId !== requestIdRef.current) {
             return;

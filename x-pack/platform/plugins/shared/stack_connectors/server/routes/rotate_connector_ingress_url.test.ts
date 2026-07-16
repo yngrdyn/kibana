@@ -6,12 +6,13 @@
  */
 
 import Boom from '@hapi/boom';
+import { INBOUND_WEBHOOK_CONNECTOR_TYPE_ID } from '@kbn/connector-specs';
 import { httpServerMock, httpServiceMock, loggingSystemMock } from '@kbn/core/server/mocks';
 import { computeIngestTokenHash } from '@kbn/connector-specs/src/inbound_webhook/compute_ingest_token_hash';
 
-import { rotateInboundWebhookUrlRoute } from './rotate_inbound_webhook_url';
+import { rotateConnectorIngressUrlRoute } from './rotate_connector_ingress_url';
 
-describe('rotateInboundWebhookUrlRoute', () => {
+describe('rotateConnectorIngressUrlRoute', () => {
   const logger = loggingSystemMock.createLogger();
 
   const setup = () => {
@@ -26,7 +27,7 @@ describe('rotateInboundWebhookUrlRoute', () => {
       },
     ]);
 
-    rotateInboundWebhookUrlRoute({
+    rotateConnectorIngressUrlRoute({
       router,
       getStartServices,
       getPublicBaseUrl: () => 'https://kibana.example.com',
@@ -40,14 +41,17 @@ describe('rotateInboundWebhookUrlRoute', () => {
 
   it('registers the internal rotate URL path', () => {
     const { config } = setup();
-    expect(config.path).toBe('/internal/stack_connectors/inbound_webhook/_rotate_url');
+    expect(config.path).toBe('/internal/stack_connectors/connector_ingress/_rotate_url');
   });
 
   it('returns minted credentials when authorized', async () => {
     const { handler, ensureAuthorized } = setup();
     const res = httpServerMock.createResponseFactory();
     const req = httpServerMock.createKibanaRequest({
-      body: { connectorId: 'my-connector' },
+      body: {
+        connectorId: 'my-connector',
+        connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+      },
     });
 
     await handler({}, req, res);
@@ -74,11 +78,44 @@ describe('rotateInboundWebhookUrlRoute', () => {
     );
   });
 
+  it('accepts connector type ids without a leading dot', async () => {
+    const { handler } = setup();
+    const res = httpServerMock.createResponseFactory();
+    const req = httpServerMock.createKibanaRequest({
+      body: {
+        connectorId: 'my-connector',
+        connectorTypeId: 'inboundWebhook',
+      },
+    });
+
+    await handler({}, req, res);
+
+    expect(res.ok).toHaveBeenCalled();
+  });
+
   it('returns 400 for invalid connector ids', async () => {
     const { handler } = setup();
     const res = httpServerMock.createResponseFactory();
     const req = httpServerMock.createKibanaRequest({
-      body: { connectorId: 'Not Valid' },
+      body: {
+        connectorId: 'Not Valid',
+        connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+      },
+    });
+
+    await handler({}, req, res);
+
+    expect(res.badRequest).toHaveBeenCalled();
+  });
+
+  it('returns 400 for connector types without ingress events', async () => {
+    const { handler } = setup();
+    const res = httpServerMock.createResponseFactory();
+    const req = httpServerMock.createKibanaRequest({
+      body: {
+        connectorId: 'my-connector',
+        connectorTypeId: '.slack',
+      },
     });
 
     await handler({}, req, res);
@@ -91,7 +128,10 @@ describe('rotateInboundWebhookUrlRoute', () => {
     ensureAuthorized.mockRejectedValue(Boom.forbidden('Unauthorized'));
     const res = httpServerMock.createResponseFactory();
     const req = httpServerMock.createKibanaRequest({
-      body: { connectorId: 'my-connector' },
+      body: {
+        connectorId: 'my-connector',
+        connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+      },
     });
 
     await handler({}, req, res);

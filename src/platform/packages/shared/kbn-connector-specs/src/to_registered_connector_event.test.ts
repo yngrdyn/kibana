@@ -7,11 +7,12 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { inboundWebhookReceivedEventSchema } from '@kbn/connector-specs';
+import { inboundWebhookReceivedEventSchema } from '..';
 import type { ConnectorMetadata } from './connector_spec';
 import { defineConnectorEvent } from './define_connector_event';
 import {
   buildConnectorEventId,
+  buildConnectorIngressEventsPath,
   connectorTypeToEventNamespace,
   normalizeConnectorTypeId,
 } from './connector_event_type_id';
@@ -34,6 +35,15 @@ describe('connector event type id helpers', () => {
   it('normalizeConnectorTypeId adds leading dot when missing', () => {
     expect(normalizeConnectorTypeId('inboundWebhook')).toBe('.inboundWebhook');
     expect(normalizeConnectorTypeId('.inboundWebhook')).toBe('.inboundWebhook');
+  });
+
+  it('buildConnectorIngressEventsPath builds the hub route segment', () => {
+    expect(
+      buildConnectorIngressEventsPath({
+        connectorTypeId: '.inboundWebhook',
+        connectorId: 'conn-1',
+      })
+    ).toBe('/api/events/v1/inboundWebhook/conn-1');
   });
 
   it('buildConnectorEventId follows convention', () => {
@@ -71,5 +81,4 @@ describe('toRegisteredConnectorEvent', () => {
       /eventId mismatch/
     );
   });
-
 });

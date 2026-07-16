@@ -29,7 +29,7 @@ import {
   getWellKnownEmailServiceRoute,
   getWebhookSecretHeadersKeyRoute,
   getHttpSecretQueryParamsKeyRoute,
-  rotateInboundWebhookUrlRoute,
+  rotateConnectorIngressUrlRoute,
 } from './routes';
 import type { ExperimentalFeatures } from '../common/experimental_features';
 import { parseExperimentalConfigValue } from '../common/experimental_features';
@@ -121,7 +121,7 @@ export class StackConnectorsPlugin
         },
         logger: this.logger,
       });
-      rotateInboundWebhookUrlRoute({
+      rotateConnectorIngressUrlRoute({
         router,
         getStartServices: core.getStartServices,
         getPublicBaseUrl,

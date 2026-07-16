@@ -8,10 +8,11 @@
 import type { PluginSetupContract as ActionsPluginSetupContract } from '@kbn/actions-plugin/server';
 import { createConnectorTypeFromSpec } from '@kbn/actions-plugin/server/lib';
 import { InboundWebhookConnector } from '@kbn/connector-specs/src/specs/inbound_webhook/inbound_webhook';
+import { INBOUND_WEBHOOK_CONNECTOR_TYPE_ID } from '@kbn/connector-specs';
 import type { KibanaRequest, Logger, SecurityServiceStart } from '@kbn/core/server';
 import { z } from '@kbn/zod/v4';
 
-import { ensureInboundWebhookIngressCredentials } from './ensure_inbound_webhook_ingress_credentials';
+import { ensureConnectorIngressCredentials } from './ensure_connector_ingress_credentials';
 import {
   DELEGATED_API_KEY_ID_CONFIG,
   DELEGATED_API_KEY_SECRET,
@@ -19,14 +20,6 @@ import {
   DELEGATED_UIAM_API_KEY_SECRET,
   InboundWebhookApiKeyService,
 } from './inbound_webhook_api_key_service';
-
-export interface RegisterInboundWebhookConnectorTypeParams {
-  actions: ActionsPluginSetupContract;
-  getSpaceId: (request: KibanaRequest) => string;
-  getPublicBaseUrl: () => string;
-  getSecurity: () => Promise<SecurityServiceStart>;
-  logger: Logger;
-}
 
 const inboundWebhookSecretsSchema = z.object({
   authType: z.literal('none').optional(),
@@ -40,7 +33,13 @@ export function registerInboundWebhookConnectorType({
   getPublicBaseUrl,
   getSecurity,
   logger,
-}: RegisterInboundWebhookConnectorTypeParams): void {
+}: {
+  actions: ActionsPluginSetupContract;
+  getSpaceId: (request: KibanaRequest) => string;
+  getPublicBaseUrl: () => string;
+  getSecurity: () => Promise<SecurityServiceStart>;
+  logger: Logger;
+}): void {
   const connectorType = createConnectorTypeFromSpec(InboundWebhookConnector, actions);
   const apiKeyServicePromise = getSecurity().then(
     (security) => new InboundWebhookApiKeyService(security, logger)
@@ -59,8 +58,9 @@ export function registerInboundWebhookConnectorType({
       const configRecord = config as Record<string, unknown>;
       const secretsRecord = secrets as Record<string, unknown>;
 
-      ensureInboundWebhookIngressCredentials({
+      ensureConnectorIngressCredentials({
         config: configRecord,
+        connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
         connectorId,
         spaceId,
         publicBaseUrl: getPublicBaseUrl(),

@@ -6,7 +6,6 @@
  */
 
 import {
-  getInboundWebhookAuthorizationHeader,
   INBOUND_WEBHOOK_DELEGATED_API_KEY_ID_CONFIG,
   INBOUND_WEBHOOK_DELEGATED_API_KEY_SECRET,
   INBOUND_WEBHOOK_DELEGATED_UIAM_API_KEY_ID_CONFIG,
@@ -21,7 +20,6 @@ export {
   INBOUND_WEBHOOK_DELEGATED_API_KEY_SECRET as DELEGATED_API_KEY_SECRET,
   INBOUND_WEBHOOK_DELEGATED_UIAM_API_KEY_ID_CONFIG as DELEGATED_UIAM_API_KEY_ID_CONFIG,
   INBOUND_WEBHOOK_DELEGATED_UIAM_API_KEY_SECRET as DELEGATED_UIAM_API_KEY_SECRET,
-  getInboundWebhookAuthorizationHeader as tryGetAuthorizationHeaderFromSecrets,
 };
 
 export interface InboundWebhookDelegatedCredentials {
@@ -33,11 +31,6 @@ export interface InboundWebhookDelegatedCredentials {
   };
 }
 
-/**
- * Mirrors `feature/inbound-webhook` InboundWebhookApiKeyService: grant/clone a
- * user-scoped API key at connector create so unauthenticated ingress can schedule
- * Task Manager runs with a clonable Authorization header.
- */
 export class InboundWebhookApiKeyService {
   constructor(private readonly security: SecurityServiceStart, private readonly logger: Logger) {}
 
@@ -94,14 +87,6 @@ export class InboundWebhookApiKeyService {
           : {}),
       },
     };
-  }
-
-  public getAuthorizationHeader(secrets: Record<string, unknown>): string {
-    const header = getInboundWebhookAuthorizationHeader(secrets);
-    if (!header) {
-      throw new Error('Inbound webhook is missing delegated execution credentials');
-    }
-    return header;
   }
 
   public async invalidate(params: {
