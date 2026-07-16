@@ -9,16 +9,15 @@
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
-import { I18nProvider } from '@kbn/i18n-react';
 import { createMockActionConnector } from '@kbn/alerts-ui-shared/src/common/test_utils/connector.mock';
 import type { ActionParamsProps } from '@kbn/triggers-actions-ui-plugin/public';
 import { ActionConnectorMode } from '@kbn/triggers-actions-ui-plugin/public';
-import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
 import {
   INBOUND_WEBHOOK_EVENTS_POLL_INTERVAL_MS,
   InboundWebhookParamsFields,
 } from './inbound_webhook_params_fields';
 import { loadInboundWebhookExecutionLogs } from './load_inbound_webhook_execution_logs';
+import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
 import { TestProvider } from '../../shared/mocks/test_providers';
 
 jest.mock('./load_inbound_webhook_execution_logs', () => ({
@@ -49,6 +48,7 @@ const renderReceivedEvents = () => {
 describe('InboundWebhookParamsFields', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    loadExecutionLogsMock.mockResolvedValue({ total: 0, data: [] });
   });
 
   describe('connector test mode', () => {
@@ -66,13 +66,19 @@ describe('InboundWebhookParamsFields', () => {
       const credentialRevision = '11111111-1111-4111-8111-111111111111';
 
       render(
-        <I18nProvider>
+        <TestProvider>
           <InboundWebhookParamsFields
             actionParams={{}}
             actionConnector={{
               id: 'connector-1',
               actionTypeId: '.workflows-inbound-webhook',
+              name: 'Inbound webhook',
               config: { credentialRevision },
+              secrets: {},
+              isPreconfigured: false,
+              isDeprecated: false,
+              isSystemAction: false,
+              isConnectorTypeDeprecated: false,
             }}
             editAction={editAction}
             index={0}
@@ -80,15 +86,11 @@ describe('InboundWebhookParamsFields', () => {
             errors={{}}
             messageVariables={[]}
           />
-        </I18nProvider>
+        </TestProvider>
       );
 
       await waitFor(() => {
-        expect(editAction).toHaveBeenCalledWith(
-          'subAction',
-          INBOUND_WEBHOOK_RECEIVE_SUB_ACTION,
-          0
-        );
+        expect(editAction).toHaveBeenCalledWith('subAction', INBOUND_WEBHOOK_RECEIVE_SUB_ACTION, 0);
       });
 
       expect(editAction).toHaveBeenCalledWith(
@@ -100,6 +102,7 @@ describe('InboundWebhookParamsFields', () => {
         }),
         0
       );
+      expect(await screen.findByText('Received events')).toBeInTheDocument();
     });
   });
 
@@ -133,7 +136,10 @@ describe('InboundWebhookParamsFields', () => {
       expect(screen.getByText('42 ms')).toBeInTheDocument();
       expect(screen.getByText('execution-1')).toBeInTheDocument();
       expect(loadExecutionLogsMock).toHaveBeenCalledWith(
-        expect.objectContaining({ connectorId: 'connector-1' })
+        expect.objectContaining({
+          connectorId: 'connector-1',
+          connectorTypeId: '.workflows-inbound-webhook',
+        })
       );
     });
 

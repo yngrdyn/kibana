@@ -15,16 +15,16 @@ import type {
 } from '@kbn/triggers-actions-ui-plugin/public';
 import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
 
-interface InboundWebhookConfig {
+export interface InboundWebhookConfig {
   webhookKeyHash: string;
   credentialRevision: string;
 }
 
-interface InboundWebhookSecrets {
+export interface InboundWebhookSecrets {
   webhookUrl?: string;
 }
 
-interface InboundWebhookParams {
+export interface InboundWebhookParams {
   subAction: 'receive';
   subActionParams: Record<string, unknown>;
 }
@@ -57,9 +57,7 @@ export const getInboundWebhookConnectorType = (): ActionTypeModel<
   actionTypeTitle: i18n.translate('workflowsManagement.inboundWebhook.connectorTitle', {
     defaultMessage: 'Inbound Webhook',
   }),
-  validateParams: async (
-    actionParams
-  ): Promise<GenericValidationResult<unknown>> => {
+  validateParams: async (actionParams): Promise<GenericValidationResult<unknown>> => {
     if (
       actionParams.subAction === INBOUND_WEBHOOK_RECEIVE_SUB_ACTION &&
       isConnectorTestParams(actionParams.subActionParams)

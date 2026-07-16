@@ -25,39 +25,35 @@ import {
 } from '@elastic/eui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { IExecutionLog } from '@kbn/actions-plugin/common';
+import type { RuleActionParam } from '@kbn/alerting-types';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
 import type { ActionParamsProps } from '@kbn/triggers-actions-ui-plugin/public';
-import {
-  ActionConnectorMode,
-  useKibana,
-} from '@kbn/triggers-actions-ui-plugin/public';
-import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
+import { ActionConnectorMode, useKibana } from '@kbn/triggers-actions-ui-plugin/public';
+import type { InboundWebhookParams } from './inbound_webhook';
 import { InboundWebhookRelativeTime } from './inbound_webhook_relative_time';
 import { loadInboundWebhookExecutionLogs } from './load_inbound_webhook_execution_logs';
+import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
 
 export const INBOUND_WEBHOOK_EVENTS_POLL_INTERVAL_MS = 2_000;
 
-interface InboundWebhookTestParams {
-  subAction: typeof INBOUND_WEBHOOK_RECEIVE_SUB_ACTION;
-  subActionParams: {
-    eventId: string;
-    credentialRevision: string;
-    body: Record<string, unknown>;
-    query: Record<string, string | string[]>;
-    headers: Record<string, string>;
-    receivedAt: string;
-  };
+interface InboundWebhookTestSubActionParams extends Record<string, RuleActionParam> {
+  eventId: string;
+  credentialRevision: string;
+  body: Record<string, RuleActionParam>;
+  query: Record<string, string | string[]>;
+  headers: Record<string, string>;
+  receivedAt: string;
 }
 
-const DEFAULT_TEST_BODY: Record<string, unknown> = {
+const DEFAULT_TEST_BODY: Record<string, RuleActionParam> = {
   message: 'Test webhook event from Kibana',
 };
 
 export const createInboundWebhookTestSubActionParams = (
   credentialRevision: string,
-  body: Record<string, unknown> = DEFAULT_TEST_BODY
-): InboundWebhookTestParams['subActionParams'] => ({
+  body: Record<string, RuleActionParam> = DEFAULT_TEST_BODY
+): InboundWebhookTestSubActionParams => ({
   eventId: window.crypto.randomUUID(),
   credentialRevision,
   body,
@@ -84,10 +80,15 @@ const InboundWebhookTestParamsFields = ({
   actionConnector,
   editAction,
   index,
-}: ActionParamsProps<InboundWebhookTestParams>) => {
+}: ActionParamsProps<InboundWebhookParams>) => {
+  const subActionParams = actionParams.subActionParams as
+    | Partial<InboundWebhookTestSubActionParams>
+    | undefined;
+  const connectorConfig =
+    actionConnector && 'config' in actionConnector ? actionConnector.config : undefined;
   const credentialRevision =
-    typeof actionConnector?.config?.credentialRevision === 'string'
-      ? actionConnector.config.credentialRevision
+    typeof connectorConfig?.credentialRevision === 'string'
+      ? connectorConfig.credentialRevision
       : undefined;
 
   const initializeTestParams = useCallback(() => {
@@ -104,17 +105,14 @@ const InboundWebhookTestParamsFields = ({
   }, [credentialRevision, editAction, index]);
 
   useEffect(() => {
-    if (
-      actionParams.subAction !== INBOUND_WEBHOOK_RECEIVE_SUB_ACTION ||
-      !actionParams.subActionParams
-    ) {
+    if (actionParams.subAction !== INBOUND_WEBHOOK_RECEIVE_SUB_ACTION || !subActionParams) {
       initializeTestParams();
     }
-  }, [actionParams.subAction, actionParams.subActionParams, initializeTestParams]);
+  }, [actionParams.subAction, initializeTestParams, subActionParams]);
 
   const bodyJson = useMemo(
-    () => JSON.stringify(actionParams.subActionParams?.body ?? DEFAULT_TEST_BODY, null, 2),
-    [actionParams.subActionParams?.body]
+    () => JSON.stringify(subActionParams?.body ?? DEFAULT_TEST_BODY, null, 2),
+    [subActionParams?.body]
   );
 
   if (!credentialRevision) {
@@ -162,15 +160,15 @@ const InboundWebhookTestParamsFields = ({
           data-test-subj="inboundWebhookTestBody"
           onChange={(event) => {
             try {
-              const body = JSON.parse(event.target.value) as Record<string, unknown>;
-              if (!actionParams.subActionParams) {
+              const body = JSON.parse(event.target.value) as Record<string, RuleActionParam>;
+              if (!subActionParams) {
                 initializeTestParams();
                 return;
               }
               editAction(
                 'subActionParams',
                 {
-                  ...actionParams.subActionParams,
+                  ...subActionParams,
                   body,
                   receivedAt: new Date().toISOString(),
                 },
@@ -188,16 +186,17 @@ const InboundWebhookTestParamsFields = ({
 
 const InboundWebhookReceivedEventsFields = ({
   actionConnector,
-}: ActionParamsProps<Record<string, unknown>>) => {
+}: ActionParamsProps<InboundWebhookParams>) => {
   const { http } = useKibana().services;
   const connectorId = actionConnector?.id;
+  const connectorTypeId = actionConnector?.actionTypeId;
   const [logs, setLogs] = useState<IExecutionLog[]>();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error>();
   const requestController = useRef<AbortController>();
 
   const loadEvents = useCallback(async () => {
-    if (!connectorId) {
+    if (!connectorId || !connectorTypeId) {
       return;
     }
 
@@ -210,6 +209,7 @@ const InboundWebhookReceivedEventsFields = ({
       const result = await loadInboundWebhookExecutionLogs({
         http,
         connectorId,
+        connectorTypeId,
         signal: controller.signal,
       });
       setLogs(result.data);
@@ -223,7 +223,7 @@ const InboundWebhookReceivedEventsFields = ({
         setIsLoading(false);
       }
     }
-  }, [connectorId, http]);
+  }, [connectorId, connectorTypeId, http]);
 
   useEffect(() => {
     void loadEvents();
@@ -370,11 +370,15 @@ const InboundWebhookReceivedEventsFields = ({
   );
 };
 
-export const InboundWebhookParamsFields = (
-  props: ActionParamsProps<InboundWebhookTestParams>
-) => {
+export const InboundWebhookParamsFields = (props: ActionParamsProps<InboundWebhookParams>) => {
   if (props.executionMode === ActionConnectorMode.Test) {
-    return <InboundWebhookTestParamsFields {...props} />;
+    return (
+      <>
+        <InboundWebhookTestParamsFields {...props} />
+        <EuiSpacer size="l" />
+        <InboundWebhookReceivedEventsFields {...props} />
+      </>
+    );
   }
 
   return <InboundWebhookReceivedEventsFields {...props} />;
