@@ -76,3 +76,70 @@ describe('ChangeHistoryClient.initialize', () => {
     );
   });
 });
+
+describe('ChangeHistoryClient.logBulk', () => {
+  const logger = loggingSystemMock.createLogger();
+  const defaultConstructorOpts = {
+    module: 'workflows',
+    dataset: 'definitions',
+    logger,
+    kibanaVersion: '9.4.0',
+  };
+
+  beforeEach(() => {
+    FLAGS.FEATURE_ENABLED = true;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns without throwing when FEATURE_ENABLED is false', async () => {
+    FLAGS.FEATURE_ENABLED = false;
+    const client = new ChangeHistoryClient(defaultConstructorOpts);
+
+    await expect(
+      client.logBulk(
+        [
+          {
+            objectId: 'wf-1',
+            objectType: 'workflow',
+            timestamp: new Date().toISOString(),
+            snapshot: { yaml: 'name: test' },
+          },
+        ],
+        {
+          action: 'workflow_update',
+          username: 'elastic',
+          spaceId: 'default',
+        }
+      )
+    ).resolves.toBeUndefined();
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('throws when the feature is enabled but the client is not initialized', async () => {
+    const client = new ChangeHistoryClient(defaultConstructorOpts);
+
+    await expect(
+      client.logBulk(
+        [
+          {
+            objectId: 'wf-1',
+            objectType: 'workflow',
+            timestamp: new Date().toISOString(),
+            snapshot: { yaml: 'name: test' },
+          },
+        ],
+        {
+          action: 'workflow_update',
+          username: 'elastic',
+          spaceId: 'default',
+        }
+      )
+    ).rejects.toThrow(
+      'Change history data stream not initialized for: module [workflows] and dataset [definitions]'
+    );
+  });
+});

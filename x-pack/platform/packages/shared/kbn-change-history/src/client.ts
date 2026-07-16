@@ -160,10 +160,16 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
    * @param opts.fieldsToHash - Optional fields whose string values are replaced with a salted SHA-256 digest (high-entropy secrets only).
    * @param opts.fieldsToRedact - Optional fields whose string values are replaced with a `[redacted]` placeholder (low-entropy sensitive data).
    * @param opts.refresh - Optional indicator to force an ES refresh after changes (affects performance)
-   * @returns A promise that resolves when the bulk change is logged.
-   * @throws An error if the data stream is not initialized, or if an error occurs while logging the change.
+   * @returns A promise that resolves when the bulk change is logged, or immediately when change history is disabled.
+   * @throws An error if the data stream is not initialized while the feature is enabled, or if an error occurs while logging the change.
    */
   async logBulk(changes: ObjectChange[], opts: LogChangeHistoryOptions) {
+    // Callers (e.g. alerting) may invoke logBulk without checking isInitialized().
+    // When the feature is off, skip quietly so mutation paths do not error.
+    if (!FLAGS.FEATURE_ENABLED) {
+      return;
+    }
+
     const { module, dataset, client, kibanaVersion } = this;
 
     if (!client) {
