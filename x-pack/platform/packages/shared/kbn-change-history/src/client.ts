@@ -102,9 +102,8 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
    */
   async initialize(elasticsearchClient: ElasticsearchClient) {
     if (!FLAGS.FEATURE_ENABLED) {
-      const error = new Error(`Change history is disabled. Skipping initialization.`);
-      this.logger.error(error);
-      throw error;
+      this.logger.info('Change history is disabled. Skipping initialization.');
+      return;
     }
     const definition: DataStreamDefinition<typeof changeHistoryMappings.v1, ChangeHistoryDocument> =
       {

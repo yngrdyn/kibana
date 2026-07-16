@@ -61,4 +61,18 @@ describe('ChangeHistoryClient.initialize', () => {
     ).toBeUndefined();
     expect(client.isInitialized()).toBe(true);
   });
+
+  it('skips initialization when FEATURE_ENABLED is false', async () => {
+    FLAGS.FEATURE_ENABLED = false;
+    const esClient = elasticsearchServiceMock.createElasticsearchClient();
+    const client = new ChangeHistoryClient(defaultConstructorOpts);
+
+    await client.initialize(esClient);
+
+    expect(DataStreamClientMock.initialize).not.toHaveBeenCalled();
+    expect(client.isInitialized()).toBe(false);
+    expect(logger.info).toHaveBeenCalledWith(
+      'Change history is disabled. Skipping initialization.'
+    );
+  });
 });

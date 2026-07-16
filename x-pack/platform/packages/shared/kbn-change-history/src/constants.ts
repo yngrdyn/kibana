@@ -25,8 +25,12 @@ export const DEFAULT_RESULT_SIZE = 100;
 
 /**
  * Acts like a feature flag for this package as it prevents initialization.
- * Remove this after General Availability
- * */
+ *
+ * Temporarily disabled for incident-3371: `.kibana_change_history` was not
+ * registered as a SystemDataStream, so backing indices are readable across
+ * spaces. Re-enable after the Elasticsearch SystemDataStream fix ships.
+ * @see https://github.com/elastic/security-team/issues/18291
+ */
 export const FLAGS = {
-  FEATURE_ENABLED: true,
+  FEATURE_ENABLED: false,
 };

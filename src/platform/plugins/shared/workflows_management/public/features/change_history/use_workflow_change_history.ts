@@ -18,10 +18,14 @@ import { selectWorkflow } from '../../entities/workflows/store/workflow_detail/s
 import { loadWorkflowThunk } from '../../entities/workflows/store/workflow_detail/thunks/load_workflow_thunk';
 import { useKibana } from '../../hooks/use_kibana';
 
+/**
+ * Temporarily forced off for incident-3371 while `.kibana_change_history` is
+ * not a SystemDataStream. Hides the history/version button and modal.
+ * Re-enable with capability check after the ES fix ships.
+ * @see https://github.com/elastic/security-team/issues/18291
+ */
 export const useWorkflowChangeHistoryEnabled = (): boolean => {
-  const { canReadWorkflow } = useWorkflowsCapabilities();
-
-  return canReadWorkflow;
+  return false;
 };
 
 export interface UseWorkflowChangeHistoryAdapterResult {
