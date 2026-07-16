@@ -143,3 +143,41 @@ describe('ChangeHistoryClient.logBulk', () => {
     );
   });
 });
+
+describe('ChangeHistoryClient.getHistory', () => {
+  const logger = loggingSystemMock.createLogger();
+  const defaultConstructorOpts = {
+    module: 'security',
+    dataset: 'alerting-rules',
+    logger,
+    kibanaVersion: '9.4.0',
+  };
+
+  beforeEach(() => {
+    FLAGS.FEATURE_ENABLED = true;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns an empty result when FEATURE_ENABLED is false', async () => {
+    FLAGS.FEATURE_ENABLED = false;
+    const client = new ChangeHistoryClient(defaultConstructorOpts);
+
+    await expect(client.getHistory('default', 'alert', 'rule-1')).resolves.toEqual({
+      total: 0,
+      items: [],
+    });
+
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('throws when the feature is enabled but the client is not initialized', async () => {
+    const client = new ChangeHistoryClient(defaultConstructorOpts);
+
+    await expect(client.getHistory('default', 'alert', 'rule-1')).rejects.toThrow(
+      'Change history data stream not initialized for: module [security] and dataset [alerting-rules]'
+    );
+  });
+});

@@ -254,8 +254,8 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
    * @param opts.sort - The sort order for the history query.
    * @param opts.from - The starting index for the history query.
    * @param opts.size - The number of results to return.
-   * @returns The history of the object.
-   * @throws An error if the data stream is not initialized, or if an error occurs while getting the history.
+   * @returns The history of the object, or an empty result when change history is disabled.
+   * @throws An error if the data stream is not initialized while the feature is enabled, or if an error occurs while getting the history.
    */
   async getHistory(
     spaceId: string,
@@ -263,6 +263,12 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
     objectId: string,
     opts?: GetChangeHistoryOptions
   ): Promise<GetHistoryResult> {
+    // Callers (e.g. alerting) may invoke getHistory without checking isInitialized().
+    // When the feature is off, return empty so read paths do not error.
+    if (!FLAGS.FEATURE_ENABLED) {
+      return { total: 0, items: [] };
+    }
+
     const client = this.client;
     if (!client) {
       const err = new Error(

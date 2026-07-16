@@ -47,7 +47,10 @@ export default ({ getService }: FtrProviderContext): void => {
     }
   };
 
-  describe('@ess @skipInServerless rule restore from changes history', () => {
+  // Temporarily skipped: @kbn/change-history FEATURE_ENABLED is false for incident-3371
+  // (`.kibana_change_history` not registered as a SystemDataStream). Re-enable after the ES fix.
+  // @see https://github.com/elastic/security-team/issues/18291
+  describe.skip('@ess @skipInServerless rule restore from changes history', () => {
     beforeEach(async () => {
       await deleteAllRules(supertest, log);
       await deleteAllPrebuiltRuleAssets(es, log);

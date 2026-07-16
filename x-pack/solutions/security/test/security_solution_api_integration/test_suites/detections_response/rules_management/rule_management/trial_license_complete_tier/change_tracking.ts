@@ -51,10 +51,13 @@ export default ({ getService }: FtrProviderContext): void => {
     }
   };
 
-  // Skip in Serverless until "xpack.alerting.ruleChangeTracking.enabled" and
+  // Temporarily skipped: @kbn/change-history FEATURE_ENABLED is false for incident-3371
+  // (`.kibana_change_history` not registered as a SystemDataStream). Re-enable after the ES fix.
+  // @see https://github.com/elastic/security-team/issues/18291
+  // Also skip in Serverless until "xpack.alerting.ruleChangeTracking.enabled" and
   // xpack.securitySolution.enableExperimental: [ruleChangesHistoryEnabled] feature flags
   // permanently enabled
-  describe('@ess @skipInServerless rule change history', () => {
+  describe.skip('@ess @skipInServerless rule change history', () => {
     beforeEach(async () => {
       await deleteAllRules(supertest, log);
       await deleteAllPrebuiltRuleAssets(es, log);
