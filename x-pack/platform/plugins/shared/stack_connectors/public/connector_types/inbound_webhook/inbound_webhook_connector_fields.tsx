@@ -8,13 +8,16 @@
 import {
   EuiButton,
   EuiCallOut,
+  EuiConfirmModal,
   EuiCopy,
   EuiFieldText,
   EuiFormRow,
   EuiLoadingSpinner,
   EuiSpacer,
+  EuiText,
+  useGeneratedHtmlId,
 } from '@elastic/eui';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { HiddenField } from '@kbn/es-ui-shared-plugin/static/forms/components';
 import {
   UseField,
@@ -42,11 +45,56 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
   const webhookUrl = typeof config?.webhookUrl === 'string' ? config.webhookUrl : undefined;
   const [isRotating, setIsRotating] = useState(false);
   const [rotateError, setRotateError] = useState<string | undefined>();
+  const [rotateSuccess, setRotateSuccess] = useState(false);
+  const [showRotateConfirm, setShowRotateConfirm] = useState(false);
   const requestIdRef = useRef(0);
+  const rotateConfirmTitleId = useGeneratedHtmlId();
 
   useEffect(() => {
     setFieldValue('secrets.authType', 'none');
   }, [setFieldValue]);
+
+  const mintIngressUrl = useCallback(
+    (connectorId: string) => {
+      const requestId = ++requestIdRef.current;
+      setIsRotating(true);
+      setRotateError(undefined);
+      setRotateSuccess(false);
+
+      return rotateConnectorIngressUrl({
+        http,
+        connectorId,
+        connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+      })
+        .then((credentials) => {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+          setFieldValue('config.webhookUrl', credentials.webhookUrl);
+          setFieldValue('config.ingestTokenHash', credentials.ingestTokenHash);
+          if (isEdit) {
+            setRotateSuccess(true);
+          }
+        })
+        .catch(() => {
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+          setRotateError(
+            i18n.translate('stackConnectors.inboundWebhook.rotateUrlError', {
+              defaultMessage:
+                'Unable to generate the webhook URL. Check the connector ID and try again.',
+            })
+          );
+        })
+        .finally(() => {
+          if (requestId === requestIdRef.current) {
+            setIsRotating(false);
+          }
+        });
+    },
+    [http, isEdit, setFieldValue]
+  );
 
   useEffect(() => {
     if (isEdit || readOnly) {
@@ -75,50 +123,123 @@ export const InboundWebhookConnectorFields = ({ isEdit, readOnly }: ActionConnec
     }
 
     const timer = window.setTimeout(() => {
-      const requestId = ++requestIdRef.current;
-      setIsRotating(true);
-      setRotateError(undefined);
-
-      void rotateConnectorIngressUrl({
-        http,
-        connectorId,
-        connectorTypeId: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
-      })
-        .then((credentials) => {
-          if (requestId !== requestIdRef.current) {
-            return;
-          }
-          setFieldValue('config.webhookUrl', credentials.webhookUrl);
-          setFieldValue('config.ingestTokenHash', credentials.ingestTokenHash);
-        })
-        .catch(() => {
-          if (requestId !== requestIdRef.current) {
-            return;
-          }
-          setRotateError(
-            i18n.translate('stackConnectors.inboundWebhook.rotateUrlError', {
-              defaultMessage:
-                'Unable to generate the webhook URL. Check the connector ID and try again.',
-            })
-          );
-        })
-        .finally(() => {
-          if (requestId === requestIdRef.current) {
-            setIsRotating(false);
-          }
-        });
+      void mintIngressUrl(connectorId);
     }, CONNECTOR_ID_SETTLE_MS);
 
     return () => {
       window.clearTimeout(timer);
     };
-  }, [http, id, isEdit, readOnly, setFieldValue, webhookUrl]);
+  }, [id, isEdit, mintIngressUrl, readOnly, setFieldValue, webhookUrl]);
 
-  return (
+  const handleConfirmRotate = useCallback(() => {
+    setShowRotateConfirm(false);
+    const connectorId = typeof id === 'string' ? id.trim() : '';
+    if (!connectorId) {
+      return;
+    }
+    void mintIngressUrl(connectorId);
+  }, [id, mintIngressUrl]);
+
+  const hiddenFields = (
     <>
       <UseField path="config.ingestTokenHash" component={HiddenField} />
       <UseField path="config.webhookUrl" component={HiddenField} />
       <UseField path="secrets.authType" component={HiddenField} />
+    </>
+  );
+
+  if (isEdit) {
+    return (
+      <>
+        {hiddenFields}
+        <EuiFormRow
+          label={i18n.translate('stackConnectors.inboundWebhook.urlLabel', {
+            defaultMessage: 'Webhook URL',
+          })}
+          fullWidth
+        >
+          <EuiText size="s" color="subdued" data-test-subj="inboundWebhookUrlHidden">
+            <p>
+              <FormattedMessage
+                id="stackConnectors.inboundWebhook.urlHiddenDescription"
+                defaultMessage="The webhook URL is only shown when the connector is created. Rotate to generate a new URL and save the connector to apply it."
+              />
+            </p>
+          </EuiText>
+        </EuiFormRow>
+        {rotateSuccess ? (
+          <>
+            <EuiSpacer size="s" />
+            <EuiCallOut
+              size="s"
+              announceOnMount
+              color="success"
+              title={i18n.translate('stackConnectors.inboundWebhook.rotateUrlSuccess', {
+                defaultMessage: 'Webhook URL rotated. Save the connector to apply the new URL.',
+              })}
+              data-test-subj="inboundWebhookRotateSuccess"
+            />
+          </>
+        ) : null}
+        {rotateError ? (
+          <>
+            <EuiSpacer size="s" />
+            <EuiCallOut
+              size="s"
+              announceOnMount
+              color="danger"
+              title={rotateError}
+              data-test-subj="inboundWebhookRotateError"
+            />
+          </>
+        ) : null}
+        <EuiSpacer size="s" />
+        <EuiButton
+          size="s"
+          iconType="refresh"
+          onClick={() => setShowRotateConfirm(true)}
+          disabled={readOnly || isRotating}
+          isLoading={isRotating}
+          data-test-subj="rotateInboundWebhookUrl"
+        >
+          <FormattedMessage
+            id="stackConnectors.inboundWebhook.rotateUrlButtonLabel"
+            defaultMessage="Rotate webhook URL"
+          />
+        </EuiButton>
+        {showRotateConfirm ? (
+          <EuiConfirmModal
+            aria-labelledby={rotateConfirmTitleId}
+            titleProps={{ id: rotateConfirmTitleId }}
+            title={i18n.translate('stackConnectors.inboundWebhook.rotateUrlConfirmTitle', {
+              defaultMessage: 'Rotate webhook URL?',
+            })}
+            onCancel={() => setShowRotateConfirm(false)}
+            onConfirm={handleConfirmRotate}
+            cancelButtonText={i18n.translate('stackConnectors.inboundWebhook.rotateUrlCancel', {
+              defaultMessage: 'Cancel',
+            })}
+            confirmButtonText={i18n.translate('stackConnectors.inboundWebhook.rotateUrlConfirm', {
+              defaultMessage: 'Rotate URL',
+            })}
+            buttonColor="danger"
+            data-test-subj="rotateInboundWebhookUrlConfirm"
+          >
+            <p>
+              <FormattedMessage
+                id="stackConnectors.inboundWebhook.rotateUrlConfirmBody"
+                defaultMessage="This invalidates the current webhook URL. External systems using the old URL will stop working until you update them with the new URL after saving."
+              />
+            </p>
+          </EuiConfirmModal>
+        ) : null}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {hiddenFields}
       {webhookUrl ? (
         <>
           <EuiFormRow
