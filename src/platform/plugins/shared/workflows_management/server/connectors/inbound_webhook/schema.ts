@@ -10,7 +10,7 @@
 import { z } from '@kbn/zod/v4';
 
 export const InboundWebhookConfigSchema = z.object({
-  webhookUrl: z.string().url(),
+  webhookKey: z.string().regex(/^[a-f0-9]{32}$/),
   webhookKeyHash: z.string().regex(/^[a-f0-9]{64}$/),
   credentialRevision: z.string().uuid(),
 });

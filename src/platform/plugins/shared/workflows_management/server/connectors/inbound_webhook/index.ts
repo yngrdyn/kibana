@@ -59,15 +59,6 @@ export interface InboundWebhookConnectorDependencies
 
 const hashWebhookKey = (key: string): string => createHash('sha256').update(key).digest('hex');
 
-const getWebhookKey = (webhookUrl: string): string => {
-  const url = new URL(webhookUrl);
-  const key = url.pathname.split('/').filter(Boolean).at(-1);
-  if (!key) {
-    throw new Error('Webhook URL must contain a key');
-  }
-  return key;
-};
-
 const getPendingId = (connectorId: string, credentialRevision: string): string =>
   `pending:${connectorId}:${credentialRevision}`;
 
@@ -94,7 +85,7 @@ export const getInboundWebhookConnectorType = (
     if (!dependencies.canEncrypt()) {
       throw new Error('Encrypted saved objects encryption key is not configured');
     }
-    const calculatedHash = hashWebhookKey(getWebhookKey(config.webhookUrl));
+    const calculatedHash = hashWebhookKey(config.webhookKey);
     if (calculatedHash !== config.webhookKeyHash) {
       throw new Error('Webhook URL does not match webhook key hash');
     }

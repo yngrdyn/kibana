@@ -7,9 +7,20 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import { EuiButton, EuiCallOut, EuiCopy, EuiSpacer } from '@elastic/eui';
-import React, { useEffect, useState } from 'react';
-import { HiddenField, TextField } from '@kbn/es-ui-shared-plugin/static/forms/components';
+import {
+  EuiButtonIcon,
+  EuiCallOut,
+  EuiCopy,
+  EuiFieldText,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiFormAppend,
+  EuiFormRow,
+  EuiSpacer,
+  EuiToolTip,
+} from '@elastic/eui';
+import React, { useCallback, useEffect, useState } from 'react';
+import { HiddenField } from '@kbn/es-ui-shared-plugin/static/forms/components';
 import {
   UseField,
   useFormContext,
@@ -19,7 +30,6 @@ import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
 import type { ActionConnectorFieldsProps } from '@kbn/triggers-actions-ui-plugin/public';
 import { useKibana } from '@kbn/triggers-actions-ui-plugin/public';
-import { watchAndShowInboundWebhookUrl } from './inbound_webhook_url_modal';
 
 const sha256 = async (value: string): Promise<string> => {
   const bytes = new TextEncoder().encode(value);
@@ -34,35 +44,46 @@ export const InboundWebhookConnectorFields = ({
   readOnly,
   registerPreSubmitValidator,
 }: ActionConnectorFieldsProps) => {
-  const core = useKibana().services;
-  const { http } = core;
+  const { http } = useKibana().services;
   const { setFieldValue } = useFormContext();
   const [{ id, config }] = useFormData({
-    watch: ['id', 'config.webhookUrl', 'config.webhookKeyHash', 'config.credentialRevision'],
+    watch: ['id', 'config.webhookKey', 'config.webhookKeyHash'],
   });
   const connectorId = id as string | undefined;
-  const webhookUrl = config?.webhookUrl as string | undefined;
+  const webhookKey = config?.webhookKey as string | undefined;
   const webhookKeyHash = config?.webhookKeyHash as string | undefined;
-  const credentialRevision = config?.credentialRevision as string | undefined;
+  const webhookUrl = webhookKey
+    ? `${window.location.origin}${http.basePath.prepend(`/api/event/${webhookKey}`)}`
+    : '';
   const [status, setStatus] = useState<string>();
+  const [isGeneratingUrl, setIsGeneratingUrl] = useState(false);
+
+  const generateWebhookUrl = useCallback(async () => {
+    setIsGeneratingUrl(true);
+    try {
+      const key = window.crypto.randomUUID().replaceAll('-', '');
+      setFieldValue('config.webhookKey', key);
+      setFieldValue('config.webhookKeyHash', await sha256(key));
+      setFieldValue('config.credentialRevision', window.crypto.randomUUID());
+    } finally {
+      setIsGeneratingUrl(false);
+    }
+  }, [setFieldValue]);
 
   useEffect(() => {
     registerPreSubmitValidator(async () => {
-      if (!isEdit) {
-        if (!connectorId || !webhookUrl || !webhookKeyHash) {
-          return {
-            message: i18n.translate(
-              'workflowsManagement.inboundWebhook.urlGenerationPendingErrorMessage',
-              {
-                defaultMessage: 'Wait for the webhook URL to finish generating, then save again.',
-              }
-            ),
-          };
-        }
-        watchAndShowInboundWebhookUrl({ connectorId, core });
+      if (!connectorId || !webhookKey || !webhookKeyHash || isGeneratingUrl) {
+        return {
+          message: i18n.translate(
+            'workflowsManagement.inboundWebhook.urlGenerationPendingErrorMessage',
+            {
+              defaultMessage: 'Wait for the webhook URL to finish generating, then save again.',
+            }
+          ),
+        };
       }
     });
-  }, [connectorId, core, isEdit, registerPreSubmitValidator, webhookKeyHash, webhookUrl]);
+  }, [connectorId, isGeneratingUrl, registerPreSubmitValidator, webhookKey, webhookKeyHash]);
 
   useEffect(() => {
     if (isEdit) {
@@ -72,29 +93,12 @@ export const InboundWebhookConnectorFields = ({
     if (!connectorId) {
       setFieldValue('id', window.crypto.randomUUID());
     }
-    if (!credentialRevision) {
-      setFieldValue('config.credentialRevision', window.crypto.randomUUID());
-    }
-    if (webhookUrl || webhookKeyHash) {
+    if (webhookKey || webhookKeyHash) {
       return;
     }
 
-    const generateWebhookUrl = async () => {
-      const key = window.crypto.randomUUID().replaceAll('-', '');
-      const path = http.basePath.prepend(`/api/event/${key}`);
-      setFieldValue('config.webhookUrl', `${window.location.origin}${path}`);
-      setFieldValue('config.webhookKeyHash', await sha256(key));
-    };
     void generateWebhookUrl();
-  }, [
-    connectorId,
-    credentialRevision,
-    http.basePath,
-    isEdit,
-    setFieldValue,
-    webhookKeyHash,
-    webhookUrl,
-  ]);
+  }, [connectorId, generateWebhookUrl, isEdit, setFieldValue, webhookKey, webhookKeyHash]);
 
   useEffect(() => {
     if (!isEdit || !connectorId) {
@@ -115,76 +119,112 @@ export const InboundWebhookConnectorFields = ({
 
   return (
     <>
+      <UseField path="config.webhookKey" component={HiddenField} />
       <UseField path="config.webhookKeyHash" component={HiddenField} />
       <UseField path="config.credentialRevision" component={HiddenField} />
-      {!isEdit && <UseField path="config.webhookUrl" component={HiddenField} />}
       {isEdit ? (
-        <>
-          <EuiCallOut
-            announceOnMount={false}
-            title={i18n.translate('workflowsManagement.inboundWebhook.configuredTitle', {
-              defaultMessage:
-                'Webhook URL is configured{status, select, none {} other { ({status})}}',
-              values: { status: status ?? 'none' },
-            })}
-            size="s"
-            iconType="check"
-            data-test-subj="inboundWebhookConfigured"
-          >
-            <FormattedMessage
-              id="workflowsManagement.inboundWebhook.editPrivilegesDescription"
-              defaultMessage="Saving this connector moves future webhook execution privileges to your user."
-            />
-          </EuiCallOut>
-          <EuiSpacer size="s" />
-          <UseField
-            path="config.webhookUrl"
-            component={TextField}
-            config={{
-              label: i18n.translate('workflowsManagement.inboundWebhook.urlLabel', {
-                defaultMessage: 'Webhook URL',
-              }),
-            }}
-            componentProps={{
-              euiFieldProps: {
-                readOnly: true,
-                fullWidth: true,
-                'data-test-subj': 'inboundWebhookUrl',
-              },
-            }}
+        <EuiCallOut
+          announceOnMount={false}
+          title={i18n.translate('workflowsManagement.inboundWebhook.configuredTitle', {
+            defaultMessage:
+              'Webhook URL is configured{status, select, none {} other { ({status})}}',
+            values: { status: status ?? 'none' },
+          })}
+          size="s"
+          iconType="check"
+          data-test-subj="inboundWebhookConfigured"
+        >
+          <FormattedMessage
+            id="workflowsManagement.inboundWebhook.editPrivilegesDescription"
+            defaultMessage="Saving this connector moves future webhook execution privileges to your user."
           />
-          <EuiSpacer size="s" />
-          <EuiCopy textToCopy={webhookUrl ?? ''}>
-            {(copy) => (
-              <EuiButton
-                size="s"
-                iconType="copy"
-                onClick={copy}
-                disabled={!webhookUrl || readOnly}
-                data-test-subj="copyInboundWebhookUrl"
-              >
-                <FormattedMessage
-                  id="workflowsManagement.inboundWebhook.copyUrlButtonLabel"
-                  defaultMessage="Copy webhook URL"
-                />
-              </EuiButton>
-            )}
-          </EuiCopy>
-        </>
+        </EuiCallOut>
       ) : (
         <EuiCallOut
           announceOnMount={false}
           iconType="link"
-          title={i18n.translate('workflowsManagement.inboundWebhook.generatedAfterSaveTitle', {
-            defaultMessage: 'Webhook URL generated after save',
+          title={i18n.translate('workflowsManagement.inboundWebhook.generatedUrlTitle', {
+            defaultMessage: 'Webhook URL',
           })}
         >
           <FormattedMessage
-            id="workflowsManagement.inboundWebhook.generatedAfterSaveDescription"
-            defaultMessage="Save the connector to view and copy its webhook URL."
+            id="workflowsManagement.inboundWebhook.generatedUrlDescription"
+            defaultMessage="Copy this URL and save the connector to activate it."
           />
         </EuiCallOut>
       )}
+      <EuiSpacer size="s" />
+      <EuiFormRow
+        fullWidth
+        label={i18n.translate('workflowsManagement.inboundWebhook.urlLabel', {
+          defaultMessage: 'Webhook URL',
+        })}
+      >
+        <EuiFlexGroup alignItems="center" gutterSize="s" responsive={false}>
+          <EuiFlexItem>
+            <EuiFieldText
+              readOnly
+              disabled={isGeneratingUrl}
+              fullWidth
+              value={webhookUrl}
+              data-test-subj="inboundWebhookUrl"
+              aria-label={i18n.translate('workflowsManagement.inboundWebhook.urlAriaLabel', {
+                defaultMessage: 'Webhook URL',
+              })}
+              append={
+                <EuiCopy textToCopy={webhookUrl ?? ''}>
+                  {(copy) => (
+                    <EuiFormAppend
+                      element="button"
+                      iconLeft="copy"
+                      onClick={copy}
+                      isDisabled={!webhookUrl || readOnly || isGeneratingUrl}
+                      data-test-subj="copyInboundWebhookUrl"
+                      aria-label={i18n.translate(
+                        'workflowsManagement.inboundWebhook.copyUrlButtonLabel',
+                        {
+                          defaultMessage: 'Copy webhook URL',
+                        }
+                      )}
+                    />
+                  )}
+                </EuiCopy>
+              }
+            />
+          </EuiFlexItem>
+          {isEdit && (
+            <EuiFlexItem grow={false}>
+              <EuiToolTip
+                content={i18n.translate(
+                  'workflowsManagement.inboundWebhook.rotateUrlButtonTooltip',
+                  {
+                    defaultMessage:
+                      'Generate a new webhook URL. The current URL stops working after you save.',
+                  }
+                )}
+              >
+                <EuiButtonIcon
+                  display="base"
+                  size="m"
+                  iconType="refresh"
+                  onClick={() => {
+                    void generateWebhookUrl();
+                  }}
+                  disabled={readOnly || isGeneratingUrl}
+                  isLoading={isGeneratingUrl}
+                  data-test-subj="rotateInboundWebhookUrl"
+                  aria-label={i18n.translate(
+                    'workflowsManagement.inboundWebhook.rotateUrlButtonAriaLabel',
+                    {
+                      defaultMessage: 'Rotate webhook URL',
+                    }
+                  )}
+                />
+              </EuiToolTip>
+            </EuiFlexItem>
+          )}
+        </EuiFlexGroup>
+      </EuiFormRow>
     </>
   );
 };

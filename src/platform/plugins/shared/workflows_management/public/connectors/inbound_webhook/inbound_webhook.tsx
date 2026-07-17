@@ -16,7 +16,7 @@ import type {
 import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
 
 export interface InboundWebhookConfig {
-  webhookUrl: string;
+  webhookKey: string;
   webhookKeyHash: string;
   credentialRevision: string;
 }

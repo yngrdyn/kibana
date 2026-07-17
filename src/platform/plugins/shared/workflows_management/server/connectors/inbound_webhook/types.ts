@@ -8,7 +8,7 @@
  */
 
 export interface InboundWebhookConfig extends Record<string, unknown> {
-  webhookUrl: string;
+  webhookKey: string;
   webhookKeyHash: string;
   credentialRevision: string;
 }
