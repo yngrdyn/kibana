@@ -16,13 +16,12 @@ import type {
 import { INBOUND_WEBHOOK_RECEIVE_SUB_ACTION } from '../../../common/inbound_webhook/constants';
 
 export interface InboundWebhookConfig {
+  webhookUrl: string;
   webhookKeyHash: string;
   credentialRevision: string;
 }
 
-export interface InboundWebhookSecrets {
-  webhookUrl?: string;
-}
+export type InboundWebhookSecrets = Record<string, never>;
 
 export interface InboundWebhookParams {
   subAction: 'receive';

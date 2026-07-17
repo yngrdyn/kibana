@@ -15,7 +15,6 @@ export interface InboundWebhookCredentialSecrets {
   apiKey: string;
   credentialVersion: number;
   uiamApiKey?: string;
-  webhookUrl?: string;
 }
 
 export interface InboundWebhookPayload {

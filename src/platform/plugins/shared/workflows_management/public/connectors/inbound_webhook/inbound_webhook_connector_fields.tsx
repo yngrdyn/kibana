@@ -19,6 +19,7 @@ import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
 import type { ActionConnectorFieldsProps } from '@kbn/triggers-actions-ui-plugin/public';
 import { useKibana } from '@kbn/triggers-actions-ui-plugin/public';
+import { watchAndShowInboundWebhookUrl } from './inbound_webhook_url_modal';
 
 const sha256 = async (value: string): Promise<string> => {
   const bytes = new TextEncoder().encode(value);
@@ -33,40 +34,76 @@ export const InboundWebhookConnectorFields = ({
   readOnly,
   registerPreSubmitValidator,
 }: ActionConnectorFieldsProps) => {
-  const { http } = useKibana().services;
+  const core = useKibana().services;
+  const { http } = core;
   const { setFieldValue } = useFormContext();
-  const [{ id, secrets }] = useFormData({ watch: ['id', 'secrets.webhookUrl'] });
-  const webhookUrl = secrets?.webhookUrl as string | undefined;
+  const [{ id, config }] = useFormData({
+    watch: ['id', 'config.webhookUrl', 'config.webhookKeyHash', 'config.credentialRevision'],
+  });
+  const connectorId = id as string | undefined;
+  const webhookUrl = config?.webhookUrl as string | undefined;
+  const webhookKeyHash = config?.webhookKeyHash as string | undefined;
+  const credentialRevision = config?.credentialRevision as string | undefined;
   const [status, setStatus] = useState<string>();
 
   useEffect(() => {
     registerPreSubmitValidator(async () => {
-      setFieldValue('config.credentialRevision', window.crypto.randomUUID());
+      if (!isEdit) {
+        if (!connectorId || !webhookUrl || !webhookKeyHash) {
+          return {
+            message: i18n.translate(
+              'workflowsManagement.inboundWebhook.urlGenerationPendingErrorMessage',
+              {
+                defaultMessage: 'Wait for the webhook URL to finish generating, then save again.',
+              }
+            ),
+          };
+        }
+        watchAndShowInboundWebhookUrl({ connectorId, core });
+      }
     });
-  }, [registerPreSubmitValidator, setFieldValue]);
+  }, [connectorId, core, isEdit, registerPreSubmitValidator, webhookKeyHash, webhookUrl]);
 
   useEffect(() => {
-    if (isEdit || webhookUrl) {
+    if (isEdit) {
       return;
     }
-    const createWebhook = async () => {
+
+    if (!connectorId) {
+      setFieldValue('id', window.crypto.randomUUID());
+    }
+    if (!credentialRevision) {
+      setFieldValue('config.credentialRevision', window.crypto.randomUUID());
+    }
+    if (webhookUrl || webhookKeyHash) {
+      return;
+    }
+
+    const generateWebhookUrl = async () => {
       const key = window.crypto.randomUUID().replaceAll('-', '');
       const path = http.basePath.prepend(`/api/event/${key}`);
-      setFieldValue('secrets.webhookUrl', `${window.location.origin}${path}`);
+      setFieldValue('config.webhookUrl', `${window.location.origin}${path}`);
       setFieldValue('config.webhookKeyHash', await sha256(key));
-      setFieldValue('config.credentialRevision', window.crypto.randomUUID());
     };
-    void createWebhook();
-  }, [http.basePath, isEdit, setFieldValue, webhookUrl]);
+    void generateWebhookUrl();
+  }, [
+    connectorId,
+    credentialRevision,
+    http.basePath,
+    isEdit,
+    setFieldValue,
+    webhookKeyHash,
+    webhookUrl,
+  ]);
 
   useEffect(() => {
-    if (!isEdit || !id) {
+    if (!isEdit || !connectorId) {
       return;
     }
     const loadStatus = async () => {
       try {
         const result = await http.get<{ status: string }>(
-          `/internal/workflows/inbound_webhook/${encodeURIComponent(id as string)}/status`
+          `/internal/workflows/inbound_webhook/${encodeURIComponent(connectorId)}/status`
         );
         setStatus(result.status);
       } catch {
@@ -74,33 +111,34 @@ export const InboundWebhookConnectorFields = ({
       }
     };
     void loadStatus();
-  }, [http, id, isEdit]);
+  }, [connectorId, http, isEdit]);
 
   return (
     <>
       <UseField path="config.webhookKeyHash" component={HiddenField} />
       <UseField path="config.credentialRevision" component={HiddenField} />
+      {!isEdit && <UseField path="config.webhookUrl" component={HiddenField} />}
       {isEdit ? (
-        <EuiCallOut
-          announceOnMount={false}
-          title={i18n.translate('workflowsManagement.inboundWebhook.configuredTitle', {
-            defaultMessage:
-              'Webhook URL is configured{status, select, none {} other { ({status})}}',
-            values: { status: status ?? 'none' },
-          })}
-          size="s"
-          iconType="check"
-          data-test-subj="inboundWebhookConfigured"
-        >
-          <FormattedMessage
-            id="workflowsManagement.inboundWebhook.editPrivilegesDescription"
-            defaultMessage="Saving this connector moves future webhook execution privileges to your user."
-          />
-        </EuiCallOut>
-      ) : (
         <>
+          <EuiCallOut
+            announceOnMount={false}
+            title={i18n.translate('workflowsManagement.inboundWebhook.configuredTitle', {
+              defaultMessage:
+                'Webhook URL is configured{status, select, none {} other { ({status})}}',
+              values: { status: status ?? 'none' },
+            })}
+            size="s"
+            iconType="check"
+            data-test-subj="inboundWebhookConfigured"
+          >
+            <FormattedMessage
+              id="workflowsManagement.inboundWebhook.editPrivilegesDescription"
+              defaultMessage="Saving this connector moves future webhook execution privileges to your user."
+            />
+          </EuiCallOut>
+          <EuiSpacer size="s" />
           <UseField
-            path="secrets.webhookUrl"
+            path="config.webhookUrl"
             component={TextField}
             config={{
               label: i18n.translate('workflowsManagement.inboundWebhook.urlLabel', {
@@ -133,6 +171,19 @@ export const InboundWebhookConnectorFields = ({
             )}
           </EuiCopy>
         </>
+      ) : (
+        <EuiCallOut
+          announceOnMount={false}
+          iconType="link"
+          title={i18n.translate('workflowsManagement.inboundWebhook.generatedAfterSaveTitle', {
+            defaultMessage: 'Webhook URL generated after save',
+          })}
+        >
+          <FormattedMessage
+            id="workflowsManagement.inboundWebhook.generatedAfterSaveDescription"
+            defaultMessage="Save the connector to view and copy its webhook URL."
+          />
+        </EuiCallOut>
       )}
     </>
   );

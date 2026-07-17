@@ -8,13 +8,12 @@
  */
 
 export interface InboundWebhookConfig extends Record<string, unknown> {
+  webhookUrl: string;
   webhookKeyHash: string;
   credentialRevision: string;
 }
 
-export interface InboundWebhookSecrets extends Record<string, unknown> {
-  webhookUrl?: string;
-}
+export type InboundWebhookSecrets = Record<string, never>;
 
 export interface ReceiveWebhookSubActionParams {
   eventId: string;

@@ -45,6 +45,7 @@ import {
   registerInboundWebhookCleanupTask,
   scheduleInboundWebhookCleanupTask,
 } from './tasks/inbound_webhook_cleanup_task';
+import { registerTriggerDefinitions } from './triggers';
 import type {
   WorkflowsRequestHandlerContext,
   WorkflowsServerPluginSetup,
@@ -53,7 +54,6 @@ import type {
   WorkflowsServerPluginStartDeps,
 } from './types';
 import { registerUISettings } from './ui_settings';
-import { registerTriggerDefinitions } from './triggers';
 import { stepSchemas } from '../common/step_schemas';
 
 export class WorkflowsPlugin
@@ -179,7 +179,6 @@ export class WorkflowsPlugin
       getMappingRepository: () => this.getInboundWebhookMappingRepository(),
       getSpaceId: (request) => plugins.spaces.spacesService.getSpaceId(request),
     });
-
     defineRoutes({
       router,
       config: this.config,

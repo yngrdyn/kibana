@@ -18,6 +18,10 @@ import type {
 import type { KibanaRequest, SavedObjectsClientContract } from '@kbn/core/server';
 import { i18n } from '@kbn/i18n';
 import {
+  type CreateDelegatedExecutionRequestDependencies,
+  createDelegatedInboundWebhookExecutionRequest,
+} from './create_delegated_execution_request';
+import {
   InboundWebhookConfigSchema,
   InboundWebhookParamsSchema,
   InboundWebhookSecretsSchema,
@@ -29,16 +33,12 @@ import type {
   InboundWebhookResult,
   InboundWebhookSecrets,
 } from './types';
+import { INBOUND_WEBHOOK_RECEIVED_TRIGGER_ID } from '../../../common/inbound_webhook/constants';
 import type {
   DelegatedWebhookCredentials,
   InboundWebhookApiKeyService,
 } from '../../services/inbound_webhook_api_key_service';
 import type { InboundWebhookMappingRepository } from '../../storage/inbound_webhook_mapping_repository';
-import { INBOUND_WEBHOOK_RECEIVED_TRIGGER_ID } from '../../../common/inbound_webhook/constants';
-import {
-  createDelegatedInboundWebhookExecutionRequest,
-  type CreateDelegatedExecutionRequestDependencies,
-} from './create_delegated_execution_request';
 
 export const INBOUND_WEBHOOK_CONNECTOR_TYPE_ID = '.workflows-inbound-webhook' as const;
 
@@ -90,18 +90,13 @@ export const getInboundWebhookConnectorType = (
     secrets: { schema: InboundWebhookSecretsSchema },
     params: { schema: InboundWebhookParamsSchema },
   },
-  preSaveHook: async ({ connectorId, config, secrets, request, isUpdate }) => {
+  preSaveHook: async ({ connectorId, config, request }) => {
     if (!dependencies.canEncrypt()) {
       throw new Error('Encrypted saved objects encryption key is not configured');
     }
-    if (!isUpdate && !secrets.webhookUrl) {
-      throw new Error('Webhook URL is required');
-    }
-    if (secrets.webhookUrl) {
-      const calculatedHash = hashWebhookKey(getWebhookKey(secrets.webhookUrl));
-      if (calculatedHash !== config.webhookKeyHash) {
-        throw new Error('Webhook URL does not match webhook key hash');
-      }
+    const calculatedHash = hashWebhookKey(getWebhookKey(config.webhookUrl));
+    if (calculatedHash !== config.webhookKeyHash) {
+      throw new Error('Webhook URL does not match webhook key hash');
     }
 
     const spaceId = dependencies.getSpaceId(request);
@@ -130,7 +125,6 @@ export const getInboundWebhookConnectorType = (
             secrets: {
               ...credentials.secrets,
               credentialVersion,
-              webhookUrl: secrets.webhookUrl ?? previous?.attributes.payload.secrets.webhookUrl,
             },
           },
         },
@@ -229,7 +223,7 @@ export const getInboundWebhookConnectorType = (
       receivedAt: params.subActionParams.receivedAt,
     };
     logger.debug(`Inbound webhook event received: ${JSON.stringify(event)}`);
-    await dependencies.emitEvent(scopedRequest, INBOUND_WEBHOOK_RECEIVED_TRIGGER_ID, event);
+    void dependencies.emitEvent(scopedRequest, INBOUND_WEBHOOK_RECEIVED_TRIGGER_ID, event);
     return {
       status: 'ok',
       actionId,
