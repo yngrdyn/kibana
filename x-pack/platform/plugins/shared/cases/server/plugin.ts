@@ -29,6 +29,7 @@ import {
   CASE_SAVED_OBJECT,
   CASE_TEMPLATE_SAVED_OBJECT,
   CASE_USER_ACTION_SAVED_OBJECT,
+  registerOwnerPrefix,
 } from '../common/constants';
 
 import type { CasesClient } from './client';
@@ -305,6 +306,9 @@ export class CasePlugin
       config: this.caseConfig,
       registerCloseReasonValidator: (owner: string, validator: CloseReasonValidator) => {
         this.closeReasonValidators.set(owner, validator);
+      },
+      registerOwnerPrefix: (owner: string, prefix: string) => {
+        registerOwnerPrefix(owner, prefix);
       },
     };
   }
