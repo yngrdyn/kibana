@@ -38,6 +38,7 @@ import {
 import { waitForPreviewYamlSchemaMarkers } from './wait_for_yaml_schema_markers_after_update';
 import { WORKFLOW_CHANGE_HISTORY_VALIDATION_MARKER_REUSE_MAX_WAIT_MS } from './workflow_change_history_preview_constants';
 import type { WorkflowChangeHistoryCompareMode } from './workflow_change_history_preview_settings_popover';
+import { mapRegisteredTriggersForSchema } from '../../../common/lib/map_registered_triggers_for_schema';
 import { getWorkflowZodSchema } from '../../../common/schema';
 import { useAvailableConnectors } from '../../entities/connectors/model/use_available_connectors';
 import { triggerSchemas } from '../../trigger_schemas';
@@ -113,7 +114,10 @@ export const useWorkflowChangeHistoryPreviewValidation = ({
   const validationContextRef = useWorkflowYamlValidationContextRef();
   const workflowZodSchema = useMemo(
     () =>
-      getWorkflowZodSchema(connectorsData?.connectorTypes ?? {}, triggerSchemas.getRegisteredIds()),
+      getWorkflowZodSchema(
+        connectorsData?.connectorTypes ?? {},
+        mapRegisteredTriggersForSchema(triggerSchemas.getTriggerDefinitions())
+      ),
     [connectorsData?.connectorTypes]
   );
   const workflowZodSchemaRef = useRef(workflowZodSchema);

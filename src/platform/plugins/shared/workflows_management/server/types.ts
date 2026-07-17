@@ -17,10 +17,6 @@ import type {
   AlertingServerSetup,
 } from '@kbn/alerting-plugin/server';
 import type { CustomRequestHandlerContext, IRouter } from '@kbn/core/server';
-import type {
-  EncryptedSavedObjectsPluginSetup,
-  EncryptedSavedObjectsPluginStart,
-} from '@kbn/encrypted-saved-objects-plugin/server';
 import type { FeaturesPluginSetup } from '@kbn/features-plugin/server';
 
 import type { InboxPluginSetup } from '@kbn/inbox-plugin/server';
@@ -54,7 +50,6 @@ export interface WorkflowsServerPluginSetupDeps {
   features?: FeaturesPluginSetup;
   taskManager?: TaskManagerSetupContract;
   actions?: ActionsPluginSetupContract;
-  encryptedSavedObjects?: EncryptedSavedObjectsPluginSetup;
   alerting?: AlertingServerSetup;
   spaces: SpacesPluginSetup;
   serverless?: ServerlessServerSetup;
@@ -71,7 +66,6 @@ export interface WorkflowsServerPluginStartDeps {
   taskManager: TaskManagerStartContract;
   workflowsExecutionEngine: WorkflowsExecutionEnginePluginStart;
   actions: ActionsPluginStartContract;
-  encryptedSavedObjects?: EncryptedSavedObjectsPluginStart;
   security?: SecurityPluginStart;
   spaces: SpacesPluginStart;
   workflowsExtensions: WorkflowsExtensionsServerPluginStart;

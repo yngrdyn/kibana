@@ -7,7 +7,11 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { ConnectorInstance, ConnectorTypeInfo } from '@kbn/workflows';
+import type {
+  ConnectorInstance,
+  ConnectorTypeInfo,
+  WorkflowSurfaceDefinition,
+} from '@kbn/workflows';
 import { getActionTypeIdFromStepType } from '../shared/lib/action_type_utils';
 import {
   getCustomStepConnectorIdSelectionHandler,
@@ -15,24 +19,60 @@ import {
 } from '../shared/lib/connectors_utils';
 
 /**
- * Resolved WHO binding for `connector-id` autocomplete — from a trigger event or step.
+ * Resolved WHO binding for `connector-id` autocomplete — from a workflow surface or step fallback.
  */
 export interface ConnectorIdBinding {
   readonly connectorTypeId: string;
+  /** When true, only connector types that declare ConnectorSpec.events are eligible. */
+  readonly requireConnectorTypeEvents: boolean;
+  /** Lookup key passed to connector instance resolution (step type or action type id). */
   readonly lookupKey: string;
+}
+
+export function resolveConnectorIdBindingFromSurface(
+  surface: WorkflowSurfaceDefinition
+): ConnectorIdBinding | undefined {
+  const { connectorTypeId, instanceRef } = surface.binding;
+  if (!connectorTypeId || instanceRef === 'none') {
+    return undefined;
+  }
+
+  return {
+    connectorTypeId,
+    requireConnectorTypeEvents: surface.source?.type === 'connector-event',
+    lookupKey: connectorTypeId,
+  };
 }
 
 export function resolveConnectorIdBindingFromStepType(stepType: string): ConnectorIdBinding {
   return {
     connectorTypeId: getActionTypeIdFromStepType(stepType),
+    requireConnectorTypeEvents: false,
     lookupKey: stepType,
   };
 }
 
+export function connectorTypeHasDeclaredEvents(
+  connectorTypeId: string,
+  connectorTypes: Record<string, ConnectorTypeInfo>
+): boolean {
+  const connectorTypeInfo = connectorTypes[connectorTypeId];
+  return (connectorTypeInfo?.events?.length ?? 0) > 0;
+}
+
+/**
+ * Lists connector instances eligible for the resolved binding.
+ * Connector-event surfaces only return instances when the bound type declares events.
+ */
 export function listConnectorInstancesForBinding(
   binding: ConnectorIdBinding,
   connectorTypes: Record<string, ConnectorTypeInfo>
 ): Array<ConnectorInstance & { connectorType: string }> {
+  const connectorTypeInfo = connectorTypes[binding.connectorTypeId];
+  if (binding.requireConnectorTypeEvents && !connectorTypeInfo) {
+    return [];
+  }
+
   return listConnectorInstancesForLookupKey(binding.lookupKey, connectorTypes);
 }
 

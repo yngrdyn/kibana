@@ -6,7 +6,7 @@
  */
 
 import type { ActionType } from '@kbn/actions-plugin/common';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import { CONNECTOR_ID as MCP_CONNECTOR_TYPE_ID } from '@kbn/connector-schemas/mcp/constants';
 
 /**

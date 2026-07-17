@@ -590,7 +590,7 @@ export interface ConnectorTypeInfo {
   enabledInLicense: boolean;
   minimumLicenseRequired: string;
   subActions: ConnectorSubAction[];
-  /** Inbound connector events for connectors that expose triggerable sub-actions (e.g. receive). */
+  /** Inbound connector events declared on this connector type (from ConnectorSpec.events). */
   events?: ConnectorEventInfo[];
 }
 

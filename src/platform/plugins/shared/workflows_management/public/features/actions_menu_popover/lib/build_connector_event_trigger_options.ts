@@ -8,7 +8,6 @@
  */
 
 import type { UseEuiTheme } from '@elastic/eui';
-import { i18n } from '@kbn/i18n';
 import type { ConnectorTypeInfo } from '@kbn/workflows';
 import type { PublicTriggerDefinition } from '@kbn/workflows-extensions/public';
 import { z } from '@kbn/zod/v4';
@@ -20,8 +19,7 @@ const mockEventSchema = z.object({});
 
 /**
  * Builds trigger menu options from connector types that declare inbound events
- * (e.g. connectors with a `receive` sub-action), excluding ids already registered
- * via workflows_extensions.
+ * (ConnectorSpec.events), excluding ids already registered via workflows_extensions.
  */
 export function buildConnectorEventTriggerOptions(
   connectorTypes: Record<string, ConnectorTypeInfo>,
@@ -50,34 +48,21 @@ export function buildConnectorEventTriggerOptions(
     return [];
   }
 
-  const instancesCountByActionTypeId = new Map(
-    Object.values(connectorTypes).map((connectorType) => [
-      connectorType.actionTypeId,
-      connectorType.instances.length,
-    ])
-  );
-
   return mapOptionsToConnectorEvents(
     buildRegisteredTriggerOptions(pseudoTriggers, euiTheme),
-    connectorTypeByEventId,
-    instancesCountByActionTypeId
+    connectorTypeByEventId
   );
 }
 
 function mapOptionsToConnectorEvents(
   options: ActionOptionData[],
-  connectorTypeByEventId: ReadonlyMap<string, string>,
-  instancesCountByActionTypeId: ReadonlyMap<string, number>
+  connectorTypeByEventId: ReadonlyMap<string, string>
 ): ActionOptionData[] {
   return options.map((option) => {
     if (isActionGroup(option)) {
       return {
         ...option,
-        options: mapOptionsToConnectorEvents(
-          option.options,
-          connectorTypeByEventId,
-          instancesCountByActionTypeId
-        ),
+        options: mapOptionsToConnectorEvents(option.options, connectorTypeByEventId),
       };
     }
 
@@ -86,32 +71,12 @@ function mapOptionsToConnectorEvents(
       return option;
     }
 
-    const instancesCount = instancesCountByActionTypeId.get(connectorType) ?? 0;
-
     return {
       id: option.id,
       label: option.label,
       description: option.description,
       connectorType,
       stability: option.stability,
-      instancesLabel: getInstancesLabel(instancesCount),
     };
-  });
-}
-
-function getInstancesLabel(instancesCount: number): string | undefined {
-  if (instancesCount === 0) {
-    return i18n.translate('workflows.actionsMenu.noInstances', {
-      defaultMessage: 'Not connected',
-    });
-  }
-  if (instancesCount === 1) {
-    return i18n.translate('workflows.actionsMenu.oneInstance', {
-      defaultMessage: '1 connected',
-    });
-  }
-  return i18n.translate('workflows.actionsMenu.multipleInstances', {
-    defaultMessage: '{count} connected',
-    values: { count: instancesCount },
   });
 }

@@ -248,6 +248,10 @@ export const configSchema = schema.object({
       })
     ),
   }),
+  inboundConnectors: schema.object({
+    enabled: schema.boolean({ defaultValue: true }),
+    maxBodyBytes: schema.number({ defaultValue: 1024 * 1024 }),
+  }),
 });
 
 export type ActionsConfig = TypeOf<typeof configSchema>;

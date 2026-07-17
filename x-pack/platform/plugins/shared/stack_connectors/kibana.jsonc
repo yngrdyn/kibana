@@ -18,7 +18,7 @@
       "licensing",
       "spaces"
     ],
-    "optionalPlugins": ["usageCollection", "cloud"],
+    "optionalPlugins": ["usageCollection", "cloud", "workflowsExtensions"],
     "extraPublicDirs": ["public/common"]
   }
 }

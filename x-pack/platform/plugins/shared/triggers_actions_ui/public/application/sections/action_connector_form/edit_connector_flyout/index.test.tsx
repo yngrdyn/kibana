@@ -7,16 +7,36 @@
 
 import React, { lazy } from 'react';
 
+import { actionTypeRegistryMock } from '../../../action_type_registry.mock';
 import userEvent from '@testing-library/user-event';
 import { waitFor, act, screen } from '@testing-library/react';
-import { createMockActionConnector } from '@kbn/alerts-ui-shared/src/common/test_utils/connector.mock';
-import { actionTypeRegistryMock } from '../../../action_type_registry.mock';
 import EditConnectorFlyout from '.';
 import type { ActionConnector, GenericValidationResult } from '../../../../types';
 import { EditConnectorTabs } from '../../../../types';
 import type { AppMockRenderer } from '../../test_utils';
 import { createAppMockRenderer } from '../../test_utils';
 import { TECH_PREVIEW_LABEL } from '../../translations';
+import { createMockActionConnector } from '@kbn/alerts-ui-shared/src/common/test_utils/connector.mock';
+
+jest.mock('../../../lib/action_connector_api', () => ({
+  ...(jest.requireActual('../../../lib/action_connector_api') as object),
+  loadActionTypes: jest.fn(),
+}));
+
+const { loadActionTypes } = jest.requireMock('../../../lib/action_connector_api');
+
+const stackConnectorActionType = {
+  id: '.test',
+  name: 'Test',
+  enabled: true,
+  enabledInConfig: true,
+  enabledInLicense: true,
+  supportedFeatureIds: [],
+  minimumLicenseRequired: 'basic' as const,
+  isSystemActionType: false,
+  isDeprecated: false,
+  source: 'stack' as const,
+};
 
 const updateConnectorResponse = {
   connector_type_id: 'test',
@@ -61,6 +81,7 @@ describe('EditConnectorFlyout', () => {
     jest.clearAllMocks();
     actionTypeRegistry.has.mockReturnValue(true);
     actionTypeRegistry.get.mockReturnValue(actionTypeModel);
+    loadActionTypes.mockResolvedValue([stackConnectorActionType]);
     appMockRenderer = createAppMockRenderer();
     appMockRenderer.coreStart.application.capabilities = {
       ...appMockRenderer.coreStart.application.capabilities,
@@ -780,6 +801,75 @@ describe('EditConnectorFlyout', () => {
 
       expect(getByTestId('configureConnectorTab')).toBeInTheDocument();
       expect(await screen.findByTestId('testConnectorTab')).toBeEnabled();
+    });
+  });
+});
+
+describe('is spec connector', () => {
+  let appMockRenderer: AppMockRenderer;
+  const onClose = jest.fn();
+  const onConnectorUpdated = jest.fn();
+
+  const inboundWebhookConnector: ActionConnector = createMockActionConnector({
+    id: 'inbound-webhook-1',
+    name: 'testing',
+    actionTypeId: '.inboundWebhook',
+    config: { webhookUrl: 'https://example.com/webhook' },
+    secrets: {},
+    authMode: 'shared',
+  });
+
+  const actionTypeModel = actionTypeRegistryMock.createMockActionTypeModel({
+    actionConnectorFields: lazy(() => import('../connector_mock')),
+    validateParams: (): Promise<GenericValidationResult<unknown>> => {
+      const validationResult = { errors: {} };
+      return Promise.resolve(validationResult);
+    },
+  });
+
+  const actionTypeRegistry = actionTypeRegistryMock.create();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    actionTypeRegistry.has.mockReturnValue(true);
+    actionTypeRegistry.get.mockReturnValue(actionTypeModel);
+    loadActionTypes.mockResolvedValue([
+      {
+        id: '.inboundWebhook',
+        name: 'Inbound Webhook',
+        enabled: true,
+        enabledInConfig: true,
+        enabledInLicense: true,
+        supportedFeatureIds: ['workflows'],
+        minimumLicenseRequired: 'basic' as const,
+        isSystemActionType: false,
+        isDeprecated: false,
+        source: 'spec' as const,
+        isTestable: false,
+      },
+    ]);
+    appMockRenderer = createAppMockRenderer();
+    appMockRenderer.coreStart.application.capabilities = {
+      ...appMockRenderer.coreStart.application.capabilities,
+      actions: { save: true, show: true, execute: true },
+    };
+    appMockRenderer.coreStart.http.put = jest.fn().mockResolvedValue(updateConnectorResponse);
+    appMockRenderer.coreStart.http.post = jest.fn().mockResolvedValue(executeConnectorResponse);
+  });
+
+  it('should not render the test tab for non-testable spec connectors', async () => {
+    const { getByTestId } = appMockRenderer.render(
+      <EditConnectorFlyout
+        actionTypeRegistry={actionTypeRegistry}
+        onClose={onClose}
+        connector={inboundWebhookConnector}
+        onConnectorUpdated={onConnectorUpdated}
+      />
+    );
+
+    expect(getByTestId('configureConnectorTab')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('testConnectorTab')).not.toBeInTheDocument();
     });
   });
 });

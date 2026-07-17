@@ -8,7 +8,7 @@
  */
 
 import { getConnectorIdSuggestionsItems } from './get_connector_id_suggestions_items';
-import { resolveConnectorIdBinding } from '../../../../../../workflow_surface/resolve_connector_id_binding';
+import { resolveConnectorIdBinding } from '../../../../../../workflow_surface/connector_id_provider';
 import type { AutocompleteContext } from '../../context/autocomplete.types';
 
 export function getConnectorIdSuggestions({
@@ -22,10 +22,11 @@ export function getConnectorIdSuggestions({
   dynamicConnectorTypes,
 }: AutocompleteContext) {
   const binding = resolveConnectorIdBinding({
+    yamlDocument,
+    path,
     focusedStepInfo,
     focusedYamlPair,
-    path,
-    yamlDocument,
+    connectorTypes: dynamicConnectorTypes ?? undefined,
   });
 
   if (
@@ -36,6 +37,7 @@ export function getConnectorIdSuggestions({
   ) {
     return [];
   }
+
   // If the user has typed part of the connector-id, we replace from the start of the value to the end of the line
   if (lineParseResult.fullKey !== '') {
     const replaceRange = {

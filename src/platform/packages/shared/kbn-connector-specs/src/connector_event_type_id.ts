@@ -23,3 +23,11 @@ export const normalizeConnectorTypeId = (typeId: string): string =>
 
 export const buildConnectorEventId = (connectorTypeId: string, eventKey: string): string =>
   `${connectorTypeToEventNamespace(connectorTypeId)}.${eventKey}`;
+
+export const buildConnectorIngressEventsPath = ({
+  connectorTypeId,
+  connectorId,
+}: {
+  connectorTypeId: string;
+  connectorId: string;
+}): string => `/api/events/v1/${connectorTypeToEventNamespace(connectorTypeId)}/${connectorId}`;

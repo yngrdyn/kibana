@@ -15,20 +15,24 @@ import type {
   ToolHandlerStandardReturn,
 } from '@kbn/agent-builder-server/tools/handler';
 import {
-  getConnectorSpec,
   isToolAction,
   OAUTH_AUTHORIZATION_CODE_AUTH_ID,
   EARS_AUTH_ID,
 } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import {
   createExecuteConnectorSubActionTool,
   executeConnectorSubActionArgsSchema,
 } from './execute_connector_sub_action';
 import type { ConnectorToolsOptions } from './types';
 
+jest.mock('@kbn/connector-specs/server', () => ({
+  ...jest.requireActual('@kbn/connector-specs/server'),
+  getConnectorSpec: jest.fn(),
+}));
+
 jest.mock('@kbn/connector-specs', () => ({
   ...jest.requireActual('@kbn/connector-specs'),
-  getConnectorSpec: jest.fn(),
   isToolAction: jest.fn(),
 }));
 

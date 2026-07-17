@@ -7,12 +7,12 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-export * as connectorsSpecs from './src/all_specs';
 export type * from './src/connector_spec';
 export type * from './src/connector_spec_events';
 export { defineConnectorEvent } from './src/define_connector_event';
 export {
   buildConnectorEventId,
+  buildConnectorIngressEventsPath,
   connectorTypeToEventNamespace,
   normalizeConnectorTypeId,
 } from './src/connector_event_type_id';
@@ -30,14 +30,19 @@ export {
   type JwtAlgorithm,
 } from './src/auth_types/oauth_client_credentials_private_key_jwt';
 
-export { getConnectorSpec } from './src/get_connector_spec';
-export {
-  listConnectorEventInfos,
-  listConnectorEventInfosForType,
-  type ConnectorEventInfo,
-} from './src/list_connector_event_infos';
-export { resolveRegisteredConnectorEventByEventId } from './src/resolve_registered_connector_event_by_event_id';
 export { inboundWebhookReceivedEventSchema } from './src/inbound_webhook_received_event_schema';
+export {
+  INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+  INBOUND_WEBHOOK_RECEIVED_EVENT_ID,
+  INBOUND_WEBHOOK_RECEIVED_EVENT_KEY,
+} from './src/inbound_webhook_constants';
+export {
+  getInboundWebhookAuthorizationHeader,
+  INBOUND_WEBHOOK_DELEGATED_API_KEY_ID_CONFIG,
+  INBOUND_WEBHOOK_DELEGATED_API_KEY_SECRET,
+  INBOUND_WEBHOOK_DELEGATED_UIAM_API_KEY_ID_CONFIG,
+  INBOUND_WEBHOOK_DELEGATED_UIAM_API_KEY_SECRET,
+} from './src/inbound_webhook/delegated_execution_credentials';
 export { isToolAction, TEST_CONNECTOR_SUB_ACTION } from './src/connector_spec';
 export {
   getConnectorActionErrorMeta,

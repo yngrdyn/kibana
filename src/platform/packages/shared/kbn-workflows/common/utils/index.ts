@@ -17,6 +17,8 @@ export {
   type ExtractedSchemaPropertyPath,
   type ExtractSchemaPropertyPathsOptions,
 } from './extract_schema_property_paths/extract_schema_property_paths';
+export { extractOpenFieldPrefixesFromSchema } from './extract_open_field_prefixes_from_schema/extract_open_field_prefixes_from_schema';
+export { normalizeKqlFieldPath } from './normalize_kql_field_path/normalize_kql_field_path';
 export { parseJsPropertyAccess } from './parse_js_property_access/parse_js_property_access';
 export { extractPropertyPathsFromKql } from './extract_property_paths_from_kql/extract_property_paths_from_kql';
 export {

@@ -37,8 +37,8 @@ const eventKeyFromTriggerId = (triggerId: string): string => {
 };
 
 /**
- * Builds trigger schema input by merging connector events from connector types
- * and extension triggers that require connector binding.
+ * Builds trigger schema input by merging connector events from connector types,
+ * registered connector specs, and extension triggers that require connector binding.
  */
 export const collectConnectorEventsForTriggerSchema = (
   connectorTypes: Record<string, ConnectorTypeInfo>,

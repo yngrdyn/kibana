@@ -8,7 +8,7 @@
 import { httpServerMock } from '@kbn/core-http-server-mocks';
 import type { Attachment } from '@kbn/agent-builder-common/attachments';
 import type { AgentFormattedAttachment } from '@kbn/agent-builder-server/attachments';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import {
   CONNECTOR_SETUP_ATTACHMENT_TYPE,
   type ConnectorSetupAttachmentData,

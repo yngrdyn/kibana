@@ -8,7 +8,7 @@
  */
 
 import type { ActionTypeExecutorResult } from '@kbn/actions-plugin/common';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import { SystemConnectorsMap } from '@kbn/workflows/common/constants';
 import { ExecutionError } from '@kbn/workflows/server';
 import { ActionsResponseContentLengthLimitError } from './actions_response_content_length_limit_error';

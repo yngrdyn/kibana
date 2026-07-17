@@ -7,9 +7,25 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
+jest.mock('../../../../trigger_schemas', () => ({
+  triggerSchemas: {
+    getTriggerDefinition: jest.fn(),
+  },
+}));
+
+jest.mock('../../../../../common/lib/is_connector_event_trigger_id', () => ({
+  isConnectorEventTriggerId: jest.fn(() => false),
+}));
+
 import { generateTriggerSnippet } from './generate_trigger_snippet';
+import { isConnectorEventTriggerId } from '../../../../../common/lib/is_connector_event_trigger_id';
+import { triggerSchemas } from '../../../../trigger_schemas';
 
 describe('generateTriggerSnippet', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (triggerSchemas.getTriggerDefinition as jest.Mock).mockReturnValue(undefined);
+  });
   describe('built-in trigger types (alert, manual, scheduled)', () => {
     it('should not include on.condition for alert, manual or scheduled', () => {
       const builtInTypes = ['alert', 'manual', 'scheduled'] as const;
@@ -37,6 +53,58 @@ describe('generateTriggerSnippet', () => {
       const snippet = generateTriggerSnippet('custom.my_trigger', { full: true });
       expect(snippet).toContain('condition:');
       expect(snippet).not.toContain('event.source:ui');
+    });
+  });
+
+  describe('connector-event triggers', () => {
+    it('includes connector-id placeholder when the trigger requires connector binding', () => {
+      (triggerSchemas.getTriggerDefinition as jest.Mock).mockReturnValue({
+        id: 'exampleInboundWebhook.received',
+        requiresConnectorId: true,
+        snippets: {
+          condition: 'event.body: *',
+        },
+      });
+
+      const snippet = generateTriggerSnippet('exampleInboundWebhook.received', { full: true });
+
+      expect(snippet).toContain('connector-id: <connector-id>');
+      expect(snippet).toContain('condition: "event.body: *"');
+    });
+
+    it('uses an explicit defaultConnectorId when provided', () => {
+      (triggerSchemas.getTriggerDefinition as jest.Mock).mockReturnValue({
+        id: 'exampleInboundWebhook.received',
+        requiresConnectorId: true,
+      });
+
+      const snippet = generateTriggerSnippet('exampleInboundWebhook.received', {
+        full: true,
+        defaultConnectorId: 'example-inbound-webhook',
+      });
+
+      expect(snippet).toContain('connector-id: example-inbound-webhook');
+    });
+
+    it('includes connector-id when the extension trigger requires connector binding', () => {
+      (triggerSchemas.getTriggerDefinition as jest.Mock).mockReturnValue({
+        id: 'inboundWebhook.received',
+        requiresConnectorId: true,
+      });
+
+      const snippet = generateTriggerSnippet('inboundWebhook.received', { full: true });
+
+      expect(snippet).toContain('connector-id: <connector-id>');
+      expect(snippet).toContain('condition:');
+    });
+
+    it('includes connector-id for cached connector-event triggers without extension registration', () => {
+      (isConnectorEventTriggerId as jest.Mock).mockReturnValueOnce(true);
+
+      const snippet = generateTriggerSnippet('inboundWebhook.received', { full: true });
+
+      expect(snippet).toContain('connector-id: <connector-id>');
+      expect(snippet).toContain('condition:');
     });
   });
 });

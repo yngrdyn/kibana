@@ -25,6 +25,7 @@ import { FormattedMessage } from '@kbn/i18n-react';
 import { i18n } from '@kbn/i18n';
 import type { ActionTypeExecutorResult } from '@kbn/actions-plugin/common';
 import { isActionTypeExecutorResult } from '@kbn/actions-plugin/common';
+import { ACTION_TYPE_SOURCES } from '@kbn/actions-types';
 import type { Option } from 'fp-ts/Option';
 import { none, some } from 'fp-ts/Option';
 import type { ConnectorFormSchema } from '@kbn/alerts-ui-shared';
@@ -32,6 +33,7 @@ import { useActionTypeModel } from '@kbn/alerts-ui-shared/src/common/hooks/use_a
 import { ReadOnlyConnectorMessage } from './read_only';
 import type {
   ActionConnector,
+  ActionType,
   ActionTypeRegistryContract,
   UserConfiguredActionConnector,
 } from '../../../../types';
@@ -47,6 +49,19 @@ import { ConnectorRulesList } from '../connector_rules_list';
 import { useExecuteConnector } from '../../../hooks/use_execute_connector';
 import { FlyoutHeader } from './header';
 import { FlyoutFooter } from './footer';
+import { loadActionTypes } from '../../../lib/action_connector_api';
+
+const isConnectorTypeTestable = (actionType?: ActionType): boolean => {
+  if (!actionType) {
+    return false;
+  }
+
+  if (actionType.source === ACTION_TYPE_SOURCES.spec) {
+    return Boolean(actionType.isTestable);
+  }
+
+  return !actionType.source || actionType.source === ACTION_TYPE_SOURCES.stack;
+};
 
 export interface EditConnectorFlyoutProps {
   actionTypeRegistry: ActionTypeRegistryContract;
@@ -195,6 +210,46 @@ export const EditConnectorFlyoutContent: React.FC<EditConnectorFlyoutContentProp
   });
 
   const [selectedTab, setTab] = useState<EditConnectorTabs>(tab);
+  const [connectorActionType, setConnectorActionType] = useState<ActionType | undefined>();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadActionTypes({ http }).then((actionTypes) => {
+      if (cancelled) {
+        return;
+      }
+
+      setConnectorActionType(actionTypes.find((type) => type.id === connector.actionTypeId));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connector.actionTypeId, http]);
+
+  const isTestable = useMemo(() => {
+    if (isTestableProp !== undefined) {
+      return isTestableProp;
+    }
+
+    if (connectorActionType === undefined) {
+      return actionTypeRegistry.has(connector.actionTypeId);
+    }
+
+    return isConnectorTypeTestable(connectorActionType);
+  }, [actionTypeRegistry, connector.actionTypeId, connectorActionType, isTestableProp]);
+
+  useEffect(() => {
+    if (connectorActionType === undefined) {
+      return;
+    }
+
+    if (!isTestable && selectedTab === EditConnectorTabs.Test) {
+      setTab(EditConnectorTabs.Configuration);
+    }
+  }, [connectorActionType, isTestable, selectedTab]);
+
   /**
    * Test connector
    */

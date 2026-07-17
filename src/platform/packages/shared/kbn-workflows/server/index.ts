@@ -38,6 +38,8 @@ export { buildExternalResumeUrl } from './external_resume/build_external_resume_
 export { buildExternalResumeFormUrl } from './external_resume/build_external_resume_form_url';
 export { computeTokenHmac } from './external_resume/compute_token_hmac';
 
+export { resolveConnectorEventTriggerDefinition } from '../spec/workflow_surface/resolve_connector_event_trigger_definition';
+
 export type {
   GetManagedWorkflowStatusOptions,
   ManagedWorkflowStatus,

@@ -13,7 +13,7 @@ import type {
 import type { AttachmentTypeDefinition } from '@kbn/agent-builder-server/attachments';
 import { createAttachmentStateManager } from '@kbn/agent-builder-server/attachments';
 import { AgentBuilderConnectorFeatureId } from '@kbn/actions-plugin/common';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import type { PluginStartContract as ActionsPluginStart } from '@kbn/actions-plugin/server';
 import { createListConnectorTypesTool } from './list_connector_types';
 import { createProposeConnectorTool } from './propose_connector';

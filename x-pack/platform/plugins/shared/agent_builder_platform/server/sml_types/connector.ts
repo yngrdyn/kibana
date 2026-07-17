@@ -12,7 +12,7 @@ import type { SmlTypeDefinition } from '@kbn/agent-builder-sml-plugin/server';
 import { kibanaSavedObjectPermissions } from '@kbn/agent-builder-sml-plugin/server';
 import type { ConnectorAttachmentData } from '@kbn/agent-builder-common/attachments';
 import { AttachmentType } from '@kbn/agent-builder-common/attachments';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 
 const CONNECTOR_SML_TYPE = 'connector';
 

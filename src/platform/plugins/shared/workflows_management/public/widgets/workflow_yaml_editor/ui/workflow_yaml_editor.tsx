@@ -18,7 +18,10 @@ import type YAML from 'yaml';
 import { monaco, YAML_LANG_ID } from '@kbn/code-editor';
 import { i18n } from '@kbn/i18n';
 import { FormattedMessage } from '@kbn/i18n-react';
-import { isTriggerType, WORKFLOWS_EXPERIMENTAL_FEATURES_SETTING_ID } from '@kbn/workflows';
+import {
+  isTriggerType,
+  WORKFLOWS_EXPERIMENTAL_FEATURES_SETTING_ID,
+} from '@kbn/workflows';
 import { isConnectorEventTriggerId } from '../../../../common/lib/is_connector_event_trigger_id';
 import { useWorkflowsMonacoTheme, WORKFLOW_MONACO_LAYOUT_OPTIONS } from '@kbn/workflows-ui';
 import type { z } from '@kbn/zod/v4';

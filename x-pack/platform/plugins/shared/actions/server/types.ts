@@ -37,6 +37,7 @@ export type WithoutQueryAndParams<T> = Pick<T, Exclude<keyof T, 'query' | 'param
 export type GetServicesFunction = (request: KibanaRequest) => Services;
 export type GetUnsecuredServicesFunction = () => UnsecuredServices;
 export type ActionTypeRegistryContract = PublicMethodsOf<ActionTypeRegistry>;
+export type { ActionTypeRegistry };
 export type SpaceIdToNamespaceFunction = (spaceId?: string) => string | undefined;
 export type ActionTypeConfig = Record<string, unknown>;
 export type ActionTypeSecrets = Record<string, unknown>;
@@ -210,6 +211,28 @@ export interface ConnectorLifecycleListener {
   onPostCreate?: (params: ConnectorLifecyclePostCreateParams) => Promise<void>;
   // Called after a connector is deleted
   onPostDelete?: (params: ConnectorLifecyclePostDeleteParams) => Promise<void>;
+}
+
+/** Params passed to connector event emitters after inbound hub ingress handling. */
+export interface ConnectorEventEmitParams {
+  eventId: string;
+  payload: Record<string, unknown>;
+  spaceId: string;
+  connectorId: string;
+  connectorTypeId: string;
+  /**
+   * Optional `ApiKey …` Authorization header from delegated connector credentials.
+   * Required for Task Manager to schedule workflows from unauthenticated ingress.
+   */
+  authorizationHeader?: string;
+}
+
+/**
+ * Sink for connector events produced by the inbound hub.
+ * Registered by bridge plugins (workflows today, event bus later).
+ */
+export interface ConnectorEventEmitter {
+  emit(params: ConnectorEventEmitParams): Promise<void>;
 }
 
 export type ActionType<

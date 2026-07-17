@@ -7,7 +7,7 @@
 
 import expect from '@kbn/expect';
 import type { Response as SupertestResponse } from 'supertest';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 import type { FtrProviderContext } from '../../ftr_provider_context';
 
 const actionTypeIdsFromSpecs = new Set(
@@ -109,7 +109,6 @@ export default function ({ getService }: FtrProviderContext) {
         'actions:.torq',
         'actions:.webhook',
         'actions:.workflows',
-        'actions:.workflows-inbound-webhook',
         'actions:.xmatters',
         'actions:.xsoar',
         'actions:connector_usage_reporting',
@@ -272,7 +271,6 @@ export default function ({ getService }: FtrProviderContext) {
         'workflow:resume',
         'workflow:run',
         'workflow:scheduled',
-        'workflows:inbound-webhook-cleanup',
       ]);
     });
   });

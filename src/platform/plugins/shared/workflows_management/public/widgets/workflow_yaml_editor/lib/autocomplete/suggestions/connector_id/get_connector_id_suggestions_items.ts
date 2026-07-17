@@ -19,11 +19,11 @@ import {
   getConnectorTypesFromStepType,
   isCreateConnectorEnabledForStepType,
 } from '../../../../../../shared/lib/connectors_utils';
-import type { ConnectorIdBinding } from '../../../../../../workflow_surface/connector_id_binding';
 import { listConnectorInstancesForBinding } from '../../../../../../workflow_surface/connector_id_binding';
+import type { ConnectorIdBinding } from '../../../../../../workflow_surface/connector_id_binding';
 
 /**
- * Generate connector-id suggestions from a resolved connector binding.
+ * Generate connector-id suggestions from a resolved workflow-surface binding.
  */
 export function getConnectorIdSuggestionsItems(
   binding: ConnectorIdBinding,
@@ -53,6 +53,7 @@ export function getConnectorInstancesForType(
   return listConnectorInstancesForBinding(
     {
       connectorTypeId: getActionTypeIdFromStepType(stepType),
+      requireConnectorTypeEvents: false,
       lookupKey: stepType,
     },
     dynamicConnectorTypes ?? {}

@@ -13,7 +13,7 @@ import {
 } from '@kbn/agent-builder-common/attachments';
 import type { AttachmentTypeDefinition } from '@kbn/agent-builder-server/attachments';
 import { formatSchemaForLlm } from '@kbn/agent-builder-server';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 
 /**
  * Creates the definition for the `connector` attachment type.

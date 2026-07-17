@@ -15,7 +15,6 @@
       "navigation",
       "taskManager",
       "actions",
-      "encryptedSavedObjects",
       "workflowsExecutionEngine",
       "workflowsExtensions",
       "features",

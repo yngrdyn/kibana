@@ -12,7 +12,7 @@ import {
   type ConnectorAttachmentData,
 } from '@kbn/agent-builder-common/attachments';
 import type { AgentFormattedAttachment } from '@kbn/agent-builder-server/attachments';
-import { getConnectorSpec } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import { formatSchemaForLlm } from '@kbn/agent-builder-server';
 import { z } from '@kbn/zod/v4';
 import { createConnectorAttachmentType } from './connector';

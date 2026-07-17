@@ -45,6 +45,7 @@ const createSetupMock = () => {
     setEnabledConnectorTypes: jest.fn(),
     isActionTypeEnabled: jest.fn(),
     registerConnectorLifecycleListener: jest.fn(),
+    registerConnectorEventEmitter: jest.fn(),
   });
   return mock;
 };

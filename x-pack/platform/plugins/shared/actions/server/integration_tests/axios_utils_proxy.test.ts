@@ -604,6 +604,10 @@ const BaseActionsConfig: ActionsConfig = {
       },
     },
   },
+  inboundConnectors: {
+    enabled: true,
+    maxBodyBytes: 1024 * 1024,
+  },
 };
 
 function getACUfromConfig(config: Partial<ActionsConfig> = {}): ActionsConfigurationUtilities {

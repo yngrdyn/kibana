@@ -72,6 +72,10 @@ export interface CommonTriggerDefinition<EventSchema extends z.ZodType = z.ZodTy
    */
   snippets?: TriggerSnippets;
   /**
+   * When true, workflow YAML must include `connector-id` for this trigger (connector-event binding).
+   */
+  requiresConnectorId?: boolean;
+  /**
    * API stability level for this trigger (e.g. 'tech_preview', 'beta', 'stable').
    * Required so every trigger explicitly declares its contract. Set 'stable' for GA triggers (no badge).
    */

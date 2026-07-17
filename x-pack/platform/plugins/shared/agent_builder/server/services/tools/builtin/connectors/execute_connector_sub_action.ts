@@ -12,7 +12,8 @@ import { ToolResultType } from '@kbn/agent-builder-common/tools/tool_result';
 import type { BuiltinToolDefinition } from '@kbn/agent-builder-server';
 import { getToolResultId, createErrorResult } from '@kbn/agent-builder-server';
 import { AGENT_BUILDER_EXPERIMENTAL_FEATURES_SETTING_ID } from '@kbn/management-settings-ids';
-import { getConnectorSpec, isToolAction } from '@kbn/connector-specs';
+import { isToolAction } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import type { ConnectorToolsOptions } from './types';
 
 const connectorIdValidationMessage =

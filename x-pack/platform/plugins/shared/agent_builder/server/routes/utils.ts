@@ -6,7 +6,8 @@
  */
 
 import type { Connector } from '@kbn/actions-plugin/server';
-import { getConnectorSpec, isToolAction } from '@kbn/connector-specs';
+import { isToolAction } from '@kbn/connector-specs';
+import { getConnectorSpec } from '@kbn/connector-specs/server';
 import type { ConnectorItem, ConnectorSubAction, OAuthStatus } from '../../common/http_api/tools';
 
 export const getTechnicalPreviewWarning = (featureName: string) => {

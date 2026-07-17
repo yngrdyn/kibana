@@ -9,35 +9,15 @@
 
 import type { Document } from 'yaml';
 import type { PublicTriggerDefinition } from '@kbn/workflows-extensions/public';
-import { isConnectorEventTriggerId } from '../../../../../common/lib/is_connector_event_trigger_id';
-import { commonInboundWebhookReceivedTriggerDefinition } from '../../../../../common/triggers/inbound_webhook_received';
-import { getTriggerConditionBlockIndex, getTriggerTypeAtIndex } from './context/triggers_utils';
-import { triggerSchemas } from '../../../../trigger_schemas';
-
-const connectorEventTriggerDefinitions: Record<string, PublicTriggerDefinition> = {
-  [commonInboundWebhookReceivedTriggerDefinition.id]: commonInboundWebhookReceivedTriggerDefinition,
-};
+import { getTriggerConditionDefinition } from '../../../../workflow_surface/kql_filter_provider';
 
 /**
  * When `path` is `triggers[i].on.condition` and `triggers[i].type` resolves to a trigger registered
- * in workflows extensions, returns its public definition; otherwise `undefined`.
+ * in workflows extensions or a connector-event trigger, returns its public definition; otherwise `undefined`.
  */
 export function getRegisteredTriggerConditionDefinition(
   yamlDocument: Document,
   path: (string | number)[]
 ): PublicTriggerDefinition | undefined {
-  const blockIndex = getTriggerConditionBlockIndex(path);
-  if (blockIndex === null) {
-    return undefined;
-  }
-  const triggerType = getTriggerTypeAtIndex(yamlDocument, blockIndex);
-  if (triggerType === null) {
-    return undefined;
-  }
-  return (
-    triggerSchemas.getTriggerDefinition(triggerType) ??
-    (isConnectorEventTriggerId(triggerType)
-      ? connectorEventTriggerDefinitions[triggerType]
-      : undefined)
-  );
+  return getTriggerConditionDefinition(yamlDocument, path);
 }

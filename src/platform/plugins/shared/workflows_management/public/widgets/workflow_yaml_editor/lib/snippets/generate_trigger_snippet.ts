@@ -50,11 +50,11 @@ export function generateTriggerSnippet(
   let parameters: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   const triggerDefinition = triggerSchemas.getTriggerDefinition(triggerType);
-  const requiresConnectorId = isConnectorEventTriggerId(triggerType);
+  const requiresConnectorId =
+    triggerDefinition?.requiresConnectorId === true || isConnectorEventTriggerId(triggerType);
   const resolvedConnectorId =
     defaultConnectorId ?? (monacoSuggestionFormat ? '${1:<connector-id>}' : '<connector-id>');
-  const resolvedCondition =
-    defaultCondition ?? triggerDefinition?.snippets?.condition ?? '';
+  const resolvedCondition = defaultCondition ?? triggerDefinition?.snippets?.condition ?? '';
 
   switch (triggerType) {
     case 'alert':

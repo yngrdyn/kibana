@@ -14,7 +14,7 @@ import { TaskCost } from '../task';
 import { setupTestServers } from './lib';
 import type { TaskTypeDictionary } from '../task_type_dictionary';
 import { sortBy } from 'lodash';
-import { connectorsSpecs } from '@kbn/connector-specs';
+import * as connectorsSpecs from '@kbn/connector-specs/src/all_specs';
 
 jest.mock('../task_type_dictionary', () => {
   const actual = jest.requireActual('../task_type_dictionary');

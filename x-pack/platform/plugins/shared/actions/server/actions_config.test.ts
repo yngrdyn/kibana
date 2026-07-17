@@ -51,6 +51,10 @@ const defaultActionsConfig: ActionsConfig = {
     },
     ears: { enabled: false, enableExperimental: false },
   },
+  inboundConnectors: {
+    enabled: true,
+    maxBodyBytes: 1024 * 1024,
+  },
 };
 
 describe('ensureUriAllowed', () => {

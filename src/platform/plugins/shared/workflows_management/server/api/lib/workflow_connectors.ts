@@ -10,6 +10,7 @@
 import { WorkflowsConnectorFeatureId } from '@kbn/actions-plugin/common/connector_feature_config';
 import type { ActionsClient, IUnsecuredActionsClient } from '@kbn/actions-plugin/server';
 import type { FindActionResult } from '@kbn/actions-plugin/server/types';
+import { listConnectorEventInfosForType } from '@kbn/connector-specs/server';
 import type { KibanaRequest } from '@kbn/core/server';
 import type { PublicMethodsOf } from '@kbn/utility-types';
 import type { ConnectorEventInfo, ConnectorTypeInfo } from '@kbn/workflows';
@@ -19,7 +20,6 @@ import type {
 } from '@kbn/workflows/types/v1';
 
 import { CONNECTOR_SUB_ACTIONS_MAP } from '../../../common/connector_sub_actions_map';
-import { getConnectorTriggerEventsForType } from '../../../common/inbound_webhook/connector_trigger_events';
 
 const getConnectorInstanceConfig = (
   connector: FindActionResult
@@ -31,7 +31,7 @@ const getConnectorInstanceConfig = (
 };
 
 const getConnectorEventsForType = (actionTypeId: string): ConnectorEventInfo[] | undefined => {
-  const events = getConnectorTriggerEventsForType(actionTypeId);
+  const events = listConnectorEventInfosForType(actionTypeId);
   return events.length > 0 ? events : undefined;
 };
 
