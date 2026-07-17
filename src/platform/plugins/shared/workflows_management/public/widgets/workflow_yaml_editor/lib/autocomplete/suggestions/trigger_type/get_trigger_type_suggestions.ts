@@ -16,8 +16,10 @@ import {
   ScheduledTriggerSchema,
 } from '@kbn/workflows';
 import { mapPublicTriggerToDisplay } from '../../../../../../lib/map_public_trigger_to_display';
+import { getCachedDynamicConnectorTypes } from '../../../../../../../common/schema';
 import { triggerSchemas } from '../../../../../../trigger_schemas';
 import { generateTriggerSnippet } from '../../../snippets/generate_trigger_snippet';
+import { collectConnectorEventsFromTypes } from '@kbn/workflows';
 
 /** Shape used for both built-in and registered trigger suggestions */
 interface TriggerSuggestionItem {
@@ -65,7 +67,12 @@ export function getTriggerTypeSuggestions(
         icon: monaco.languages.CompletionItemKind.TypeParameter,
       };
     });
-  const allTriggerTypes: TriggerSuggestionItem[] = [...builtInTriggerTypes, ...registeredTriggers];
+  const connectorEventTriggers = getConnectorEventTriggerTypesFromCache(registeredTriggers);
+  const allTriggerTypes: TriggerSuggestionItem[] = [
+    ...builtInTriggerTypes,
+    ...registeredTriggers,
+    ...connectorEventTriggers,
+  ];
 
   const matchingTriggerTypes = allTriggerTypes.filter((triggerType) =>
     matchesTriggerTypePrefix(triggerType, typePrefix)
@@ -120,6 +127,28 @@ export function getAllTriggerTypesForSuggestions(): TriggerSuggestionItem[] {
     };
   });
   return [...builtIn, ...registered];
+}
+
+function getConnectorEventTriggerTypesFromCache(
+  registeredTriggers: TriggerSuggestionItem[]
+): TriggerSuggestionItem[] {
+  const connectorTypes = getCachedDynamicConnectorTypes();
+  if (!connectorTypes) {
+    return [];
+  }
+
+  const registeredIds = new Set(registeredTriggers.map((trigger) => trigger.type));
+
+  return collectConnectorEventsFromTypes(connectorTypes)
+    .filter((event) => !registeredIds.has(event.eventId))
+    .map(
+      (event): TriggerSuggestionItem => ({
+        type: event.eventId,
+        label: event.title,
+        description: event.description,
+        icon: monaco.languages.CompletionItemKind.Event,
+      })
+    );
 }
 
 // Cache for built-in trigger types extracted from schema
