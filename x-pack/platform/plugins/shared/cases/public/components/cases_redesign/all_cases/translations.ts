@@ -97,3 +97,38 @@ export const BULK_ACTIONS_POPOVER_ARIA_LABEL = i18n.translate(
     defaultMessage: 'Bulk actions popover',
   }
 );
+
+export const SELECT_CASE_ARIA_LABEL = (title: string) =>
+  i18n.translate('xpack.cases.casesRedesign.listView.selectCaseAriaLabel', {
+    values: { title },
+    defaultMessage: 'Select case {title}',
+  });
+
+export const SELECT_ALL_CASES = i18n.translate('xpack.cases.casesRedesign.listView.selectAll', {
+  defaultMessage: 'Select all',
+});
+
+export const CLEAR_SELECTION = i18n.translate('xpack.cases.casesRedesign.listView.clearSelection', {
+  defaultMessage: 'Clear selection',
+});
+
+export const LIST_CASE_META_LINK_ARIA = (title: string) =>
+  i18n.translate('xpack.cases.casesRedesign.listView.caseMetaLinkAriaLabel', {
+    values: { title },
+    defaultMessage: 'View case details for {title}',
+  });
+
+export const SEARCH_HIDDEN_FIELDS_INFO_TITLE = i18n.translate(
+  'xpack.cases.casesRedesign.tableFilters.searchHiddenFieldsInfoTitle',
+  {
+    defaultMessage: 'Search may include hidden fields',
+  }
+);
+
+export const SEARCH_HIDDEN_FIELDS_INFO_TEXT = i18n.translate(
+  'xpack.cases.casesRedesign.tableFilters.searchHiddenFieldsInfoText',
+  {
+    defaultMessage:
+      'Results can match values from template and custom fields that are not shown as columns.',
+  }
+);
