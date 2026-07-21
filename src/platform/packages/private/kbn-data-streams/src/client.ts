@@ -25,6 +25,7 @@ import { initialize } from './initialize';
 import { initializeIndexTemplate } from './initialize/index_template';
 import { initializeDataStream } from './initialize/data_stream';
 import { getExistingDataStream, getExistingIndexTemplate } from './initialize/exists_checks';
+import { assertSystemDataStream } from './initialize/assert_system_data_stream';
 import { validateClientArgs } from './validate_client_args';
 import {
   generateSpacePrefixedId,
@@ -133,6 +134,12 @@ export class DataStreamClient<
       existingIndexTemplate,
       skipCreation: true,
     });
+
+    // Template-only setup cannot create a system stream; if one already exists, verify it
+    // (requiresSystemDataStream defaults to true; explicit false opts out).
+    if (dataStream.requiresSystemDataStream !== false && existingDataStream) {
+      await assertSystemDataStream({ logger, dataStream, elasticsearchClient });
+    }
   }
 
   /**

@@ -42,6 +42,7 @@ export const discoveriesDataStream: DataStreamDefinition<
   name: DISCOVERIES_DATA_STREAM,
   version: 4,
   hidden: true,
+  requiresSystemDataStream: false,
   template: {
     priority: 500,
     lifecycle: { data_retention: '90d' },

@@ -115,6 +115,26 @@ All CRUD operations (`create`, `search`) accept an optional `space` parameter:
 
 Data streams can contain both space-bound and space-agnostic documents. The package does not handle RBAC; higher-level repositories should wrap these APIs for access control.
 
+## System data streams
+
+`@kbn/data-streams` can create **hidden** data streams (`hidden` defaults to `true`). It **cannot** register a stream as a system data stream — that requires a matching [`SystemDataStreamDescriptor`](https://javadoc.io/doc/org.elasticsearch/elasticsearch/latest/org/elasticsearch/indices/SystemDataStreamDescriptor.html) in Elasticsearch.
+
+`requiresSystemDataStream` **defaults to `true`**. After setup, if the data stream already exists, initialization re-reads it via `GET _data_stream/<name>` and **fails closed** unless Elasticsearch reports `system: true`. Opt out only when a stream is intentionally non-system:
+
+```typescript
+const definition: DataStreamDefinition<typeof mappings> = {
+  name: '.my-non-system-stream',
+  version: 1,
+  hidden: true,
+  requiresSystemDataStream: false, // explicit opt-out
+  template: { mappings },
+};
+```
+
+When the stream does not exist yet (lazy creation), verification is skipped until a later initialize sees the stream.
+
+Use `GET _data_stream/<name>` to inspect runtime `system` / `hidden` flags. There is no Elasticsearch API that lists all registered `SystemIndexDescriptor` / `SystemDataStreamDescriptor` patterns — those live in ES plugin code.
+
 ## Mapping Validation
 
 When registering a data stream, the following reserved keys are automatically validated and will cause an error if found in your mappings:

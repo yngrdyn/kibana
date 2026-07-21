@@ -37,6 +37,7 @@ const dataStreamDefinition: DataStreamDefinition<typeof dataStreamMapping, FullD
   {
     name: 'test-data-stream',
     version: 1,
+    requiresSystemDataStream: false,
     template: {
       mappings: dataStreamMapping,
     },

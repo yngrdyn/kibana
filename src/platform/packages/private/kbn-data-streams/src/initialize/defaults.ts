@@ -62,6 +62,7 @@ export function applyDefaults(def: AnyDataStreamDefinition): AnyDataStreamDefini
 
   const defaultDataStreamDefinition: Partial<DataStreamDefinition<any, any>> = {
     hidden: true,
+    requiresSystemDataStream: true,
     template: {
       priority: 100,
       _meta: {

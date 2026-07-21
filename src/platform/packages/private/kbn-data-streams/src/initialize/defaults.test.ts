@@ -186,6 +186,7 @@ describe('applyDefaults', () => {
       const result = applyDefaults(dataStream);
 
       expect(result.hidden).toBe(true);
+      expect(result.requiresSystemDataStream).toBe(true);
       expect(result.template?.priority).toBe(100);
       expect(result.template?._meta?.managed).toBe(true);
       expect(result.template?._meta?.userAgent).toBe('@kbn/data-streams');

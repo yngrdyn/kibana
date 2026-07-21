@@ -39,6 +39,7 @@ describe('initialize - versioning logic', () => {
   const createTestDataStream = (version: number): DataStreamDefinition<typeof testMappings> => ({
     name: 'test-data-stream',
     version,
+    requiresSystemDataStream: false,
     template: {
       mappings: testMappings,
     },
@@ -652,6 +653,98 @@ describe('initialize - versioning logic', () => {
       expect(createCall?.template?.lifecycle).toEqual({
         data_retention: '30d',
       });
+    });
+  });
+
+  describe('requiresSystemDataStream', () => {
+    it('throws after create when Elasticsearch reports system: false (default)', async () => {
+      const dataStream = {
+        ...createTestDataStream(1),
+        requiresSystemDataStream: undefined,
+      };
+
+      (elasticsearchClient.indices.getIndexTemplate as jest.Mock).mockRejectedValueOnce(
+        new EsErrors.ResponseError({
+          statusCode: 404,
+          body: { error: { type: 'resource_not_found_exception' } },
+          warnings: [],
+          headers: {},
+          meta: {} as never,
+        })
+      );
+      (elasticsearchClient.indices.getDataStream as jest.Mock)
+        .mockRejectedValueOnce(
+          new EsErrors.ResponseError({
+            statusCode: 404,
+            body: { error: { type: 'resource_not_found_exception' } },
+            warnings: [],
+            headers: {},
+            meta: {} as never,
+          })
+        )
+        .mockResolvedValueOnce({
+          data_streams: [{ name: dataStream.name, system: false, hidden: true }],
+        });
+      (elasticsearchClient.indices.putIndexTemplate as jest.Mock).mockResolvedValueOnce({
+        acknowledged: true,
+      });
+      (elasticsearchClient.indices.createDataStream as jest.Mock).mockResolvedValueOnce({
+        acknowledged: true,
+      });
+
+      await expect(
+        initialize({
+          logger,
+          elasticsearchClient,
+          dataStream,
+          lazyCreation: false,
+        })
+      ).rejects.toThrow(/system: false/);
+    });
+
+    it('succeeds when Elasticsearch reports system: true', async () => {
+      const dataStream = {
+        ...createTestDataStream(1),
+        requiresSystemDataStream: true,
+      };
+
+      (elasticsearchClient.indices.getIndexTemplate as jest.Mock).mockRejectedValueOnce(
+        new EsErrors.ResponseError({
+          statusCode: 404,
+          body: { error: { type: 'resource_not_found_exception' } },
+          warnings: [],
+          headers: {},
+          meta: {} as never,
+        })
+      );
+      (elasticsearchClient.indices.getDataStream as jest.Mock)
+        .mockRejectedValueOnce(
+          new EsErrors.ResponseError({
+            statusCode: 404,
+            body: { error: { type: 'resource_not_found_exception' } },
+            warnings: [],
+            headers: {},
+            meta: {} as never,
+          })
+        )
+        .mockResolvedValueOnce({
+          data_streams: [{ name: dataStream.name, system: true, hidden: true }],
+        });
+      (elasticsearchClient.indices.putIndexTemplate as jest.Mock).mockResolvedValueOnce({
+        acknowledged: true,
+      });
+      (elasticsearchClient.indices.createDataStream as jest.Mock).mockResolvedValueOnce({
+        acknowledged: true,
+      });
+
+      await expect(
+        initialize({
+          logger,
+          elasticsearchClient,
+          dataStream,
+          lazyCreation: false,
+        })
+      ).resolves.toEqual({ dataStreamReady: true });
     });
   });
 });

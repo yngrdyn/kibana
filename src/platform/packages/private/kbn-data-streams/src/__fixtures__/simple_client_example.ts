@@ -28,6 +28,7 @@ const dataStreamMapping = {
 const dataStreamDefinition: DataStreamDefinition<typeof dataStreamMapping> = {
   name: 'test-data-stream',
   version: 1,
+  requiresSystemDataStream: false,
   template: {
     mappings: dataStreamMapping,
   },

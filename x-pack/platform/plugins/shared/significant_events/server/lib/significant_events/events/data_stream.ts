@@ -33,6 +33,7 @@ export const eventsDataStream: DataStreamDefinition<typeof eventsMappings, Store
   name: EVENTS_DATA_STREAM,
   version: 6,
   hidden: true,
+  requiresSystemDataStream: false,
   template: {
     priority: 500,
     mappings: eventsMappings,

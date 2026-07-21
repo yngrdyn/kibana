@@ -32,6 +32,7 @@ describe('DataStreamClient', () => {
   const testDataStream: DataStreamDefinition<MappingsDefinition> = {
     name: 'test-data-stream',
     version: 1,
+    requiresSystemDataStream: false,
     template: {
       mappings: myTestDocMappings,
     },
@@ -143,6 +144,7 @@ describe('DataStreamClient', () => {
     const lifecycleTestDataStream: DataStreamDefinition<MappingsDefinition> = {
       name: 'lifecycle-test-data-stream',
       version: 1,
+      requiresSystemDataStream: false,
       template: {
         mappings: myTestDocMappings,
         lifecycle: {
@@ -853,6 +855,7 @@ describe('DataStreamClient', () => {
     const lifecycleVersionedDataStreamV1: DataStreamDefinition<MappingsDefinition> = {
       name: 'lifecycle-versioned-test-data-stream',
       version: 1,
+      requiresSystemDataStream: false,
       template: {
         mappings: myTestDocMappings,
         lifecycle: {
@@ -876,6 +879,7 @@ describe('DataStreamClient', () => {
     const lifecycleAddedDataStreamV1: DataStreamDefinition<MappingsDefinition> = {
       name: 'lifecycle-added-test-data-stream',
       version: 1,
+      requiresSystemDataStream: false,
       template: {
         mappings: myTestDocMappings,
       },
@@ -1215,6 +1219,7 @@ describe('DataStreamClient', () => {
       const lifecycleOnCreateDataStream: DataStreamDefinition<MappingsDefinition> = {
         name: 'lifecycle-on-create-test-data-stream',
         version: 1,
+      requiresSystemDataStream: false,
         template: {
           mappings: myTestDocMappings,
           lifecycle: {

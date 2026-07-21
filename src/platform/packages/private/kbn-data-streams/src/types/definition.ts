@@ -33,6 +33,23 @@ export interface DataStreamDefinition<
   hidden?: boolean;
 
   /**
+   * When true (the default), initialization fails if the data stream already exists and
+   * Elasticsearch reports `system` as anything other than `true`.
+   *
+   * Kibana cannot register a system data stream via the create/template APIs. That requires
+   * a matching `SystemDataStreamDescriptor` in Elasticsearch (for example in the Kibana
+   * plugin). Opt out explicitly with `requiresSystemDataStream: false` only when the stream
+   * is intentionally non-system; otherwise a missing ES registration fails closed.
+   *
+   * When the stream does not exist yet (e.g. lazy creation), verification is skipped until
+   * a later initialize sees the stream.
+   *
+   * @default true
+   * @see https://github.com/elastic/security-team/issues/18291
+   */
+  requiresSystemDataStream?: boolean;
+
+  /**
    * @remark Must be **incremented** in order to release a new version of the template definition.
    * @remark Must be greater than 0
    */

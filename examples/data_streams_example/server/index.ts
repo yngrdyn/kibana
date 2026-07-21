@@ -26,6 +26,7 @@ const dataStreamMappings = {
 const dataStream: DataStreamDefinition<typeof dataStreamMappings> = {
   name: '.kibana-my-data-stream',
   version: 1,
+  requiresSystemDataStream: false,
   template: {
     mappings: dataStreamMappings,
   },

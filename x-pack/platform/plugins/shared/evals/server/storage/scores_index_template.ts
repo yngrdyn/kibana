@@ -99,6 +99,7 @@ export const evaluationsDataStreamDefinition: DataStreamDefinition<MappingsDefin
   name: EvaluationIndices.SCORES,
   version: 1,
   hidden: true,
+  requiresSystemDataStream: false,
   template: {
     lifecycle: {
       data_retention: '90d',

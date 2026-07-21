@@ -53,6 +53,7 @@ describe('Data streams initialize function', () => {
   const testDataStream: DataStreamDefinition<typeof myTestDocMappings, MyTestDoc> = {
     name: 'test-data-stream',
     version: 1,
+    requiresSystemDataStream: false,
     template: {
       mappings: myTestDocMappings,
     },
@@ -136,6 +137,44 @@ describe('Data streams initialize function', () => {
         data_streams: [dataStreamUpdated],
       } = await esClient.indices.getDataStream({ name: testDataStream.name });
       expect(dataStreamUpdated.generation).toEqual(1);
+    });
+
+    it('fails closed by default when Elasticsearch reports system: false', async () => {
+      const esClient = esServer.getClient();
+      const privilegedStream: DataStreamDefinition<typeof myTestDocMappings, MyTestDoc> = {
+        ...testDataStream,
+        name: 'test-requires-system-data-stream',
+        // omit requiresSystemDataStream — default is true
+        requiresSystemDataStream: undefined,
+      };
+
+      await esClient.indices
+        .deleteDataStream({ name: privilegedStream.name })
+        .catch(() => undefined);
+      await esClient.indices
+        .deleteIndexTemplate({ name: privilegedStream.name })
+        .catch(() => undefined);
+
+      await expect(
+        initialize({
+          logger,
+          elasticsearchClient: esClient,
+          dataStream: privilegedStream,
+          lazyCreation: false,
+        })
+      ).rejects.toThrow(/requires a system data stream[\s\S]*system: false/);
+
+      // Stream was created as a normal hidden stream; the assert fails after creation.
+      const {
+        data_streams: [created],
+      } = await esClient.indices.getDataStream({ name: privilegedStream.name });
+      expect(created.hidden).toBe(true);
+      expect(created.system).not.toBe(true);
+
+      await esClient.indices.deleteDataStream({ name: privilegedStream.name }).catch(() => undefined);
+      await esClient.indices
+        .deleteIndexTemplate({ name: privilegedStream.name })
+        .catch(() => undefined);
     });
 
     it('Updates the index template and the data stream if they exist and the version is different', async () => {

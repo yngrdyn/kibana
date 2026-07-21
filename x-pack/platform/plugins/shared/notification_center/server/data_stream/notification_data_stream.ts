@@ -41,6 +41,7 @@ export const notificationDataStreamDefinition = {
   // bump on any mapping or lifecycle change
   version: 1,
   hidden: true,
+  requiresSystemDataStream: false,
   template: {
     priority: 500,
     lifecycle: {

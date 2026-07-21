@@ -13,6 +13,7 @@ import type { AnyDataStreamDefinition } from '../types';
 import { initializeDataStream } from './data_stream';
 import { initializeIndexTemplate } from './index_template';
 import { getExistingDataStream, getExistingIndexTemplate } from './exists_checks';
+import { assertSystemDataStream } from './assert_system_data_stream';
 
 /**
  * https://www.elastic.co/docs/manage-data/data-store/data-streams/set-up-data-stream
@@ -69,6 +70,11 @@ export async function initialize({
     existingIndexTemplate,
     skipCreation: !createDataStreamIfDoesntExist,
   });
+
+  // Fail closed when a privileged stream is missing its ES SystemDataStreamDescriptor.
+  // Callers that set requiresSystemDataStream should use lazyCreation: false so the stream
+  // exists and can be verified (assert throws if the stream is absent or system !== true).
+  await assertSystemDataStream({ logger, dataStream, elasticsearchClient });
 
   return {
     dataStreamReady: indexTemplateReady && dataStreamReady,

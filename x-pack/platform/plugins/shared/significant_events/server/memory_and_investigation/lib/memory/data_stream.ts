@@ -42,6 +42,7 @@ export const memoriesDataStream: DataStreamDefinition<typeof memoriesMappings, S
   name: MEMORIES_DATA_STREAM,
   version: 2,
   hidden: true,
+  requiresSystemDataStream: false,
   template: {
     priority: 500,
     lifecycle: { data_retention: '90d' },
