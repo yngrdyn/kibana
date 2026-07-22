@@ -128,7 +128,7 @@ Kibana **cannot** mark a stream as system. That requires a matching [`SystemData
 
 ### Why this matters
 
-Privileged Kibana streams that are **not** Elasticsearch system data streams have been readable across spaces (the class of bug behind [security-team#18291](https://github.com/elastic/security-team/issues/18291)). Treat any stream that holds privileged or cross-space-sensitive data as needing ES `system: true` — `hidden` alone is not enough.
+`@kbn/data-streams` are **not** system data streams by default. This means data is readable across spaces by default (leading to the class of bug behind [security-team#18291](https://github.com/elastic/security-team/issues/18291)). Treat any stream that holds privileged or cross-space-sensitive data as needing ES `system: true` — `hidden` alone is not enough.
 
 This package does **not** currently fail boot or roll back when Elasticsearch reports `system: false`. Developers must land the ES descriptor and verify the runtime flag themselves. Core is tracking stronger platform guidance / checks in [kibana-team#3797](https://github.com/elastic/kibana-team/issues/3797).
 
