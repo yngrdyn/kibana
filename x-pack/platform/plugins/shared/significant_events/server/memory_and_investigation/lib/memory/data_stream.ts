@@ -41,8 +41,8 @@ export type StoredMemoryPage = GetFieldsOf<typeof memoriesMappings>;
 export const memoriesDataStream: DataStreamDefinition<typeof memoriesMappings, StoredMemoryPage> = {
   name: MEMORIES_DATA_STREAM,
   version: 2,
-  hidden: true,
   requiresSystemDataStream: false,
+  hidden: true,
   template: {
     priority: 500,
     lifecycle: { data_retention: '90d' },

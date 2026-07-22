@@ -35,8 +35,8 @@ export const memoryHistoryDataStream: DataStreamDefinition<
 > = {
   name: memoryHistoryDataStreamName,
   version: 1,
-  hidden: true,
   requiresSystemDataStream: false,
+  hidden: true,
   template: {
     priority: 500,
     lifecycle: { data_retention: '180d' },

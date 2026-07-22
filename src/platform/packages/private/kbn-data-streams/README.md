@@ -119,19 +119,45 @@ Data streams can contain both space-bound and space-agnostic documents. The pack
 
 `@kbn/data-streams` can create **hidden** data streams (`hidden` defaults to `true`). It **cannot** register a stream as a system data stream — that requires a matching [`SystemDataStreamDescriptor`](https://javadoc.io/doc/org.elasticsearch/elasticsearch/latest/org/elasticsearch/indices/SystemDataStreamDescriptor.html) in Elasticsearch.
 
-`requiresSystemDataStream` **defaults to `true`**. After setup, if the data stream already exists, initialization re-reads it via `GET _data_stream/<name>` and **fails closed** unless Elasticsearch reports `system: true`. Opt out only when a stream is intentionally non-system:
+`requiresSystemDataStream` is **required** on every `DataStreamDefinition` (`true` or `false`). Set `false` for intentional non-system streams; set `true` for privileged streams that must be ES system data streams.
+
+When `true`, after setup initialization re-reads `GET _data_stream/<name>`:
+
+- **Created in this initialize call** and `system !== true` → **fail closed** (throw) and **roll back** the stream (+ template if created this call).
+- **Already existed** in the environment and `system !== true` → **warn and continue** so leftover non-system streams do not crash Kibana boot (recreate after ES registration).
 
 ```typescript
 const definition: DataStreamDefinition<typeof mappings> = {
   name: '.my-non-system-stream',
   version: 1,
   hidden: true,
-  requiresSystemDataStream: false, // explicit opt-out
+  requiresSystemDataStream: false,
+  template: { mappings },
+};
+
+const privileged: DataStreamDefinition<typeof mappings> = {
+  name: '.kibana_change_history',
+  version: 1,
+  requiresSystemDataStream: true,
   template: { mappings },
 };
 ```
 
-When the stream does not exist yet (lazy creation), verification is skipped until a later initialize sees the stream.
+### Privileged streams (`requiresSystemDataStream: true`)
+
+- Use `DataStreamClient.initialize({ lazyCreation: false })` (or core `initializeClient`) so create and assert share one boot path — this is the only supported boot path for privileged streams when the stream does not exist yet.
+- Core `registerDataStream` eager-inits privileged streams; others stay lazy.
+- Privileged + `lazyCreation: true` or `initializeTemplate` (stream absent) **throws** via a shared refuse helper.
+- Create-this-call + assert failure rolls back stream **and** template created in that call. Pre-existing non-system → warn only. Transient `GET _data_stream` errors do **not** trigger rollback.
+
+### Landing order
+
+Ship the Elasticsearch `SystemDataStreamDescriptor` **with or before** enabling Kibana writes for that stream, you can find examples in:
+
+| Stream | ES registration |
+|--------|-----------------|
+| `.workflows-events`, `.workflows-execution-data-stream-logs` | [elastic/elasticsearch#145822](https://github.com/elastic/elasticsearch/pull/145822) |
+| `.kibana_change_history` | [elastic/elasticsearch#154113](https://github.com/elastic/elasticsearch/pull/154113) ([security-team#18291](https://github.com/elastic/security-team/issues/18291)) |
 
 Use `GET _data_stream/<name>` to inspect runtime `system` / `hidden` flags. There is no Elasticsearch API that lists all registered `SystemIndexDescriptor` / `SystemDataStreamDescriptor` patterns — those live in ES plugin code.
 

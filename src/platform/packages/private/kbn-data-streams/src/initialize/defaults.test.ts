@@ -17,6 +17,7 @@ describe('applyDefaults', () => {
   ): DataStreamDefinition<MappingsDefinition> => ({
     name: 'test-data-stream',
     version: 1,
+    requiresSystemDataStream: false,
     template: {
       mappings: {
         properties: {
@@ -182,11 +183,23 @@ describe('applyDefaults', () => {
     });
 
     it('should apply defaults', () => {
-      const dataStream = createTestDataStream();
+      const dataStream: DataStreamDefinition<MappingsDefinition> = {
+        name: 'test-data-stream',
+        version: 1,
+        requiresSystemDataStream: false,
+        template: {
+          mappings: {
+            properties: {
+              '@timestamp': mappings.date(),
+              field: mappings.keyword(),
+            },
+          },
+        },
+      };
       const result = applyDefaults(dataStream);
 
       expect(result.hidden).toBe(true);
-      expect(result.requiresSystemDataStream).toBe(true);
+      expect(result.requiresSystemDataStream).toBe(false);
       expect(result.template?.priority).toBe(100);
       expect(result.template?._meta?.managed).toBe(true);
       expect(result.template?._meta?.userAgent).toBe('@kbn/data-streams');
@@ -200,6 +213,7 @@ describe('applyDefaults', () => {
       const dataStream: DataStreamDefinition<MappingsDefinition> = {
         name: 'test-data-stream',
         version: 1,
+        requiresSystemDataStream: false,
         template: {},
       };
 
@@ -215,6 +229,7 @@ describe('applyDefaults', () => {
       const dataStream: DataStreamDefinition<MappingsDefinition> = {
         name: 'test-data-stream',
         version: 1,
+        requiresSystemDataStream: false,
         template: {
           priority: 200,
         },

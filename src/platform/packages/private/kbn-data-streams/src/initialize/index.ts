@@ -13,7 +13,42 @@ import type { AnyDataStreamDefinition } from '../types';
 import { initializeDataStream } from './data_stream';
 import { initializeIndexTemplate } from './index_template';
 import { getExistingDataStream, getExistingIndexTemplate } from './exists_checks';
-import { assertSystemDataStream } from './assert_system_data_stream';
+import {
+  assertSystemDataStream,
+  rejectDeferredPrivilegedSetup,
+  SystemDataStreamAssertError,
+} from './assert_system_data_stream';
+
+const rollbackAfterFailedSystemAssert = async ({
+  logger,
+  elasticsearchClient,
+  dataStreamName,
+  deleteIndexTemplate,
+}: {
+  logger: Logger;
+  elasticsearchClient: ElasticsearchClient;
+  dataStreamName: string;
+  deleteIndexTemplate: boolean;
+}): Promise<void> => {
+  const tryRollback = async (label: string, fn: () => Promise<unknown>): Promise<void> => {
+    try {
+      await fn();
+      logger.warn(`Rolled back ${label} "${dataStreamName}" after system assert failure`);
+    } catch (deleteError) {
+      logger.error(`Failed to roll back ${label} "${dataStreamName}": ${deleteError}`);
+    }
+  };
+
+  await tryRollback('data stream', () =>
+    elasticsearchClient.indices.deleteDataStream({ name: dataStreamName })
+  );
+
+  if (deleteIndexTemplate) {
+    await tryRollback('index template', () =>
+      elasticsearchClient.indices.deleteIndexTemplate({ name: dataStreamName })
+    );
+  }
+};
 
 /**
  * https://www.elastic.co/docs/manage-data/data-store/data-streams/set-up-data-stream
@@ -53,6 +88,12 @@ export async function initialize({
   const createIndexTemplateIfDoesntExist = existingDataStream ? true : !lazyCreation;
   // create the data stream only if not lazy.
   const createDataStreamIfDoesntExist = !lazyCreation;
+  const createdDataStreamThisCall = !existingDataStream && createDataStreamIfDoesntExist;
+  const createdIndexTemplateThisCall = !existingIndexTemplate && createIndexTemplateIfDoesntExist;
+
+  if (lazyCreation && !existingDataStream) {
+    rejectDeferredPrivilegedSetup(dataStream, 'lazyCreation');
+  }
 
   const { uptoDate: indexTemplateReady } = await initializeIndexTemplate({
     logger,
@@ -71,10 +112,25 @@ export async function initialize({
     skipCreation: !createDataStreamIfDoesntExist,
   });
 
-  // Fail closed when a privileged stream is missing its ES SystemDataStreamDescriptor.
-  // Callers that set requiresSystemDataStream should use lazyCreation: false so the stream
-  // exists and can be verified (assert throws if the stream is absent or system !== true).
-  await assertSystemDataStream({ logger, dataStream, elasticsearchClient });
+  try {
+    await assertSystemDataStream({
+      logger,
+      dataStream,
+      elasticsearchClient,
+      failClosed: createdDataStreamThisCall,
+    });
+  } catch (error) {
+    // Only roll back on the invariant failure — not on transient GET/network errors.
+    if (createdDataStreamThisCall && error instanceof SystemDataStreamAssertError) {
+      await rollbackAfterFailedSystemAssert({
+        logger,
+        elasticsearchClient,
+        dataStreamName: dataStream.name,
+        deleteIndexTemplate: createdIndexTemplateThisCall,
+      });
+    }
+    throw error;
+  }
 
   return {
     dataStreamReady: indexTemplateReady && dataStreamReady,

@@ -49,6 +49,7 @@ describe('ChangeHistoryClient.initialize', () => {
       expect.objectContaining({
         dataStream: expect.objectContaining({
           version: 3,
+          requiresSystemDataStream: true,
           template: expect.objectContaining({
             mappings: expect.any(Object),
             lifecycle: { enabled: true },

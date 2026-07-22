@@ -47,6 +47,7 @@ describe('initializeDataStream', () => {
     const dataStream: DataStreamDefinition<typeof testMappings> = {
       name: 'test-data-stream',
       version: 2,
+      requiresSystemDataStream: false,
       template: {
         mappings: testMappings,
         lifecycle: newLifecycle,

@@ -40,8 +40,8 @@ export const notificationDataStreamDefinition = {
   name: NOTIFICATION_DATA_STREAM_NAME,
   // bump on any mapping or lifecycle change
   version: 1,
-  hidden: true,
   requiresSystemDataStream: false,
+  hidden: true,
   template: {
     priority: 500,
     lifecycle: {

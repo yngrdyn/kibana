@@ -139,13 +139,12 @@ describe('Data streams initialize function', () => {
       expect(dataStreamUpdated.generation).toEqual(1);
     });
 
-    it('fails closed by default when Elasticsearch reports system: false', async () => {
+    it('fails closed when Elasticsearch reports system: false and rolls back the stream', async () => {
       const esClient = esServer.getClient();
       const privilegedStream: DataStreamDefinition<typeof myTestDocMappings, MyTestDoc> = {
         ...testDataStream,
         name: 'test-requires-system-data-stream',
-        // omit requiresSystemDataStream — default is true
-        requiresSystemDataStream: undefined,
+        requiresSystemDataStream: true,
       };
 
       await esClient.indices
@@ -162,16 +161,129 @@ describe('Data streams initialize function', () => {
           dataStream: privilegedStream,
           lazyCreation: false,
         })
-      ).rejects.toThrow(/requires a system data stream[\s\S]*system: false/);
+      ).rejects.toThrow(/requires system: true[\s\S]*system: false/);
 
-      // Stream was created as a normal hidden stream; the assert fails after creation.
+      // Create-then-fail must not leave an unprotected stream or template behind.
+      await expect(
+        esClient.indices.getDataStream({ name: privilegedStream.name })
+      ).rejects.toThrow();
+      await expect(
+        esClient.indices.getIndexTemplate({ name: privilegedStream.name })
+      ).rejects.toThrow();
+    });
+
+    it('rejects privileged initializeTemplate when the stream does not exist yet', async () => {
+      const esClient = esServer.getClient();
+      const privilegedStream: DataStreamDefinition<typeof myTestDocMappings, MyTestDoc> = {
+        ...testDataStream,
+        name: 'test-requires-system-template-only',
+        requiresSystemDataStream: true,
+      };
+
+      await esClient.indices
+        .deleteDataStream({ name: privilegedStream.name })
+        .catch(() => undefined);
+      await esClient.indices
+        .deleteIndexTemplate({ name: privilegedStream.name })
+        .catch(() => undefined);
+
+      await expect(
+        DataStreamClient.initializeTemplate({
+          logger,
+          elasticsearchClient: esClient,
+          dataStream: privilegedStream,
+        })
+      ).rejects.toThrow(/cannot defer creation \(initializeTemplate\)/);
+
+      await expect(
+        esClient.indices.getIndexTemplate({ name: privilegedStream.name })
+      ).rejects.toThrow();
+    });
+
+    it('rejects privileged lazyCreation when the stream does not exist yet', async () => {
+      const esClient = esServer.getClient();
+      const privilegedStream: DataStreamDefinition<typeof myTestDocMappings, MyTestDoc> = {
+        ...testDataStream,
+        name: 'test-requires-system-lazy',
+        requiresSystemDataStream: true,
+      };
+
+      await esClient.indices
+        .deleteDataStream({ name: privilegedStream.name })
+        .catch(() => undefined);
+      await esClient.indices
+        .deleteIndexTemplate({ name: privilegedStream.name })
+        .catch(() => undefined);
+
+      await expect(
+        initialize({
+          logger,
+          elasticsearchClient: esClient,
+          dataStream: privilegedStream,
+          lazyCreation: true,
+        })
+      ).rejects.toThrow(/cannot defer creation \(lazyCreation\)/);
+
+      await expect(
+        esClient.indices.getDataStream({ name: privilegedStream.name })
+      ).rejects.toThrow();
+      await expect(
+        esClient.indices.getIndexTemplate({ name: privilegedStream.name })
+      ).rejects.toThrow();
+    });
+
+    it('warns and continues on a later initialize after a non-system stream was created', async () => {
+      const esClient = esServer.getClient();
+      const privilegedStream: DataStreamDefinition<typeof myTestDocMappings, MyTestDoc> = {
+        ...testDataStream,
+        name: 'test-requires-system-deferred',
+        requiresSystemDataStream: true,
+      };
+      const nonSystemCreate: DataStreamDefinition<typeof myTestDocMappings, MyTestDoc> = {
+        ...privilegedStream,
+        requiresSystemDataStream: false,
+      };
+
+      await esClient.indices
+        .deleteDataStream({ name: privilegedStream.name })
+        .catch(() => undefined);
+      await esClient.indices
+        .deleteIndexTemplate({ name: privilegedStream.name })
+        .catch(() => undefined);
+
+      // Simulate first write / non-privileged create leaving a non-system stream.
+      await initialize({
+        logger,
+        elasticsearchClient: esClient,
+        dataStream: nonSystemCreate,
+        lazyCreation: false,
+      });
+
       const {
         data_streams: [created],
       } = await esClient.indices.getDataStream({ name: privilegedStream.name });
-      expect(created.hidden).toBe(true);
       expect(created.system).not.toBe(true);
 
-      await esClient.indices.deleteDataStream({ name: privilegedStream.name }).catch(() => undefined);
+      // Later privileged initialize must not crash boot or delete the leftover stream.
+      await expect(
+        initialize({
+          logger,
+          elasticsearchClient: esClient,
+          dataStream: privilegedStream,
+          lazyCreation: false,
+        })
+      ).resolves.toEqual({ dataStreamReady: true });
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringMatching(/system: false/));
+
+      const {
+        data_streams: [stillPresent],
+      } = await esClient.indices.getDataStream({ name: privilegedStream.name });
+      expect(stillPresent.name).toBe(privilegedStream.name);
+
+      await esClient.indices
+        .deleteDataStream({ name: privilegedStream.name })
+        .catch(() => undefined);
       await esClient.indices
         .deleteIndexTemplate({ name: privilegedStream.name })
         .catch(() => undefined);

@@ -13,48 +13,78 @@ import type { AnyDataStreamDefinition } from '../types';
 import { getExistingDataStream } from './exists_checks';
 
 /**
- * Fail closed when a definition requires a system data stream (the default) but Elasticsearch
- * has created it as a non-system stream (`system` !== true).
- *
- * Hidden is not sufficient for privilege hardening; only a SystemDataStreamDescriptor makes
- * ES treat the stream as system. Opt out with `requiresSystemDataStream: false`.
- *
- * When the stream does not exist yet (lazy creation), verification is skipped.
+ * Thrown when fail-closed assert finds `system` !== true (used to scope rollback).
+ * Transient GET failures must not use this type.
+ */
+export class SystemDataStreamAssertError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SystemDataStreamAssertError';
+    Object.setPrototypeOf(this, SystemDataStreamAssertError.prototype);
+  }
+}
+
+const DEFERRED_SETUP_TIP: Record<'lazyCreation' | 'initializeTemplate', string> = {
+  lazyCreation: 'Use lazyCreation: false so create and assert share one boot path.',
+  initializeTemplate:
+    'Use DataStreamClient.initialize({ lazyCreation: false }) (or core initializeClient) instead.',
+};
+
+/**
+ * Throws when a privileged stream would defer create+assert (lazy / template-only).
+ */
+export function rejectDeferredPrivilegedSetup(
+  dataStream: AnyDataStreamDefinition,
+  reason: 'lazyCreation' | 'initializeTemplate'
+): void {
+  if (!dataStream.requiresSystemDataStream) {
+    return;
+  }
+
+  throw new Error(
+    `Data stream "${dataStream.name}" requires a system data stream and cannot defer creation (${reason}). ` +
+      DEFERRED_SETUP_TIP[reason]
+  );
+}
+
+/**
+ * Re-reads GET _data_stream and checks `system: true` when requiresSystemDataStream.
+ * @param failClosed - throw (create-this-call); otherwise warn and continue (pre-existing).
  */
 export async function assertSystemDataStream({
   logger,
   dataStream,
   elasticsearchClient,
+  failClosed,
 }: {
   logger: Logger;
   dataStream: AnyDataStreamDefinition;
   elasticsearchClient: ElasticsearchClient;
+  failClosed: boolean;
 }): Promise<void> {
-  // Default is true: only an explicit false opts out.
-  if (dataStream.requiresSystemDataStream === false) {
+  if (!dataStream.requiresSystemDataStream) {
     return;
   }
 
-  const existing = await getExistingDataStream(elasticsearchClient, dataStream.name, logger);
+  const resolved = await getExistingDataStream(elasticsearchClient, dataStream.name, logger);
 
-  if (!existing) {
-    logger.debug(
-      `Skipping system data stream verification for "${dataStream.name}": data stream does not exist yet.`
-    );
+  if (!resolved) {
     return;
   }
 
-  if (existing.system !== true) {
-    throw new Error(
-      `Data stream "${dataStream.name}" requires a system data stream (requiresSystemDataStream defaults to true), ` +
-        `but Elasticsearch reports system: ${String(existing.system)}. ` +
-        `Hidden data streams are not privilege-hardened. Register a SystemDataStreamDescriptor for this name in ` +
-        `Elasticsearch (e.g. KibanaPlugin), or set requiresSystemDataStream: false if this stream is intentionally ` +
-        `non-system. See https://github.com/elastic/security-team/issues/18291`
-    );
+  if (resolved.system === true) {
+    return;
   }
 
-  logger.debug(
-    `Verified data stream "${dataStream.name}" is registered as a system data stream (system: true).`
-  );
+  const message =
+    `Data stream "${dataStream.name}" requires system: true (requiresSystemDataStream), ` +
+    `but Elasticsearch reports system: ${String(resolved.system)}. ` +
+    `Register a SystemDataStreamDescriptor in Elasticsearch, or set requiresSystemDataStream: false. ` +
+    `See https://github.com/elastic/security-team/issues/18291`;
+
+  if (failClosed) {
+    throw new SystemDataStreamAssertError(message);
+  }
+
+  logger.warn(`${message} Stream already existed; continuing. Recreate after ES registration.`);
 }

@@ -32,8 +32,8 @@ export type { SignificantEvent };
 export const eventsDataStream: DataStreamDefinition<typeof eventsMappings, StoredEvent> = {
   name: EVENTS_DATA_STREAM,
   version: 6,
-  hidden: true,
   requiresSystemDataStream: false,
+  hidden: true,
   template: {
     priority: 500,
     mappings: eventsMappings,

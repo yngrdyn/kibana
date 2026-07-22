@@ -166,8 +166,8 @@ export const knowledgeIndicatorsDataStream: DataStreamDefinition<
 > = {
   name: KNOWLEDGE_INDICATORS_DATA_STREAM,
   version: 2,
-  hidden: true,
   requiresSystemDataStream: false,
+  hidden: true,
   template: {
     priority: 500,
     lifecycle: { data_retention: '90d' },

@@ -34,8 +34,8 @@ export const detectionsDataStream: DataStreamDefinition<
 > = {
   name: DETECTIONS_DATA_STREAM,
   version: 7,
-  hidden: true,
   requiresSystemDataStream: false,
+  hidden: true,
   template: {
     priority: 500,
     lifecycle: { data_retention: '90d' },

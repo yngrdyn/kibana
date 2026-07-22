@@ -175,6 +175,8 @@ If a future consumer needs to filter or sort on any of these, add them back to t
 
 `.kibana_change_history` is enrolled in data stream lifecycle with `enabled: true` and no `data_retention`. Change history documents are kept indefinitely by default.
 
+Initialization sets `requiresSystemDataStream: true` and uses `lazyCreation: false`. Create-this-call fails closed unless Elasticsearch reports `system: true` (and rolls back a non-system stream). A pre-existing non-system stream warns and continues so leftover env state does not block boot.
+
 Cluster admins can add retention later via **Stack Management → Index Management → Data Streams** on both stateful and serverless deployments.
 
 ### Dependencies

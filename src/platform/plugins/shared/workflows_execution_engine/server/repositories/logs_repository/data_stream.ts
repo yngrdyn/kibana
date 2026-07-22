@@ -18,7 +18,7 @@ export const initializeLogsRepositoryDataStream = (coreDataStreams: DataStreamsS
   return coreDataStreams.registerDataStream({
     name: WORKFLOWS_EXECUTION_LOGS_DATA_STREAM,
     version: 3,
-    // Registered as SystemDataStreamDescriptor in Elasticsearch (see elastic/elasticsearch#145822).
+    requiresSystemDataStream: true,
     template: {
       mappings: logsRepositoryMappings,
     },

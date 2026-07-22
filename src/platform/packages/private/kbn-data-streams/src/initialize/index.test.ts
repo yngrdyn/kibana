@@ -7,15 +7,6 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-/*
- * Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
- * or more contributor license agreements. Licensed under the "Elastic License
- * 2.0", the "GNU Affero General Public License v3.0 only", and the "Server Side
- * Public License v 1"; you may not use this file except in compliance with, at
- * your election, the "Elastic License 2.0", the "GNU Affero General Public
- * License v3.0 only", or the "Server Side Public License v 1".
- */
-
 import type { Logger } from '@kbn/logging';
 import { loggingSystemMock } from '@kbn/core-logging-server-mocks';
 import { elasticsearchClientMock } from '@kbn/core-elasticsearch-client-server-mocks';
@@ -657,34 +648,81 @@ describe('initialize - versioning logic', () => {
   });
 
   describe('requiresSystemDataStream', () => {
-    it('throws after create when Elasticsearch reports system: false (default)', async () => {
+    const notFoundError = () =>
+      new EsErrors.ResponseError({
+        statusCode: 404,
+        body: { error: { type: 'resource_not_found_exception' } },
+        warnings: [],
+        headers: {},
+        meta: {} as never,
+      });
+
+    it('throws after create when Elasticsearch reports system: false and rolls back stream + template', async () => {
       const dataStream = {
         ...createTestDataStream(1),
-        requiresSystemDataStream: undefined,
+        requiresSystemDataStream: true,
       };
 
       (elasticsearchClient.indices.getIndexTemplate as jest.Mock).mockRejectedValueOnce(
-        new EsErrors.ResponseError({
-          statusCode: 404,
-          body: { error: { type: 'resource_not_found_exception' } },
-          warnings: [],
-          headers: {},
-          meta: {} as never,
-        })
+        notFoundError()
       );
       (elasticsearchClient.indices.getDataStream as jest.Mock)
+        // pre-create lookup
+        .mockRejectedValueOnce(notFoundError())
+        // assert after create
+        .mockResolvedValueOnce({
+          data_streams: [{ name: dataStream.name, system: false, hidden: true }],
+        });
+      (elasticsearchClient.indices.putIndexTemplate as jest.Mock).mockResolvedValueOnce({
+        acknowledged: true,
+      });
+      (elasticsearchClient.indices.createDataStream as jest.Mock).mockResolvedValueOnce({
+        acknowledged: true,
+      });
+      (elasticsearchClient.indices.deleteDataStream as jest.Mock).mockResolvedValueOnce({
+        acknowledged: true,
+      });
+      (elasticsearchClient.indices.deleteIndexTemplate as jest.Mock).mockResolvedValueOnce({
+        acknowledged: true,
+      });
+
+      await expect(
+        initialize({
+          logger,
+          elasticsearchClient,
+          dataStream,
+          lazyCreation: false,
+        })
+      ).rejects.toThrow(/system: false/);
+
+      expect(elasticsearchClient.indices.deleteDataStream).toHaveBeenCalledWith({
+        name: dataStream.name,
+      });
+      expect(elasticsearchClient.indices.deleteIndexTemplate).toHaveBeenCalledWith({
+        name: dataStream.name,
+      });
+    });
+
+    it('does not roll back when post-create GET _data_stream fails with a transient error', async () => {
+      const dataStream = {
+        ...createTestDataStream(1),
+        requiresSystemDataStream: true,
+      };
+
+      (elasticsearchClient.indices.getIndexTemplate as jest.Mock).mockRejectedValueOnce(
+        notFoundError()
+      );
+      (elasticsearchClient.indices.getDataStream as jest.Mock)
+        .mockRejectedValueOnce(notFoundError())
         .mockRejectedValueOnce(
           new EsErrors.ResponseError({
-            statusCode: 404,
-            body: { error: { type: 'resource_not_found_exception' } },
+            statusCode: 500,
+            body: { error: { type: 'internal_server_error' } },
             warnings: [],
             headers: {},
             meta: {} as never,
           })
-        )
-        .mockResolvedValueOnce({
-          data_streams: [{ name: dataStream.name, system: false, hidden: true }],
-        });
+        );
       (elasticsearchClient.indices.putIndexTemplate as jest.Mock).mockResolvedValueOnce({
         acknowledged: true,
       });
@@ -699,7 +737,10 @@ describe('initialize - versioning logic', () => {
           dataStream,
           lazyCreation: false,
         })
-      ).rejects.toThrow(/system: false/);
+      ).rejects.toMatchObject({ statusCode: 500 });
+
+      expect(elasticsearchClient.indices.deleteDataStream).not.toHaveBeenCalled();
+      expect(elasticsearchClient.indices.deleteIndexTemplate).not.toHaveBeenCalled();
     });
 
     it('succeeds when Elasticsearch reports system: true', async () => {
@@ -709,24 +750,10 @@ describe('initialize - versioning logic', () => {
       };
 
       (elasticsearchClient.indices.getIndexTemplate as jest.Mock).mockRejectedValueOnce(
-        new EsErrors.ResponseError({
-          statusCode: 404,
-          body: { error: { type: 'resource_not_found_exception' } },
-          warnings: [],
-          headers: {},
-          meta: {} as never,
-        })
+        notFoundError()
       );
       (elasticsearchClient.indices.getDataStream as jest.Mock)
-        .mockRejectedValueOnce(
-          new EsErrors.ResponseError({
-            statusCode: 404,
-            body: { error: { type: 'resource_not_found_exception' } },
-            warnings: [],
-            headers: {},
-            meta: {} as never,
-          })
-        )
+        .mockRejectedValueOnce(notFoundError())
         .mockResolvedValueOnce({
           data_streams: [{ name: dataStream.name, system: true, hidden: true }],
         });
@@ -745,6 +772,76 @@ describe('initialize - versioning logic', () => {
           lazyCreation: false,
         })
       ).resolves.toEqual({ dataStreamReady: true });
+
+      expect(elasticsearchClient.indices.deleteDataStream).not.toHaveBeenCalled();
+    });
+
+    it('rejects privileged lazyCreation when the stream does not exist yet', async () => {
+      const dataStream = {
+        ...createTestDataStream(1),
+        requiresSystemDataStream: true,
+      };
+
+      (elasticsearchClient.indices.getIndexTemplate as jest.Mock).mockRejectedValueOnce(
+        notFoundError()
+      );
+      (elasticsearchClient.indices.getDataStream as jest.Mock).mockRejectedValueOnce(
+        notFoundError()
+      );
+
+      await expect(
+        initialize({
+          logger,
+          elasticsearchClient,
+          dataStream,
+          lazyCreation: true,
+        })
+      ).rejects.toThrow(/cannot defer creation \(lazyCreation\)/);
+
+      expect(elasticsearchClient.indices.putIndexTemplate).not.toHaveBeenCalled();
+      expect(elasticsearchClient.indices.createDataStream).not.toHaveBeenCalled();
+      expect(elasticsearchClient.indices.deleteDataStream).not.toHaveBeenCalled();
+    });
+
+    it('warns and continues for a pre-existing non-system stream (no rollback, no throw)', async () => {
+      const dataStream = {
+        ...createTestDataStream(1),
+        requiresSystemDataStream: true,
+      };
+
+      (elasticsearchClient.indices.getIndexTemplate as jest.Mock).mockResolvedValueOnce({
+        index_templates: [
+          {
+            name: dataStream.name,
+            index_template: {
+              index_patterns: [dataStream.name],
+              data_stream: {},
+              _meta: { managed: true, userAgent: '@kbn/data-streams', version: 1 },
+              template: { mappings: { properties: {} } },
+            },
+          },
+        ],
+      });
+      const existingNonSystem = {
+        data_streams: [{ name: dataStream.name, system: false, hidden: true }],
+      };
+      (elasticsearchClient.indices.getDataStream as jest.Mock)
+        // pre-create lookup
+        .mockResolvedValueOnce(existingNonSystem)
+        // assert re-GET
+        .mockResolvedValueOnce(existingNonSystem);
+
+      await expect(
+        initialize({
+          logger,
+          elasticsearchClient,
+          dataStream,
+          lazyCreation: false,
+        })
+      ).resolves.toEqual({ dataStreamReady: true });
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringMatching(/system: false/));
+      expect(elasticsearchClient.indices.deleteDataStream).not.toHaveBeenCalled();
     });
   });
 });

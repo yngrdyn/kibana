@@ -31,8 +31,8 @@ export class DatastreamInitializer implements IResourceInitializer {
     const dataStreamDefinition: DataStreamDefinition<typeof this.resourceDefinition.mappings> = {
       name: this.resourceDefinition.dataStreamName,
       hidden: true,
-      requiresSystemDataStream: false,
       version: this.resourceDefinition.version,
+      requiresSystemDataStream: false,
       template: {
         aliases: {},
         priority: INDEX_TEMPLATE_PRIORITY,

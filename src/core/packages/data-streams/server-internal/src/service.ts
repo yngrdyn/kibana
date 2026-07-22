@@ -94,8 +94,11 @@ export class DataStreamsService implements CoreService<DataStreamsSetup, DataStr
 
     const allDataStreamNames = Array.from(this.dataStreamDefinitions.keys());
     for (const dataStreamName of allDataStreamNames) {
+      const definition = this.dataStreamDefinitions.get(dataStreamName);
+      // Privileged streams create+assert on startup; others only install the template.
+      const eagerCreation = Boolean(definition?.requiresSystemDataStream);
       setupPromises.push(
-        limit(() => this.initializeDataStream(dataStreamName, elasticsearchClient, true))
+        limit(() => this.initializeDataStream(dataStreamName, elasticsearchClient, !eagerCreation))
       );
     }
 

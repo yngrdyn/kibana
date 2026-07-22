@@ -25,7 +25,10 @@ import { initialize } from './initialize';
 import { initializeIndexTemplate } from './initialize/index_template';
 import { initializeDataStream } from './initialize/data_stream';
 import { getExistingDataStream, getExistingIndexTemplate } from './initialize/exists_checks';
-import { assertSystemDataStream } from './initialize/assert_system_data_stream';
+import {
+  assertSystemDataStream,
+  rejectDeferredPrivilegedSetup,
+} from './initialize/assert_system_data_stream';
 import { validateClientArgs } from './validate_client_args';
 import {
   generateSpacePrefixedId,
@@ -91,6 +94,10 @@ export class DataStreamClient<
    * mapping changes are applied to the current write index — same contract as
    * {@link DataStreamClient.initialize}, minus the data stream creation step.
    *
+   * Not valid for privileged streams (`requiresSystemDataStream: true`) when the data stream
+   * does not exist yet — call {@link DataStreamClient.initialize} with `lazyCreation: false`
+   * instead so create and system assert share one boot path.
+   *
    * Use {@link DataStreamClient.fromDefinition} to obtain a client at runtime.
    *
    * @remark Idempotent: subsequent calls with the same definition are no-ops; calls with a higher
@@ -114,6 +121,10 @@ export class DataStreamClient<
       getExistingIndexTemplate(elasticsearchClient, dataStream.name, logger),
     ]);
 
+    if (!existingDataStream) {
+      rejectDeferredPrivilegedSetup(dataStream, 'initializeTemplate');
+    }
+
     await initializeIndexTemplate({
       logger,
       dataStream,
@@ -135,11 +146,12 @@ export class DataStreamClient<
       skipCreation: true,
     });
 
-    // Template-only setup cannot create a system stream; if one already exists, verify it
-    // (requiresSystemDataStream defaults to true; explicit false opts out).
-    if (dataStream.requiresSystemDataStream !== false && existingDataStream) {
-      await assertSystemDataStream({ logger, dataStream, elasticsearchClient });
-    }
+    await assertSystemDataStream({
+      logger,
+      dataStream,
+      elasticsearchClient,
+      failClosed: false,
+    });
   }
 
   /**

@@ -111,6 +111,7 @@ export class ChangeHistoryClient implements IChangeHistoryClient {
         name: DATA_STREAM_NAME,
         version: 3,
         hidden: true,
+        requiresSystemDataStream: true,
         template: {
           priority: 100,
           mappings: changeHistoryMappings.v1,

@@ -14,7 +14,7 @@ import type { ElasticsearchClient } from '@kbn/core-elasticsearch-server';
 import { errors as EsErrors } from '@elastic/elasticsearch';
 import { mappings, type MappingsDefinition } from '@kbn/es-mappings';
 import type { DataStreamDefinition } from '../types';
-import { assertSystemDataStream } from './assert_system_data_stream';
+import { assertSystemDataStream, SystemDataStreamAssertError } from './assert_system_data_stream';
 
 describe('assertSystemDataStream', () => {
   let logger: Logger;
@@ -31,6 +31,7 @@ describe('assertSystemDataStream', () => {
   ): DataStreamDefinition<typeof testMappings> => ({
     name: '.kibana_change_history',
     version: 1,
+    requiresSystemDataStream: true,
     template: { mappings: testMappings },
     ...overrides,
   });
@@ -53,17 +54,18 @@ describe('assertSystemDataStream', () => {
     jest.clearAllMocks();
   });
 
-  it('is a no-op when requiresSystemDataStream is explicitly false', async () => {
+  it('is a no-op when requiresSystemDataStream is false', async () => {
     await assertSystemDataStream({
       logger,
       elasticsearchClient,
       dataStream: createDefinition({ requiresSystemDataStream: false }),
+      failClosed: true,
     });
 
     expect(elasticsearchClient.indices.getDataStream).not.toHaveBeenCalled();
   });
 
-  it('skips verification when the data stream does not exist yet (lazy creation)', async () => {
+  it('skips verification when the data stream does not exist yet', async () => {
     (elasticsearchClient.indices.getDataStream as jest.Mock).mockRejectedValue(notFoundError());
 
     await expect(
@@ -71,11 +73,12 @@ describe('assertSystemDataStream', () => {
         logger,
         elasticsearchClient,
         dataStream: createDefinition(),
+        failClosed: true,
       })
     ).resolves.toBeUndefined();
   });
 
-  it('succeeds when Elasticsearch reports system: true (default requires system)', async () => {
+  it('succeeds when Elasticsearch reports system: true', async () => {
     (elasticsearchClient.indices.getDataStream as jest.Mock).mockResolvedValue({
       data_streams: [{ name: '.kibana_change_history', system: true, hidden: true }],
     });
@@ -85,11 +88,12 @@ describe('assertSystemDataStream', () => {
         logger,
         elasticsearchClient,
         dataStream: createDefinition(),
+        failClosed: true,
       })
     ).resolves.toBeUndefined();
   });
 
-  it('throws when Elasticsearch reports system: false', async () => {
+  it('throws when failClosed and Elasticsearch reports system: false', async () => {
     (elasticsearchClient.indices.getDataStream as jest.Mock).mockResolvedValue({
       data_streams: [{ name: '.kibana_change_history', system: false, hidden: true }],
     });
@@ -99,11 +103,12 @@ describe('assertSystemDataStream', () => {
         logger,
         elasticsearchClient,
         dataStream: createDefinition(),
+        failClosed: true,
       })
-    ).rejects.toThrow(/system: false/);
+    ).rejects.toBeInstanceOf(SystemDataStreamAssertError);
   });
 
-  it('throws when Elasticsearch omits the system flag', async () => {
+  it('throws when failClosed and Elasticsearch omits the system flag', async () => {
     (elasticsearchClient.indices.getDataStream as jest.Mock).mockResolvedValue({
       data_streams: [{ name: '.kibana_change_history', hidden: true }],
     });
@@ -112,8 +117,26 @@ describe('assertSystemDataStream', () => {
       assertSystemDataStream({
         logger,
         elasticsearchClient,
-        dataStream: createDefinition({ requiresSystemDataStream: true }),
+        dataStream: createDefinition(),
+        failClosed: true,
       })
-    ).rejects.toThrow(/system: undefined/);
+    ).rejects.toBeInstanceOf(SystemDataStreamAssertError);
+  });
+
+  it('warns and continues when not failClosed and Elasticsearch reports system: false', async () => {
+    (elasticsearchClient.indices.getDataStream as jest.Mock).mockResolvedValue({
+      data_streams: [{ name: '.kibana_change_history', system: false, hidden: true }],
+    });
+
+    await expect(
+      assertSystemDataStream({
+        logger,
+        elasticsearchClient,
+        dataStream: createDefinition(),
+        failClosed: false,
+      })
+    ).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringMatching(/system: false/));
   });
 });
