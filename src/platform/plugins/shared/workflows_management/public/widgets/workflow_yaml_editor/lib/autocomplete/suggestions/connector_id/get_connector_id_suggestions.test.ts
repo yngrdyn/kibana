@@ -123,7 +123,12 @@ describe('getConnectorIdSuggestions', () => {
       },
     } as unknown as AutocompleteContext);
 
-    expect(result.map((item) => item.insertText)).toContain('testyng');
-    expect(result[0].label).toContain('testyng');
+    expect(result.map((item) => item.insertText)).toEqual(expect.arrayContaining(['*', 'testyng']));
+    expect(result.find((item) => item.insertText === '*')).toEqual(
+      expect.objectContaining({
+        label: 'All connectors of this type',
+        documentation: 'Starts the workflow for events from every connector instance of this type.',
+      })
+    );
   });
 });

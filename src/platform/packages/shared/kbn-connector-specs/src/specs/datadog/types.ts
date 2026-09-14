@@ -32,6 +32,10 @@ export const DATADOG_SITES = [
 
 export type DatadogSite = (typeof DATADOG_SITES)[number];
 
+export const DatadogReceivedEventSchema = z.object({
+  body: z.unknown().describe('Raw Datadog webhook JSON body.'),
+});
+
 /** Maps Datadog site parameter to the regional API base URL. */
 export const DATADOG_SITE_API_URLS: Record<DatadogSite, string> = {
   'datadoghq.com': 'https://api.datadoghq.com',

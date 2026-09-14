@@ -61,6 +61,9 @@ export const WORKFLOWS_ERROR_PANEL_AI_DIAGNOSE_SETTING_ID =
  */
 export const CONNECTOR_ID_MAX_LENGTH = 512;
 
+/** Explicit trigger binding for every connector instance of the same connector event type. */
+export const ALL_CONNECTOR_IDS = '*';
+
 /**
  * Upper bound on a KQL condition (step `if` and trigger `on.condition`).
  * The parser recurses, so nesting depth has to stay well inside the stack limit.

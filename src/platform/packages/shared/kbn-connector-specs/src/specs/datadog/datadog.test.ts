@@ -7,8 +7,18 @@
  * License v3.0 only", or the "Server Side Public License, v 1".
  */
 
-import type { ActionContext } from '../../connector_spec';
+import { loggerMock } from '@kbn/logging-mocks';
 import { getConnectorSpec } from '../../..';
+import type { ActionContext } from '../../connector_spec';
+import type { ConnectorIngressContext, HandleEventsResult } from '../../connector_spec_events';
+import { buildEventId } from '../../event_type_id';
+import { SPECS_ALLOWED_EVENTS } from '../../specs_allowed_events';
+import { validateEmittedEvents } from '../../validate_emitted_events';
+import {
+  DATADOG_CONNECTOR_TYPE_ID,
+  DATADOG_RECEIVED_EVENT_ID,
+  DATADOG_RECEIVED_EVENT_KEY,
+} from './constants';
 import { Datadog } from './datadog';
 import { UpdateIncidentInputSchema } from './types';
 
@@ -68,6 +78,60 @@ describe('Datadog', () => {
 
   it('should keep test.enabled true', () => {
     expect(Datadog.test?.enabled).toBe(true);
+  });
+
+  describe('inbound events', () => {
+    const { events } = Datadog;
+    if (events === undefined) {
+      throw new Error('Datadog must declare events');
+    }
+
+    const createContext = (rawBody: unknown): ConnectorIngressContext => ({
+      spaceId: 'default',
+      log: loggerMock.create(),
+      connectorId: 'datadog-connector',
+      connectorTypeId: DATADOG_CONNECTOR_TYPE_ID,
+      config: { site: 'datadoghq.com' },
+      rawBody,
+    });
+
+    const expectEmit = (result: HandleEventsResult) => {
+      expect(result.type).toBe('emit');
+      if (result.type !== 'emit') {
+        throw new Error('expected emit');
+      }
+      return result;
+    };
+
+    it('is allowlisted and uses the connector event id convention', () => {
+      expect(SPECS_ALLOWED_EVENTS.has(DATADOG_CONNECTOR_TYPE_ID)).toBe(true);
+      expect(DATADOG_RECEIVED_EVENT_ID).toBe(
+        buildEventId(DATADOG_CONNECTOR_TYPE_ID, DATADOG_RECEIVED_EVENT_KEY)
+      );
+      expect(DATADOG_RECEIVED_EVENT_ID).toBe('datadog.received');
+    });
+
+    it('emits the raw webhook body with a correlation key', async () => {
+      const rawBody = { alert_id: '123', alert_transition: 'Triggered' };
+      const result = expectEmit(await events.handleEvents(createContext(rawBody)));
+
+      expect(result.events).toEqual([
+        {
+          eventId: DATADOG_RECEIVED_EVENT_ID,
+          correlationKey: expect.any(String),
+          payload: { body: rawBody },
+        },
+      ]);
+      expect(validateEmittedEvents(events.definitions, result.events)).toEqual({ ok: true });
+    });
+
+    it('assigns a distinct correlation key to each request', async () => {
+      const context = createContext({ alert_id: '123' });
+      const first = expectEmit(await events.handleEvents(context));
+      const second = expectEmit(await events.handleEvents(context));
+
+      expect(first.events[0].correlationKey).not.toBe(second.events[0].correlationKey);
+    });
   });
 
   describe('auth headers', () => {
