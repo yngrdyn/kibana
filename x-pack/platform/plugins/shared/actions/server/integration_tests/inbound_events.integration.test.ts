@@ -21,6 +21,59 @@ interface ConnectorHttpBody {
   secrets?: { ingest_token?: string };
 }
 
+interface WorkflowHttpBody {
+  id: string;
+  valid: boolean;
+}
+
+interface WorkflowExecutionsHttpBody {
+  results: Array<{ id: string; status?: string }>;
+  total: number;
+}
+
+const inboundWorkflowYaml = (connectorId: string, name: string): string => `
+name: ${name}
+enabled: true
+triggers:
+  - type: inboundWebhook.received
+    connector-id: ${connectorId}
+steps:
+  - name: log_it
+    type: console
+    with:
+      message: "got {{ event.body.orderId }}"
+`;
+
+const pollUntil = async <T>(
+  action: () => Promise<T>,
+  condition: (value: T) => boolean,
+  {
+    timeout = 45_000,
+    interval = 1_000,
+    errorMessage,
+  }: {
+    timeout?: number;
+    interval?: number;
+    errorMessage?: (last: T) => string;
+  } = {}
+): Promise<T> => {
+  const start = Date.now();
+  let last = await action();
+  if (condition(last)) {
+    return last;
+  }
+
+  while (Date.now() - start < timeout) {
+    await new Promise((resolve) => setTimeout(resolve, interval));
+    last = await action();
+    if (condition(last)) {
+      return last;
+    }
+  }
+
+  throw new Error(errorMessage ? errorMessage(last) : `condition not met within ${timeout}ms`);
+};
+
 describe('Inbound events HTTP API', () => {
   let esServer: TestElasticsearchUtils;
   let kibanaServer: TestKibanaUtils;
@@ -152,5 +205,119 @@ describe('Inbound events HTTP API', () => {
 
     await postHub(created.id, ingestToken!).expect(404);
     await postHub(created.id, newToken!).expect(202, { ok: true });
+  });
+
+  const createInboundWebhook = async (name: string) => {
+    const createRes = await getSupertest(kibanaServer.root, 'post', '/api/actions/connector')
+      .set('kbn-xsrf', 'kibana')
+      .send({
+        name,
+        connector_type_id: INBOUND_WEBHOOK_CONNECTOR_TYPE_ID,
+        config: {},
+        secrets: { authType: 'none' },
+      })
+      .expect((res: { status: number; body: unknown }) => {
+        if (res.status !== 200) {
+          throw new Error(`create connector failed ${res.status}: ${JSON.stringify(res.body)}`);
+        }
+      });
+
+    const created = createRes.body as ConnectorHttpBody;
+    const mintRes = await getSupertest(
+      kibanaServer.root,
+      'post',
+      `${INTERNAL_BASE_ACTION_API_PATH}/connector/${created.id}/_rotate_event_token`
+    )
+      .set('kbn-xsrf', 'kibana')
+      .set('x-elastic-internal-origin', 'kibana')
+      .expect((res: { status: number; body: unknown }) => {
+        if (res.status !== 200) {
+          throw new Error(`mint ingress failed ${res.status}: ${JSON.stringify(res.body)}`);
+        }
+      });
+
+    const ingestToken = (mintRes.body as { ingest_token?: string }).ingest_token;
+    if (typeof ingestToken !== 'string' || ingestToken.length === 0) {
+      throw new Error('rotate did not return an ingest token');
+    }
+
+    return { id: created.id, ingestToken };
+  };
+
+  const createWorkflow = async (yaml: string): Promise<WorkflowHttpBody> => {
+    const createRes = await getSupertest(kibanaServer.root, 'post', '/api/workflows/workflow')
+      .set('kbn-xsrf', 'kibana')
+      .send({ yaml })
+      .expect((res: { status: number; body: unknown }) => {
+        if (res.status !== 200) {
+          throw new Error(`create workflow failed ${res.status}: ${JSON.stringify(res.body)}`);
+        }
+      });
+
+    const created = createRes.body as WorkflowHttpBody;
+    if (!created.valid) {
+      throw new Error(`workflow was saved invalid: ${JSON.stringify(createRes.body)}`);
+    }
+    return created;
+  };
+
+  const getExecutions = async (workflowId: string): Promise<WorkflowExecutionsHttpBody> => {
+    const res = await getSupertest(
+      kibanaServer.root,
+      'get',
+      `/api/workflows/workflow/${workflowId}/executions?size=20&page=1`
+    )
+      .set('kbn-xsrf', 'kibana')
+      .expect((next: { status: number; body: unknown }) => {
+        if (next.status !== 200) {
+          throw new Error(`list executions failed ${next.status}: ${JSON.stringify(next.body)}`);
+        }
+      });
+    return res.body as WorkflowExecutionsHttpBody;
+  };
+
+  it('creates a workflow execution when a hub POST matches the workflow connector-id', async () => {
+    const connector = await createInboundWebhook('inbound-e2e');
+    const workflow = await createWorkflow(inboundWorkflowYaml(connector.id, 'Inbound webhook IT'));
+
+    await postHub(connector.id, connector.ingestToken, { orderId: 'ord-42' }).expect(202, {
+      ok: true,
+    });
+
+    const executions = await pollUntil(
+      () => getExecutions(workflow.id),
+      (next) => next.total >= 1,
+      {
+        errorMessage: (next) => `Expected >= 1 execution for matching workflow, got ${next.total}`,
+      }
+    );
+    expect(executions.total).toBeGreaterThanOrEqual(1);
+    expect(executions.results[0]?.id).toEqual(expect.any(String));
+  });
+
+  it('does not execute a workflow bound to a different connector-id', async () => {
+    const connector = await createInboundWebhook('inbound-mismatch');
+    const otherConnector = await createInboundWebhook('inbound-other');
+    const matching = await createWorkflow(
+      inboundWorkflowYaml(connector.id, 'Inbound webhook matching IT')
+    );
+    const other = await createWorkflow(
+      inboundWorkflowYaml(otherConnector.id, 'Inbound webhook mismatch IT')
+    );
+
+    await postHub(connector.id, connector.ingestToken, { orderId: 'ord-99' }).expect(202, {
+      ok: true,
+    });
+
+    await pollUntil(
+      () => getExecutions(matching.id),
+      (next) => next.total >= 1,
+      {
+        errorMessage: (next) => `Expected matching workflow to run, got ${next.total} executions`,
+      }
+    );
+
+    const otherExecutions = await getExecutions(other.id);
+    expect(otherExecutions.total).toBe(0);
   });
 });
